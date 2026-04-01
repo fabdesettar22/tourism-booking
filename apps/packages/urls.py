@@ -1,0 +1,10 @@
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .views import TourPackageViewSet
+
+router = DefaultRouter()
+router.register(r'packages', TourPackageViewSet)
+
+urlpatterns = [
+    path('', include(router.urls)),
+]

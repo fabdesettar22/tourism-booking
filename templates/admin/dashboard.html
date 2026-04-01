@@ -1,0 +1,75 @@
+{% extends "admin/base_site.html" %}
+{% block content_main %}
+
+<h2 class="mb-4 fw-bold">لوحة التحكم</h2>
+
+<div class="row g-4 mb-5">
+    <!-- بطاقة 1 -->
+    <div class="col-xl-3 col-md-6">
+        <div class="card stat-card text-white" style="background: linear-gradient(135deg, #fe904c, #f76c3f);">
+            <div class="card-body">
+                <h6>الباقات النشطة</h6>
+                <h2 class="mb-0">24</h2>
+            </div>
+        </div>
+    </div>
+    <!-- بطاقة 2 -->
+    <div class="col-xl-3 col-md-6">
+        <div class="card stat-card text-white" style="background: linear-gradient(135deg, #3b82f6, #1e40af);">
+            <div class="card-body">
+                <h6>حجوزات معلقة</h6>
+                <h2 class="mb-0">9</h2>
+            </div>
+        </div>
+    </div>
+    <!-- بطاقة 3 -->
+    <div class="col-xl-3 col-md-6">
+        <div class="card stat-card text-white" style="background: linear-gradient(135deg, #22c55e, #16a34a);">
+            <div class="card-body">
+                <h6>حجوزات مؤكدة</h6>
+                <h2 class="mb-0">87</h2>
+            </div>
+        </div>
+    </div>
+    <!-- بطاقة 4 -->
+    <div class="col-xl-3 col-md-6">
+        <div class="card stat-card text-white" style="background: linear-gradient(135deg, #ec4899, #db2777);">
+            <div class="card-body">
+                <h6>وكالات نشطة</h6>
+                <h2 class="mb-0">12</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- جدول آخر الحجوزات -->
+<div class="card">
+    <div class="card-header bg-white fw-bold">آخر الحجوزات</div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>رقم الحجز</th>
+                    <th>العميل</th>
+                    <th>الباقة</th>
+                    <th>التاريخ</th>
+                    <th>المبلغ</th>
+                    <th>الحالة</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>#B-8742</td>
+                    <td>أحمد الشهري</td>
+                    <td>ماليزيا الذهبية 7 أيام</td>
+                    <td>31 مارس 2026</td>
+                    <td>2,850 MYR</td>
+                    <td><span class="badge bg-success">مؤكد</span></td>
+                </tr>
+                <!-- يمكن إضافة المزيد من الصفوف -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
