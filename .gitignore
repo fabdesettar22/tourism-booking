@@ -30,3 +30,8 @@ Thumbs.db
 .idea/
 frontend/node_modules/
 frontend/dist/
+
+# Secrets / Credentials — NEVER commit these
+NEW_ADMIN_CREDENTIALS.txt
+*_CREDENTIALS.txt
+*_credentials.txt
