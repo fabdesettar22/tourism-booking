@@ -98,47 +98,7 @@ class BookingViewSet(viewsets.ModelViewSet):
             except Exception as e:
                 logger.error(f"Booking {booking.reference_number}: فشل تثبيت الأسعار — {e}")
 
-        # ── تحديث الحالة (سيُطلق wallet signals تلقائياً) ─────
         booking.status = new_status
-
-        # تجميد Escrow يدوياً قبل الحفظ لضمان وجود total_price
-        if new_status == 'confirmed' and old_status == 'pending' and booking.agency and booking.total_price is not None and booking.total_price > 0:
-            try:
-                from apps.wallet.services import freeze_for_booking, InsufficientBalanceError as WalletError
-                from apps.wallet.models import EscrowEntry
-                if not EscrowEntry.objects.filter(booking=booking, status='frozen').exists():
-                    freeze_for_booking(booking)
-                    logger.info(f"Booking {booking.reference_number}: Escrow تجميد {booking.total_price}")
-            except WalletError as e:
-                logger.error(f"Booking {booking.reference_number}: رصيد غير كافٍ — {e}")
-                return Response(
-                    {'error': f'رصيد المحفظة غير كافٍ: {str(e)}'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            except Exception as e:
-                logger.warning(f"Booking {booking.reference_number}: لم يتم التجميد — {e}")
-
-        # استرداد Escrow عند الإلغاء
-        elif new_status == 'cancelled' and old_status == 'confirmed' and booking.agency:
-            try:
-                from apps.wallet.services import refund_escrow
-                from apps.wallet.models import EscrowEntry
-                if EscrowEntry.objects.filter(booking=booking, status='frozen').exists():
-                    refund_escrow(booking)
-                    logger.info(f"Booking {booking.reference_number}: استرداد Escrow")
-            except Exception as e:
-                logger.warning(f"Booking {booking.reference_number}: فشل الاسترداد — {e}")
-
-        # خصم نهائي عند الإتمام
-        elif new_status == 'completed' and old_status == 'confirmed' and booking.agency:
-            try:
-                from apps.wallet.services import release_escrow
-                from apps.wallet.models import EscrowEntry
-                if EscrowEntry.objects.filter(booking=booking, status='frozen').exists():
-                    release_escrow(booking)
-                    logger.info(f"Booking {booking.reference_number}: خصم نهائي")
-            except Exception as e:
-                logger.warning(f"Booking {booking.reference_number}: فشل الخصم النهائي — {e}")
 
         try:
             booking.save(update_fields=['status', 'total_price'])
@@ -158,27 +118,11 @@ class BookingViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.warning(f"فشل إرسال الإشعار: {e}")
 
-        # ── إرجاع معلومات المحفظة مع الرد ────────────────────
-        wallet_info = None
-        if booking.agency:
-            try:
-                w = booking.agency.wallet
-                w.refresh_from_db()
-                wallet_info = {
-                    'balance':           str(w.balance),
-                    'frozen_balance':    str(w.frozen_balance),
-                    'available_balance': str(w.available_balance),
-                    'currency':          w.currency,
-                }
-            except Exception:
-                pass
-
         booking.refresh_from_db()
         return Response({
             'status':      new_status,
             'message':     'تم تحديث الحالة',
             'total_price': str(booking.total_price) if booking.total_price else None,
-            'wallet':      wallet_info,
         })
 
 

@@ -2,24 +2,40 @@
 
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.utils.crypto import get_random_string
+from django.utils import timezone
+import uuid
 
+
+# ═══════════════════════════════════════════════════════════
+# AGENCY — الوكالات الشريكة
+# ═══════════════════════════════════════════════════════════
 
 class Agency(models.Model):
 
+    # ── Enums ─────────────────────────────────────────────
     CURRENCY_CHOICES = [
         ('MYR', 'Malaysian Ringgit'),
         ('USD', 'US Dollar'),
         ('EUR', 'Euro'),
         ('SAR', 'Saudi Riyal'),
         ('AED', 'UAE Dirham'),
+        ('SGD', 'Singapore Dollar'),
     ]
 
     STATUS_CHOICES = [
-        ('pending',  'معلق للمراجعة'),
-        ('active',   'نشط'),
-        ('rejected', 'مرفوض'),
+        ('pending',   'معلق للمراجعة'),
+        ('active',    'نشط'),
+        ('rejected',  'مرفوض'),
+        ('suspended', 'موقوف'),
     ]
 
+    AGENCY_TYPE_CHOICES = [
+        ('b2b',    'B2B — للوكالات فقط'),
+        ('b2b2c',  'B2B2C — للوكالات والعملاء النهائيين'),
+    ]
+
+    # ── الحقول الأصلية (لا تُلمس) ─────────────────────────
     name             = models.CharField(max_length=200, verbose_name="اسم الوكالة")
     phone            = models.CharField(max_length=20, blank=True, verbose_name="الهاتف")
     email            = models.EmailField(blank=True, verbose_name="البريد الإلكتروني")
@@ -38,12 +54,10 @@ class Agency(models.Model):
     )
     status           = models.CharField(
         max_length=10, choices=STATUS_CHOICES, default='pending',
-        verbose_name="حالة الوكالة"
+        db_index=True, verbose_name="حالة الوكالة"
     )
     is_active        = models.BooleanField(default=False, verbose_name="نشطة")
     rejection_reason = models.TextField(blank=True, verbose_name="سبب الرفض")
-
-    # ── حقول Approval ──────────────────────────────────────────────
     approved_at      = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ القبول")
     approved_by      = models.ForeignKey(
         'User', on_delete=models.SET_NULL,
@@ -51,11 +65,52 @@ class Agency(models.Model):
         related_name='approved_agencies',
         verbose_name="تمت الموافقة بواسطة"
     )
-
     created_at       = models.DateTimeField(auto_now_add=True)
     updated_at       = models.DateTimeField(auto_now=True)
 
-    # ── Properties ─────────────────────────────────────────────────
+    # ── الحقول الجديدة (كلها اختيارية لضمان migration آمن) ─
+    name_en = models.CharField(
+        max_length=200, blank=True,
+        verbose_name="اسم الوكالة (إنجليزي)"
+    )
+    registration_number = models.CharField(
+        max_length=100, blank=True,
+        verbose_name="رقم السجل التجاري"
+    )
+    agency_type = models.CharField(
+        max_length=10, choices=AGENCY_TYPE_CHOICES,
+        default='b2b', verbose_name="نوع الوكالة"
+    )
+    country = models.CharField(max_length=100, blank=True, verbose_name="الدولة")
+    city    = models.CharField(max_length=100, blank=True, verbose_name="المدينة")
+    website = models.URLField(blank=True, verbose_name="الموقع الإلكتروني")
+
+    # جهة الاتصال
+    contact_person_name     = models.CharField(
+        max_length=150, blank=True, verbose_name="اسم المسؤول"
+    )
+    contact_person_position = models.CharField(
+        max_length=100, blank=True, verbose_name="منصب المسؤول"
+    )
+    contact_person_phone    = models.CharField(
+        max_length=20, blank=True, verbose_name="هاتف المسؤول"
+    )
+
+    # الوثائق
+    trade_license = models.FileField(
+        upload_to='agencies/documents/trade/', blank=True, null=True,
+        verbose_name="الرخصة التجارية"
+    )
+    tax_certificate = models.FileField(
+        upload_to='agencies/documents/tax/', blank=True, null=True,
+        verbose_name="الشهادة الضريبية"
+    )
+    owner_id_document = models.FileField(
+        upload_to='agencies/documents/id/', blank=True, null=True,
+        verbose_name="هوية المالك"
+    )
+
+    # ── Properties ────────────────────────────────────────
     @property
     def is_approved(self) -> bool:
         return self.status == 'active'
@@ -74,12 +129,17 @@ class Agency(models.Model):
         ordering            = ['-created_at']
 
 
+# ═══════════════════════════════════════════════════════════
+# USER — نظام المستخدمين
+# ═══════════════════════════════════════════════════════════
+
 class User(AbstractUser):
 
     ROLE_CHOICES = [
         ('super_admin', 'مدير عام'),
         ('admin',       'مشرف'),
         ('agency',      'وكالة شريكة'),
+        ('supplier',    'مورد'),
         ('tourist',     'سائح'),
     ]
 
@@ -108,6 +168,10 @@ class User(AbstractUser):
         return self.role == 'agency'
 
     @property
+    def is_supplier_user(self) -> bool:
+        return self.role == 'supplier'
+
+    @property
     def is_tourist(self) -> bool:
         return self.role == 'tourist'
 
@@ -116,7 +180,7 @@ class User(AbstractUser):
         """للوكالة: هل الوكالة معتمدة؟"""
         if self.agency:
             return self.agency.is_approved
-        return True  # Admin/Tourist دائماً approved
+        return True  # Admin/Tourist/Supplier دائماً approved على مستوى User
 
     @property
     def display_role(self) -> str:
@@ -129,3 +193,49 @@ class User(AbstractUser):
         verbose_name        = "مستخدم"
         verbose_name_plural = "المستخدمون"
         ordering            = ['-date_joined']
+
+
+# ═══════════════════════════════════════════════════════════
+# ACTIVATION TOKEN — رمز تفعيل حساب الوكالة بعد الموافقة
+# ═══════════════════════════════════════════════════════════
+
+class AgencyActivationToken(models.Model):
+    """
+    Token يُنشأ عند موافقة HQ على الوكالة.
+    يُرسَل بالإيميل للوكالة — عند الضغط عليه تضع username + password
+    لتفعيل حسابها وتسجيل الدخول.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    agency = models.OneToOneField(
+        Agency,
+        on_delete=models.CASCADE,
+        related_name='activation_token',
+        verbose_name="الوكالة"
+    )
+    token = models.CharField(
+        max_length=64, unique=True, db_index=True,
+        verbose_name="رمز التفعيل"
+    )
+    is_used    = models.BooleanField(default=False, verbose_name="مُستخدم")
+    used_at    = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(verbose_name="تاريخ الانتهاء")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if not self.token:
+            self.token = get_random_string(64)
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timezone.timedelta(days=7)
+        super().save(*args, **kwargs)
+
+    @property
+    def is_valid(self) -> bool:
+        return (not self.is_used) and (timezone.now() < self.expires_at)
+
+    def __str__(self):
+        return f"Token for {self.agency.name}"
+
+    class Meta:
+        verbose_name        = "رمز تفعيل وكالة"
+        verbose_name_plural = "رموز تفعيل الوكالات"

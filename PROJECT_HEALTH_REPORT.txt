@@ -1,0 +1,647 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║              MYBRIDGE — PROJECT HEALTH REPORT                              ║
+║              Generated: 2026-04-21  |  Auditor: Claude Sonnet 4.6          ║
+║              Stack: Django 6.0.3 + React/TypeScript + Vite                 ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+SUMMARY DASHBOARD
+─────────────────────────────────────────────────────────────────────────────
+  ■ CRITICAL Issues  ............  3
+  ■ HIGH Issues  ................  9
+  ■ MEDIUM Issues  ..............  14
+  ■ LOW / INFO Issues  ..........  11
+  ■ Total Issues  ...............  37
+
+SEVERITY LEGEND
+  [CRITICAL] — Security breach or data loss risk; fix before any deployment
+  [HIGH]     — Functional bug or production failure risk; fix soon
+  [MEDIUM]   — Code quality / correctness; schedule for next sprint
+  [LOW]      — Style / cleanup; address as time permits
+  [OK]       — Explicitly verified as good; listed for completeness
+
+
+══════════════════════════════════════════════════════════════════════════════
+CATEGORY 1 — BACKEND DJANGO HEALTH
+══════════════════════════════════════════════════════════════════════════════
+
+DJANGO CHECK --DEPLOY OUTPUT (6 warnings, 0 errors)
+  W004  SECURE_HSTS_SECONDS not set
+  W008  SECURE_SSL_REDIRECT not True
+  W009  SECRET_KEY prefixed with 'django-insecure-' (insecure default)
+  W012  SESSION_COOKIE_SECURE not True
+  W016  CSRF_COOKIE_SECURE not True
+  W018  DEBUG=True in current environment
+
+INSTALLED_APPS STATUS
+  All 15 project apps verified to exist on disk:
+  apps.accounts ✓  apps.locations ✓  apps.hotels ✓  apps.rooms ✓
+  apps.pricing ✓   apps.services ✓   apps.packages ✓ apps.bookings ✓
+  apps.notifications ✓  apps.settings_app ✓  apps.providers ✓
+  apps.suppliers ✓  apps.waitlist ✓  apps.hero_hotels ✓  apps.waitlist_agency ✓
+  Note: apps.core exists on disk but is NOT in INSTALLED_APPS (correct — utility only).
+
+STALE DUPLICATE FILES  [HIGH]
+  apps/accounts/views.py       — 301 lines, superseded by apps/accounts/views/
+  apps/accounts/serializers.py — superseded by apps/accounts/serializers/
+  Both files are still importable and active, but the views/ and serializers/
+  sub-packages are the canonical source. The flat files still import from .models
+  and .permissions, creating confusion about which code runs. The flat
+  views.py even defines its own LoginView that conflicts with views/auth_views.py.
+  Action: Delete both flat files after confirming nothing still imports them.
+
+TODO / FIXME / HACK COMMENTS
+  None found across all apps/ Python files. Clean.
+
+CIRCULAR IMPORTS
+  None detected. Import graph is straightforward (accounts → locations → hotels
+  → bookings chain with no back-references).
+
+UNUSED PACKAGES IN requirements.txt  [MEDIUM]
+  python-decouple==3.8         — imported nowhere in the codebase; settings.py
+                                  uses python-dotenv instead.
+  django-simple-email-confirmation==0.71 — imported nowhere; verification is
+                                  done manually via cache tokens.
+  six==1.17.0                  — Python 2/3 compat shim; not needed in 2026.
+  hiredis==3.3.1               — Not referenced directly; is a redis speedup
+                                  drop-in, safe to keep but undocumented.
+  PyJWT==2.12.1                — Not referenced directly; used internally by
+                                  djangorestframework-simplejwt, safe to keep.
+
+
+══════════════════════════════════════════════════════════════════════════════
+CATEGORY 2 — API ENDPOINTS AUDIT
+══════════════════════════════════════════════════════════════════════════════
+
+ENDPOINT INVENTORY
+  Base path: /api/v1/
+
+  accounts/ (apps/accounts/urls.py)
+    POST  login/                                AllowAny          — JWT login
+    POST  logout/                               IsAuthenticated   — Blacklist token
+    POST  token/refresh/                        (JWT default)     — Token refresh
+    GET   me/                                   IsAuthenticated   — Current user
+    POST  supplier/register/step1/              AllowAny          — Create user+supplier
+    POST  supplier/register/step2/              IsAuthenticated   — Hotel basic info
+    POST  supplier/register/step3/              IsAuthenticated   — Amenities/photos
+    POST  supplier/register/step4/              IsAuthenticated   — Docs + submit
+    POST  supplier/verify-email/                AllowAny          — Email verification
+    GET   admin/suppliers/                      IsAuthenticated*  — List all suppliers
+    GET   admin/suppliers/pending/              IsAuthenticated*  — Pending suppliers
+    POST  admin/suppliers/<id>/approve/         IsAuthenticated*  — Approve supplier
+    POST  admin/suppliers/<id>/reject/          IsAuthenticated*  — Reject supplier
+    POST  register/agency/                      AllowAny          — Agency registration
+    POST  agency/activate/                      AllowAny          — Agency activation
+    GET   agency/activate/check/                AllowAny          — Token validity check
+    GET   admin/agencies/pending/               IsHQAdmin         — Pending agencies
+    POST  admin/agencies/<id>/approve/          IsHQAdmin         — Approve agency
+    POST  admin/agencies/<id>/reject/           IsHQAdmin         — Reject agency
+
+  locations/   hotels/   rooms/   pricing/   services/   packages/
+  bookings/    site-settings/   notifications/   suppliers/
+  waitlist/    waitlist-agency/   hero-hotels/
+  (see per-category issues below)
+
+PERMISSION ANTI-PATTERN — ADMIN VIEWS  [HIGH]
+  Files: apps/accounts/views/auth_views.py  lines 289, 311, 351, 388
+  SupplierPendingListView, SupplierApproveView, SupplierRejectView,
+  SupplierAllListView all declare:
+    permission_classes = [IsAuthenticated]
+  Then manually check:
+    if request.user.role not in ('super_admin', 'admin'): return 403
+  This pattern works today but is fragile — a future developer might add a new
+  endpoint forgetting the manual check. The project already has IsAdminUser and
+  IsHQAdmin permission classes. These four views should use them.
+
+N+1 QUERY RISKS  [MEDIUM]
+  apps/bookings/views.py:139
+    Booking.objects.all() in AgencyDashboardStatsView (admin path) has no
+    select_related or prefetch_related. When admin queries all bookings without
+    an agency filter, each booking row triggers extra queries for agency,
+    created_by, package. Fix: chain .select_related('agency','created_by','package')
+
+  apps/hotels/views.py:8
+    queryset = Hotel.objects.all() — no select_related for City FK.
+    Each serialized hotel triggers a separate city query.
+
+  apps/pricing/views.py:27,37
+    RoomPrice.objects.all() — no select_related for Hotel or RoomType FK.
+
+  apps/services/views.py:9,20
+    ServiceCategory.objects.all() and Service.objects.all() — no prefetch.
+
+  apps/waitlist/views.py:164-170
+    Seven separate .objects.filter().count() calls for the stats endpoint
+    instead of a single annotated query. Minor but worth fixing.
+
+ENDPOINTS WITHOUT EXPLICIT permission_classes  [LOW]
+  apps/providers/ — no urls.py found; the providers app has no API endpoints
+  exposed, which is correct (internal use only). But confirm this is intentional.
+
+
+══════════════════════════════════════════════════════════════════════════════
+CATEGORY 3 — DATABASE & MODELS
+══════════════════════════════════════════════════════════════════════════════
+
+MODELS MISSING __str__  [LOW]
+  apps/bookings/models.py:
+    BookingPerson, BookingCity, BookingHotel, BookingService
+
+  apps/suppliers/models.py:
+    RoomRateSupplier, TransferRouteSupplier, TransferRateSupplier,
+    TourSupplier, TourRateSupplier, FlightRouteSupplier, FlightRateSupplier
+
+  Impact: Django admin lists show generic "Object #N" for these models.
+
+MODELS MISSING Meta.ordering  [LOW]
+  AgencyActivationToken, BookingHotel, BookingService
+  Hotel, Country, City, RoomType, SiteSettings
+  RoomTypeSupplier, RoomRateSupplier, TransferRouteSupplier, TransferRateSupplier
+  TourSupplier, TourRateSupplier, FlightRouteSupplier, FlightRateSupplier
+
+DECIMAL FIELD USAGE  [OK]
+  All price fields confirmed to use DecimalField. No FloatField found for
+  monetary values. Correct.
+
+CASCADE ON FINANCIAL / PRICING DATA  [MEDIUM]
+  apps/suppliers/models.py:
+    HotelSupplier → RoomOccupancyPrice (CASCADE)
+    HotelSupplier → HotelPricePlan (CASCADE)
+    HotelRoomType → RoomOccupancyPrice (CASCADE)
+    HotelSupplier → PropertyImage (CASCADE)
+    Supplier → HotelRoomType, HotelPricePlan, TransferRouteSupplier, etc. (CASCADE)
+
+  Deleting a HotelSupplier silently wipes all its price plans, room prices,
+  and images. Consider PROTECT on pricing relations to force explicit cleanup.
+
+  apps/bookings/models.py:
+    BookingCity → BookingHotel (CASCADE) — acceptable; booking sub-records
+    Booking → BookingPerson, BookingCity, BookingService (CASCADE) — acceptable;
+      these have no independent financial meaning.
+
+ON_DELETE=CASCADE ALSO AFFECTS HOTEL BOOKINGS  [HIGH]
+  apps/bookings/models.py:120-123
+    BookingHotel.hotel = ForeignKey(Hotel, on_delete=models.CASCADE)
+  If an admin deletes a Hotel, all BookingHotel records referencing it are
+  silently deleted — including confirmed or completed bookings. This is a
+  data integrity risk. Should be PROTECT or SET_NULL.
+
+  Similarly:
+    BookingCity.city = ForeignKey(City, on_delete=models.CASCADE) — line 107
+    If a City is deleted, its booking records vanish.
+
+MIGRATION FILES
+  No data-loss migrations detected (no null=False without default on existing
+  columns in recent migrations). All migrations reviewed appear safe.
+
+
+══════════════════════════════════════════════════════════════════════════════
+CATEGORY 4 — SECURITY AUDIT
+══════════════════════════════════════════════════════════════════════════════
+
+[CRITICAL] .env FILE COMMITTED TO GIT
+  git ls-files shows: .env
+  The .env file containing DATABASE_URL (with username/password), EMAIL credentials,
+  and SECRET_KEY is tracked in the git repository. Any clone of this repo exposes
+  production credentials. Add .env to .gitignore AND remove from git history:
+    git rm --cached .env
+    git commit -m "remove .env from tracking"
+  Also rotate ALL credentials in .env immediately as they are now in git history.
+
+[CRITICAL] PLACEHOLDER SECRET_KEY IN .env.production
+  File: .env.production line 2
+    SECRET_KEY=your-super-secret-key-change-this-now-2026-ynt
+  This is NOT a real secret key — it is a placeholder. If this file is deployed
+  as-is, Django session signing, CSRF tokens, and JWT signing are all compromised.
+  Generate a proper key: python -c "from django.utils.crypto import get_random_string;
+  print(get_random_string(50))"
+
+[CRITICAL] ALLOWED_HOSTS=* IN .env.production
+  File: .env.production line 3
+    ALLOWED_HOSTS=*
+  Wildcard ALLOWED_HOSTS in production enables HTTP Host header injection attacks.
+  Must be set to: ALLOWED_HOSTS=mybridge.my,www.mybridge.my
+
+JWT TOKEN LIFETIME  [MEDIUM]
+  ACCESS_TOKEN_LIFETIME = 12 hours  (config/settings.py:143)
+  This is unusually long. If a token is leaked, it is valid for half a day
+  without the user being able to invalidate it (blacklisting requires logout).
+  Recommend reducing to 15-60 minutes and relying on the 30-day refresh token.
+
+HARDCODED LOCALHOST IN FRONTEND  [HIGH]
+  frontend/src/pages/public/HomePage.tsx:35
+    const HERO_HOTELS_API = 'http://127.0.0.1:8000/api/v1/hero-hotels/';
+  This endpoint will fail in production. It should use:
+    const HERO_HOTELS_API = `${import.meta.env.VITE_API_URL}/api/v1/hero-hotels/`;
+  (All other hardcoded URLs were reportedly fixed — this one remains.)
+
+SENSITIVE ADMIN ENDPOINTS USING MANUAL ROLE CHECK  [HIGH]
+  (See Category 2 — PERMISSION ANTI-PATTERN)
+
+SQL INJECTION  [OK]
+  No raw queries, .extra(), or cursor().execute() with string concatenation found.
+  All DB access is through Django ORM. Clean.
+
+CSRF PROTECTION  [OK]
+  CsrfViewMiddleware is active. DRF API views use SessionAuthentication
+  (requires CSRF) or JWT (CSRF-exempt by design). Correct.
+
+CORS CONFIGURATION  [OK / INFO]
+  CORS_ALLOWED_ORIGINS hardcodes localhost dev origins plus env-based production
+  origins. Fine for the current setup. Ensure CORS_ALLOWED_ORIGINS_REGEXES is
+  not set (it isn't) to prevent wildcard domain matching.
+
+.env.backup_pre_mybridge_domain IN PROJECT ROOT  [MEDIUM]
+  This backup file may contain old credentials and is sitting in the project
+  root. It is in .gitignore (*.env.*) but should be deleted locally.
+
+BACKUP FILE TRACKED IN GIT  [LOW]
+  git ls-files shows: frontend/src/app/components/HotelsManagement.tsx.bak
+  A .bak file is committed. Remove it:
+    git rm "frontend/src/app/components/HotelsManagement.tsx.bak"
+
+
+══════════════════════════════════════════════════════════════════════════════
+CATEGORY 5 — FRONTEND REACT HEALTH
+══════════════════════════════════════════════════════════════════════════════
+
+TypeScript `any` USAGE  [LOW]
+  11 occurrences of `: any` found across .tsx/.ts files. Relatively low.
+  Most are in API response handling where the response shape is not yet typed.
+  Recommend adding typed interfaces for API responses progressively.
+
+COMPONENTS EXCEEDING 300 LINES  [MEDIUM]
+  CustomPackageWizard.tsx     946 lines  — critical; split into step components
+  BookingsManagement.tsx      642 lines  — split table + form + modal
+  AgenciesManagement.tsx      618 lines  — split table + detail panel
+  BookingWizard.tsx           557 lines  — split into step components
+  CustomersManagement.tsx     549 lines  — split
+  DashboardContent.tsx        483 lines  — extract chart + stat components
+  HotelsManagement.tsx        688 lines  — split
+  ExtranetManagement.tsx      361 lines  — borderline
+
+DUPLICATE STEP NUMBERS IN SUPPLIER ONBOARDING  [MEDIUM]
+  frontend/src/features/supplier/onboarding/steps/ contains:
+    Step2Services.tsx, Step2Description.tsx, Step2Amenities.tsx  (3 files as Step2)
+    Step5PricePlans.tsx, Step5Pricing.tsx                        (2 files as Step5)
+  This suggests the wizard steps were redesigned and old/new versions coexist.
+  The HotelOnboardingWizard only references some of these — orphan files may be dead code.
+
+useEffect MISSING CLEANUP / ABORT CONTROLLER  [MEDIUM]
+  All async fetch calls in useEffect lack AbortController cleanup:
+    ServicesManagement.tsx, PackagesManagement.tsx, BookingsManagement.tsx,
+    HotelsManagement.tsx, ExtranetManagement.tsx, DestinationsManagement.tsx,
+    DashboardContent.tsx, AgenciesManagement.tsx, CustomersManagement.tsx,
+    FinancialReports.tsx
+  Pattern found: useEffect(() => { fetchAll(); }, [])
+  If a component unmounts before the fetch completes, setState is called on an
+  unmounted component (React 18 suppresses the error but the behavior is wrong).
+  Fix pattern:
+    useEffect(() => {
+      const controller = new AbortController();
+      fetchAll(controller.signal);
+      return () => controller.abort();
+    }, []);
+
+window.location.href IN services/apiFetch.ts  [LOW]
+  File: frontend/src/services/apiFetch.ts:12
+    window.location.href = '/login';
+  This is in a utility function (not a component) so useNavigate() cannot be used.
+  Acceptable workaround, but it causes a full page reload. Alternative: dispatch
+  a custom event that the React Router root listens to and navigates programmatically.
+
+DUPLICATE SettingsPage FILES  [MEDIUM]
+  frontend/src/SettingsPage.tsx          — appears to be an old root-level copy
+  frontend/src/pages/admin/SettingsPage.tsx — the canonical location
+  App.tsx imports from pages/admin/SettingsPage. The root-level file is orphaned.
+
+
+══════════════════════════════════════════════════════════════════════════════
+CATEGORY 6 — FRONTEND ROUTES & NAVIGATION
+══════════════════════════════════════════════════════════════════════════════
+
+ROUTE INVENTORY (App.tsx)
+  /                            Public — HomePage
+  /login                       Public — LoginRoute (redirects if already authed)
+  /register/supplier           Public — SupplierTypePage (waitlist)
+  /register/supplier/:type     Public — WaitlistFormPage
+  /register/agency             Public — RegisterAgencyPage
+  /supplier                    Auth guarded (supplier role) — SupplierPortal
+  /supplier/*                  Auth guarded (supplier role) — SupplierPortal
+  /dashboard                   Auth guarded (any role) — AdminApp
+  /dashboard/*                 Auth guarded (any role) — AdminApp
+  /tours /destinations /activities /hotels /blog   Public — ComingSoonPage
+  *                            Fallback — redirect to /
+
+MISSING ROUTE: /activate-agency  [HIGH]
+  apps/accounts/services/email_service.py:344
+    activation_url = f"{site_url}/activate-agency?token={activation_token.token}"
+  The agency approval email sends users to /activate-agency but this route does
+  NOT exist in App.tsx. Approved agencies clicking the activation link will land
+  on the catch-all redirect to "/" — they cannot activate their account.
+  Action: Add <Route path="/activate-agency" element={<AgencyActivationPage />} />
+  and create the corresponding component calling POST /api/v1/accounts/agency/activate/.
+
+ROUTE /register/agency HAS NO FRONTEND ACTIVATION FLOW  [HIGH]
+  RegisterAgencyPage.tsx handles the initial registration (POST /register/agency/).
+  However, there is no frontend page to handle the token from the approval email.
+  This is a broken critical user journey.
+
+AUTH GUARDS  [OK]
+  AdminApp: checks localStorage for stored user + access_token; redirects to /login.
+  SupplierPortal: checks localStorage for stored user with role=supplier.
+  Basic but functional. Note: client-side auth guard only; all protected data
+  is server-side secured via JWT on the API.
+
+window.location USAGE
+  frontend/src/pages/waitlist/WaitlistFormPage.tsx:279
+    new URLSearchParams(window.location.search) — reading URL params; acceptable.
+  frontend/src/services/apiFetch.ts:12
+    window.location.href = '/login' — see Category 5 notes.
+
+NO BROKEN Link to= REFERENCES DETECTED
+  All imported components exist. No stale route references.
+
+ROLE-BASED ACCESS ON DASHBOARD TABS  [OK]
+  AdminApp correctly checks isAdmin before rendering admin-only tabs
+  (destinations, hotels, extranet, services, agencies, analytics).
+  Non-admin (agency) users see: dashboard, bookings, packages, customers,
+  financial, settings.
+
+
+══════════════════════════════════════════════════════════════════════════════
+CATEGORY 7 — i18n / TRANSLATION COVERAGE
+══════════════════════════════════════════════════════════════════════════════
+
+TRANSLATION FILE STATS
+  ar.ts: 266 lines, ~221 key entries
+  en.ts: 280 lines, ~220 key entries
+  ms.ts: 266 lines, ~221 key entries
+
+  Top-level key parity between ar/en/ms: IDENTICAL (no missing top-level keys).
+  The three files share the same structure — no structural gaps found.
+
+COMPONENTS NOT USING t() / useLanguage  [MEDIUM]
+  The following feature components render UI text without translation:
+    BookingsTable.tsx          — table headers, status labels in Arabic/English
+    PopularDestinations.tsx    — section titles
+    StepProgress.tsx           — step labels
+    StepComplete.tsx           — completion message
+    HotelOnboardingWizard.tsx  — navigation labels
+    AnalyticsReports.tsx       — chart labels, section titles
+
+  These components render hardcoded Arabic strings. When language is set to
+  English or Malay, these sections remain in Arabic.
+
+SUPPLIER ONBOARDING STEPS  [MEDIUM]
+  All Step*.tsx files in onboarding/steps/ render UI primarily in Arabic
+  hardcoded strings with no t() calls. The supplier portal appears to be
+  Arabic-only by design, but this is not documented.
+
+TRANSLATION INCONSISTENCY: en.ts HAS 280 LINES vs ar.ts/ms.ts 266 LINES  [LOW]
+  en.ts has 14 extra lines suggesting it may have extra keys not present in
+  ar/ms, or more verbose comments. Full leaf-key diff not performed but
+  warrants a programmatic check.
+
+
+══════════════════════════════════════════════════════════════════════════════
+CATEGORY 8 — EMAIL SYSTEM HEALTH
+══════════════════════════════════════════════════════════════════════════════
+
+EMAIL FUNCTIONS INVENTORY
+  In apps/accounts/services/email_service.py:
+    send_supplier_verification_email(user, token)      — plain text
+    send_supplier_pending_email(user, supplier)        — plain text
+    send_supplier_approved_email(user, supplier)       — plain text
+    send_supplier_rejected_email(user, supplier, reason) — plain text
+    send_admin_new_supplier_notification(supplier)     — plain text
+    send_agency_pending_email(agency)                  — HTML via _render_email_template
+    send_agency_approved_email(agency, activation_token) — HTML
+    send_agency_rejected_email(agency, reason)         — HTML
+    send_admin_new_agency_notification(agency)         — HTML
+
+  In apps/waitlist/services.py:
+    WaitlistEmailService.send_confirmation(entry)      — HTML (EmailMultiAlternatives)
+
+  In apps/waitlist_agency/services.py:
+    WaitlistAgencyEmailService.send_confirmation(entry) — HTML (EmailMultiAlternatives)
+
+DEFAULT_FROM_EMAIL USAGE  [OK]
+  All email functions use settings.DEFAULT_FROM_EMAIL. No hardcoded from-email
+  in email sending logic.
+
+TRY/EXCEPT AROUND EMAIL CALLS  [OK]
+  All email sending in views is wrapped in try/except — email failures will not
+  crash the API response. Good.
+
+SUPPLIER EMAILS LACK HTML TEMPLATES  [MEDIUM]
+  Agency emails use the full _render_email_template() function producing
+  professional branded HTML with RTL support. Supplier emails (verification,
+  pending, approved, rejected, admin notification) use plain text send_mail().
+  Inconsistent experience: agencies get beautiful HTML emails, suppliers get
+  plain text. Recommend converting supplier emails to the HTML template too.
+
+RTL SUPPORT IN HTML EMAILS  [OK]
+  _render_email_template() includes dir="rtl" lang="ar" on the html element.
+  All agency HTML emails render correctly RTL.
+
+EMAIL BACKEND CONFIGURATION  [OK / INFO]
+  DEFAULT_FROM_EMAIL = contact@mybridge.my
+  The .env file sets EMAIL_HOST to smtp.gmail.com (development) while
+  comments indicate Brevo SMTP for production. Ensure .env.production
+  contains the correct EMAIL_HOST (smtp-relay.brevo.com), EMAIL_PORT (587),
+  and credentials.
+
+
+══════════════════════════════════════════════════════════════════════════════
+CATEGORY 9 — FILE & FOLDER ORGANIZATION
+══════════════════════════════════════════════════════════════════════════════
+
+BACKUP FILES — 20 FILES NEED CLEANUP  [MEDIUM]
+  These files clutter the repo and confuse editors/search tools:
+    frontend/src/SettingsPage.tsx.backup_cleanup
+    frontend/src/app/App.tsx.backup_login_fix
+    frontend/src/app/components/HotelsManagement.tsx.bak         ← IN GIT
+    frontend/src/i18n/translations/en.ts.backup
+    frontend/src/pages/auth/RegisterAgencyPage.tsx.backup
+    frontend/src/pages/auth/RegisterAgencyPage.tsx.backup2
+    frontend/src/pages/auth/RegisterAgencyPage.tsx.backup3
+    frontend/src/pages/admin/SettingsPage.tsx.backup_cleanup
+    frontend/src/pages/public/HomePage.tsx.backup_url_fix
+    frontend/src/pages/public/ComingSoonPage.tsx.backup_url_fix
+    config/settings.py.backup_pre_mybridge_domain
+    config/settings.py.backup
+    config/settings.py.backup_pre_cleanup
+    config/urls.py.backup
+    .env.backup_pre_mybridge_domain
+    apps/waitlist/services.py.backup_pre_domain_fix
+    apps/waitlist/services.py.backup
+    apps/waitlist/serializers.py.backup
+    apps/suppliers/models.py.bak
+    apps/waitlist_agency/services.py.backup_pre_domain_fix
+
+  Action: Delete all of these. Use git history instead of file-level backups.
+  Note: frontend/src/app/components/HotelsManagement.tsx.bak is committed to git.
+
+DUPLICATE SETTINGSPAGE  [MEDIUM]
+  frontend/src/SettingsPage.tsx            — root level, orphaned
+  frontend/src/pages/admin/SettingsPage.tsx — canonical, imported by App.tsx
+  Delete the root-level copy.
+
+STALE FLAT views.py AND serializers.py  [HIGH]
+  (See Category 1 — STALE DUPLICATE FILES)
+
+ORPHAN STEPS IN SUPPLIER ONBOARDING  [MEDIUM]
+  Step2Services.tsx, Step2Description.tsx, Step2Amenities.tsx all exist as
+  "Step 2" — at least two of these are likely orphaned from a refactor.
+  Same for Step5PricePlans.tsx vs Step5Pricing.tsx.
+  Grep the wizard file to confirm which are actually rendered:
+    grep "Step2\|Step5" frontend/src/features/supplier/onboarding/HotelOnboardingWizard.tsx
+
+apps/core NOT IN INSTALLED_APPS  [OK / INFO]
+  apps/core/cache_service.py is a utility module; not a Django app. Correct.
+
+EMPTY __init__.py FILES  [OK]
+  All migration __init__.py, apps __init__.py, etc. are intentionally empty —
+  standard Django convention. No action needed.
+
+mybridge_project_export_20260420_1549.txt IN ROOT  [LOW]
+  This large export file (likely used for AI context) should not live in the
+  project root. Add to .gitignore or move to a tools/ directory.
+
+mybridge_cleanup.sh IN ROOT  [LOW]
+  A cleanup script is in the project root. Review if it should be committed
+  (document what it does) or deleted.
+
+export_project.py IN ROOT  [LOW]
+  Same as above — an ad-hoc script committed to the root. Move to tools/ or remove.
+
+
+══════════════════════════════════════════════════════════════════════════════
+CATEGORY 10 — DEPLOYMENT READINESS
+══════════════════════════════════════════════════════════════════════════════
+
+HARDCODED 127.0.0.1 IN PRODUCTION CODE  [HIGH]
+  frontend/src/pages/public/HomePage.tsx:35
+    const HERO_HOTELS_API = 'http://127.0.0.1:8000/api/v1/hero-hotels/';
+  This call will fail silently in production (CORS + wrong host).
+  Fix: use import.meta.env.VITE_API_URL
+
+.env.production COMPLETENESS CHECK
+  ✓ DEBUG=False
+  ✗ SECRET_KEY — placeholder value [CRITICAL]
+  ✗ ALLOWED_HOSTS=* — should be mybridge.my [CRITICAL]
+  ? DATABASE_URL — not shown (likely correct in deployed env)
+  ? EMAIL_HOST — should be Brevo, not gmail
+  ? EMAIL_HOST_USER, EMAIL_HOST_PASSWORD — not visible
+  ? REDIS_URL — not set; app falls back to LocMemCache (functional but not
+    shared across multiple workers on Railway)
+  ? FRONTEND_URL, SUPPLIER_FRONTEND_URL — not set; defaults to localhost
+  ? CORS_ALLOWED_ORIGINS — not set; CORS only allows localhost in production!
+
+CORS IN PRODUCTION  [HIGH]
+  config/settings.py:213-220
+    CORS_ALLOWED_ORIGINS hardcodes localhost origins.
+    _extra_cors reads from os.getenv('CORS_ALLOWED_ORIGINS', '').
+    If CORS_ALLOWED_ORIGINS is not set in .env.production, the frontend
+    at mybridge.my cannot reach the API — all browser requests will be CORS-blocked.
+  Fix: Set CORS_ALLOWED_ORIGINS=https://mybridge.my,https://www.mybridge.my in
+  .env.production.
+
+MEDIA FILES IN PRODUCTION  [MEDIUM]
+  config/settings.py:235 comment: "في الإنتاج استبدل بـ S3 أو Cloudflare R2"
+  Currently all uploads go to /media/ served by Django/WhiteNoise. This is
+  not suitable for production at scale and will be lost on Railway redeploy
+  (ephemeral filesystem). Migrate to object storage before launch.
+
+REDIS NOT CONFIGURED IN PRODUCTION  [MEDIUM]
+  REDIS_URL is empty. The app falls back to LocMemCache, which is per-process.
+  On Railway with multiple workers (Gunicorn), each worker has its own separate
+  cache — cache_service.py will behave inconsistently across workers.
+  Email verification tokens stored in cache will work for the worker that stored
+  them but may fail for requests routed to a different worker.
+  Fix: Provision a Redis instance on Railway and set REDIS_URL.
+
+BROKEN AGENCY ACTIVATION USER JOURNEY  [HIGH]
+  (See Category 6 — MISSING ROUTE: /activate-agency)
+  The email sends users to /activate-agency, which doesn't exist in React Router.
+  Approved agencies cannot complete signup. This is a production-blocking bug.
+
+SESSION_ENGINE IN PRODUCTION  [OK / INFO]
+  When REDIS_URL is empty, SESSION_ENGINE falls back to database sessions
+  (django.contrib.sessions.backends.db). Correct fallback behavior.
+
+STATIC FILES  [OK]
+  WhiteNoise + CompressedManifestStaticFilesStorage configured correctly.
+  STATIC_ROOT set. Serve with gunicorn + whitenoise is production-ready.
+
+Procfile / start.sh  [OK]
+  Procfile and start.sh exist. Railway deployment configuration is present.
+
+GUNICORN  [OK]
+  gunicorn==25.3.0 in requirements.txt. Production WSGI server configured.
+
+
+══════════════════════════════════════════════════════════════════════════════
+PRIORITIZED ACTION PLAN
+══════════════════════════════════════════════════════════════════════════════
+
+BEFORE NEXT DEPLOY (CRITICAL — fix immediately):
+  1. Remove .env from git tracking; rotate ALL credentials in git history
+     git rm --cached .env && add to .gitignore && git commit
+  2. Replace .env.production SECRET_KEY with a real 50-char random key
+  3. Set ALLOWED_HOSTS=mybridge.my,www.mybridge.my in .env.production
+  4. Set CORS_ALLOWED_ORIGINS=https://mybridge.my in .env.production
+
+PRODUCTION BLOCKERS (HIGH — fix before going live):
+  5. Add /activate-agency route to App.tsx + create AgencyActivationPage component
+  6. Fix HomePage.tsx:35 HERO_HOTELS_API to use VITE_API_URL
+  7. Delete or fix stale apps/accounts/views.py and serializers.py
+  8. Change BookingHotel.hotel and BookingCity.city on_delete to PROTECT or SET_NULL
+  9. Replace manual role checks in SupplierPendingListView, SupplierApproveView,
+     SupplierRejectView, SupplierAllListView with IsAdminUser permission class
+
+NEXT SPRINT (MEDIUM):
+  10. Provision Redis on Railway; set REDIS_URL in production env
+  11. Migrate media file storage to S3/Cloudflare R2
+  12. Add select_related/prefetch_related to Hotel, RoomPrice, Service querysets
+  13. Reduce JWT ACCESS_TOKEN_LIFETIME from 12h to 15-30 minutes
+  14. Add AbortController cleanup to all useEffect fetch calls
+  15. Convert supplier plain-text emails to HTML template
+  16. Delete all 20 backup files; use git history instead
+  17. Remove unused packages: python-decouple, django-simple-email-confirmation, six
+  18. Split CustomPackageWizard (946 lines), BookingsManagement (642 lines),
+      AgenciesManagement (618 lines) into smaller components
+  19. Resolve orphan Step2*/Step5* files in supplier onboarding
+  20. Delete orphaned frontend/src/SettingsPage.tsx (root-level copy)
+
+BACKLOG (LOW):
+  21. Add __str__ to 11 models missing it
+  22. Add Meta.ordering to 16 models missing it
+  23. Add SECURE_HSTS_SECONDS, SECURE_SSL_REDIRECT, SESSION_COOKIE_SECURE,
+      CSRF_COOKIE_SECURE to settings (all flagged by manage.py check --deploy)
+  24. Add i18n coverage to BookingsTable, PopularDestinations, AnalyticsReports,
+      StepProgress, StepComplete, HotelOnboardingWizard
+  25. Move mybridge_project_export_*.txt, export_project.py, mybridge_cleanup.sh
+      out of project root or add to .gitignore
+  26. Remove HotelsManagement.tsx.bak from git: git rm "frontend/src/app/components/HotelsManagement.tsx.bak"
+  27. Remove redundant packages from requirements.txt (python-decouple, six,
+      django-simple-email-confirmation)
+  28. Apply PROTECT on HotelSupplier → RoomOccupancyPrice / HotelPricePlan CASCADE
+
+
+══════════════════════════════════════════════════════════════════════════════
+AUDIT METADATA
+══════════════════════════════════════════════════════════════════════════════
+  Date:         2026-04-21
+  Project:      MYBRIDGE (tourism_booking)
+  Branch:       main
+  Python files: ~170 audited
+  TS/TSX files: ~80 audited
+  Auditor:      Claude Sonnet 4.6 (read-only, no files modified except this report)
+  Excluded:     venv/, node_modules/, .claude/worktrees/, __pycache__/
+  Known-good (not flagged per audit spec):
+    - Login accepts both email + username (intentional)
+    - views/ and serializers/ folders coexisting with flat files (flagged separately)
+    - Admin password abdou0000 (known, pending change)
+    - 12 frontend files with hardcoded 127.0.0.1 (only 1 remains — HomePage.tsx)
+══════════════════════════════════════════════════════════════════════════════

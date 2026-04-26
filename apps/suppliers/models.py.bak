@@ -1,0 +1,516 @@
+# apps/suppliers/models.py
+
+import uuid
+from django.db import models
+from apps.accounts.models import User
+
+
+# ─────────────────────────────────────────────
+# CHOICES
+# ─────────────────────────────────────────────
+
+class SupplierType(models.TextChoices):
+    HOTEL    = "HOTEL",    "فندق"
+    AIRLINE  = "AIRLINE",  "شركة طيران / مكتب تذاكر"
+    TOUR     = "TOUR",     "شركة جولات سياحية"
+    TRANSFER = "TRANSFER", "شركة نقل"
+
+
+class SupplierStatus(models.TextChoices):
+    PENDING   = "PENDING",   "معلق للمراجعة"
+    APPROVED  = "APPROVED",  "معتمد"
+    SUSPENDED = "SUSPENDED", "موقوف"
+    REJECTED  = "REJECTED",  "مرفوض"
+
+
+class ContentStatus(models.TextChoices):
+    DRAFT          = "DRAFT",          "مسودة"
+    PENDING_REVIEW = "PENDING_REVIEW", "بانتظار المراجعة"
+    APPROVED       = "APPROVED",       "معتمد"
+    REJECTED       = "REJECTED",       "مرفوض"
+
+
+class Currency(models.TextChoices):
+    MYR = "MYR", "Malaysian Ringgit"
+    USD = "USD", "US Dollar"
+    EUR = "EUR", "Euro"
+    SGD = "SGD", "Singapore Dollar"
+    AED = "AED", "UAE Dirham"
+    SAR = "SAR", "Saudi Riyal"
+
+
+# ─────────────────────────────────────────────
+# SUPPLIER — المورد الرئيسي
+# ─────────────────────────────────────────────
+
+class Supplier(models.Model):
+    """
+    الكيان الرئيسي لكل مورد في النظام.
+    كل مورد له نوع واحد: فندق أو طيران أو جولات أو نقل.
+    """
+    id                  = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user                = models.OneToOneField(
+        User, on_delete=models.PROTECT,
+        related_name="supplier_profile",
+        verbose_name="حساب المورد"
+    )
+    supplier_type       = models.CharField(
+        max_length=20, choices=SupplierType.choices,
+        verbose_name="نوع المورد"
+    )
+    status              = models.CharField(
+        max_length=20, choices=SupplierStatus.choices,
+        default=SupplierStatus.PENDING,
+        db_index=True, verbose_name="حالة المورد"
+    )
+    # موثوق = يُنشر محتواه تلقائياً بدون مراجعة
+    is_trusted          = models.BooleanField(
+        default=False,
+        verbose_name="مورد موثوق",
+        help_text="الموردون الموثوقون لا يحتاجون موافقة على كل تحديث"
+    )
+    # معلومات الشركة
+    company_name        = models.CharField(max_length=255, verbose_name="اسم الشركة")
+    company_name_en     = models.CharField(max_length=255, blank=True, verbose_name="اسم الشركة (إنجليزي)")
+    registration_number = models.CharField(max_length=100, blank=True, verbose_name="رقم التسجيل التجاري")
+    country             = models.CharField(max_length=100, verbose_name="الدولة")
+    city                = models.CharField(max_length=100, blank=True, verbose_name="المدينة")
+    address             = models.TextField(blank=True, verbose_name="العنوان")
+    phone               = models.CharField(max_length=30, verbose_name="الهاتف")
+    email               = models.EmailField(verbose_name="البريد الإلكتروني")
+    website             = models.URLField(blank=True, verbose_name="الموقع الإلكتروني")
+    default_currency    = models.CharField(
+        max_length=3, choices=Currency.choices,
+        default=Currency.MYR, verbose_name="العملة الافتراضية"
+    )
+    # وثائق التسجيل
+    trade_license       = models.FileField(
+        upload_to="suppliers/documents/trade/",
+        null=True, blank=True, verbose_name="الرخصة التجارية"
+    )
+    contract_document   = models.FileField(
+        upload_to="suppliers/documents/contracts/",
+        null=True, blank=True, verbose_name="وثيقة العقد"
+    )
+    # الموافقة
+    approved_at         = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ الاعتماد")
+    approved_by         = models.ForeignKey(
+        User, null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="approved_suppliers",
+        verbose_name="اعتمد بواسطة"
+    )
+    rejection_reason    = models.TextField(blank=True, verbose_name="سبب الرفض")
+    notes               = models.TextField(blank=True, verbose_name="ملاحظات داخلية")
+    created_at          = models.DateTimeField(auto_now_add=True)
+    updated_at          = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table            = "supplier"
+        verbose_name        = "مورد"
+        verbose_name_plural = "الموردون"
+        ordering            = ['-created_at']
+        indexes             = [
+            models.Index(fields=['supplier_type', 'status']),
+            models.Index(fields=['is_trusted', 'status']),
+        ]
+
+    def __str__(self):
+        return f"{self.company_name} [{self.get_supplier_type_display()}]"
+
+    @property
+    def is_approved(self):
+        return self.status == SupplierStatus.APPROVED
+
+
+# ─────────────────────────────────────────────
+# HOTEL SUPPLIER
+# ─────────────────────────────────────────────
+
+class HotelSupplier(models.Model):
+    """
+    بروفايل الفندق — مرتبط بمورد من نوع HOTEL.
+    """
+    STAR_CHOICES = [(i, f"{i} نجوم") for i in range(1, 6)]
+
+    id             = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    supplier       = models.OneToOneField(
+        Supplier, on_delete=models.CASCADE,
+        related_name="hotel_profile",
+        verbose_name="المورد"
+    )
+    content_status = models.CharField(
+        max_length=20, choices=ContentStatus.choices,
+        default=ContentStatus.DRAFT,
+        verbose_name="حالة المحتوى"
+    )
+    hotel_name     = models.CharField(max_length=255, verbose_name="اسم الفندق")
+    star_rating    = models.PositiveSmallIntegerField(
+        choices=STAR_CHOICES, null=True, blank=True,
+        verbose_name="تصنيف النجوم"
+    )
+    country        = models.CharField(max_length=100, verbose_name="الدولة")
+    city           = models.CharField(max_length=100, verbose_name="المدينة")
+    address        = models.TextField(verbose_name="العنوان")
+    latitude       = models.DecimalField(
+        max_digits=9, decimal_places=6,
+        null=True, blank=True, verbose_name="خط العرض"
+    )
+    longitude      = models.DecimalField(
+        max_digits=9, decimal_places=6,
+        null=True, blank=True, verbose_name="خط الطول"
+    )
+    description    = models.TextField(blank=True, verbose_name="وصف الفندق")
+    check_in_time  = models.TimeField(null=True, blank=True, verbose_name="وقت الوصول")
+    check_out_time = models.TimeField(null=True, blank=True, verbose_name="وقت المغادرة")
+    amenities      = models.JSONField(default=list, verbose_name="المرافق والخدمات")
+    images         = models.JSONField(default=list, verbose_name="الصور")
+    cancellation_policy = models.TextField(blank=True, verbose_name="سياسة الإلغاء")
+    is_active      = models.BooleanField(default=True)
+    created_at     = models.DateTimeField(auto_now_add=True)
+    updated_at     = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table            = "supplier_hotel"
+        verbose_name        = "فندق (مورد)"
+        verbose_name_plural = "الفنادق (موردون)"
+        indexes             = [
+            models.Index(fields=['country', 'city', 'is_active']),
+            models.Index(fields=['content_status']),
+        ]
+
+    def __str__(self):
+        return f"{self.hotel_name} — {self.city}"
+
+
+class RoomTypeSupplier(models.Model):
+    """
+    أنواع الغرف التي يضيفها الفندق.
+    """
+    id            = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    hotel         = models.ForeignKey(
+        HotelSupplier, on_delete=models.CASCADE,
+        related_name="room_types", verbose_name="الفندق"
+    )
+    name          = models.CharField(max_length=100, verbose_name="اسم الغرفة")
+    description   = models.TextField(blank=True, verbose_name="الوصف")
+    max_occupancy = models.PositiveSmallIntegerField(default=2, verbose_name="أقصى إشغال")
+    bed_config    = models.CharField(max_length=100, blank=True, verbose_name="تكوين الأسرة")
+    total_rooms   = models.PositiveSmallIntegerField(default=1, verbose_name="إجمالي الغرف")
+    amenities     = models.JSONField(default=list, verbose_name="مرافق الغرفة")
+    images        = models.JSONField(default=list, verbose_name="صور الغرفة")
+    is_active     = models.BooleanField(default=True)
+    created_at    = models.DateTimeField(auto_now_add=True)
+    updated_at    = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table        = "supplier_room_type"
+        verbose_name    = "نوع غرفة (مورد)"
+        unique_together = [("hotel", "name")]
+
+    def __str__(self):
+        return f"{self.hotel.hotel_name} — {self.name}"
+
+
+class MealPlan(models.TextChoices):
+    ROOM_ONLY    = "RO", "Room Only"
+    BED_BREAKFAST = "BB", "Bed & Breakfast"
+    HALF_BOARD   = "HB", "Half Board"
+    FULL_BOARD   = "FB", "Full Board"
+    ALL_INCLUSIVE = "AI", "All Inclusive"
+
+
+class RoomRateSupplier(models.Model):
+    """
+    تسعير موسمي لكل نوع غرفة.
+    المورد يدخل سعر التكلفة فقط.
+    الوكالة الأم تضيف الـ Markup لاحقاً.
+    """
+    id              = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    room_type       = models.ForeignKey(
+        RoomTypeSupplier, on_delete=models.CASCADE,
+        related_name="rates", verbose_name="نوع الغرفة"
+    )
+    season_name     = models.CharField(max_length=100, verbose_name="اسم الموسم")
+    date_from       = models.DateField(db_index=True, verbose_name="من تاريخ")
+    date_to         = models.DateField(db_index=True, verbose_name="إلى تاريخ")
+    meal_plan       = models.CharField(
+        max_length=2, choices=MealPlan.choices,
+        default=MealPlan.ROOM_ONLY, verbose_name="نظام الوجبات"
+    )
+    # سعر التكلفة فقط — المورد لا يرى Markup الوكالة الأم
+    cost_price      = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        verbose_name="سعر التكلفة"
+    )
+    cost_price_child = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        null=True, blank=True, verbose_name="سعر الطفل"
+    )
+    cost_price_infant = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        null=True, blank=True, verbose_name="سعر الرضيع"
+    )
+    currency        = models.CharField(
+        max_length=3, choices=Currency.choices,
+        default=Currency.MYR, verbose_name="العملة"
+    )
+    available_rooms = models.PositiveSmallIntegerField(
+        default=0, verbose_name="الغرف المتاحة"
+    )
+    min_nights      = models.PositiveSmallIntegerField(default=1, verbose_name="الحد الأدنى للليالي")
+    is_active       = models.BooleanField(default=True)
+    content_status  = models.CharField(
+        max_length=20, choices=ContentStatus.choices,
+        default=ContentStatus.DRAFT, verbose_name="حالة المحتوى"
+    )
+    created_at      = models.DateTimeField(auto_now_add=True)
+    updated_at      = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "supplier_room_rate"
+        indexes  = [
+            models.Index(fields=['room_type', 'date_from', 'date_to']),
+            models.Index(fields=['content_status', 'is_active']),
+        ]
+
+    def __str__(self):
+        return f"{self.room_type} | {self.season_name} | {self.cost_price} {self.currency}"
+
+
+# ─────────────────────────────────────────────
+# TOUR SUPPLIER
+# ─────────────────────────────────────────────
+
+class TourSupplier(models.Model):
+    """
+    جولة سياحية يقدمها مورد Tour Operator.
+    """
+    id             = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    supplier       = models.ForeignKey(
+        Supplier, on_delete=models.CASCADE,
+        related_name="tours", verbose_name="المورد"
+    )
+    content_status = models.CharField(
+        max_length=20, choices=ContentStatus.choices,
+        default=ContentStatus.DRAFT,
+        verbose_name="حالة المحتوى"
+    )
+    name           = models.CharField(max_length=255, verbose_name="اسم الجولة")
+    country        = models.CharField(max_length=100, verbose_name="الدولة")
+    city           = models.CharField(max_length=100, blank=True, verbose_name="المدينة")
+    duration_days  = models.PositiveSmallIntegerField(verbose_name="عدد الأيام")
+    duration_nights = models.PositiveSmallIntegerField(verbose_name="عدد الليالي")
+    description    = models.TextField(blank=True, verbose_name="الوصف")
+    itinerary      = models.JSONField(default=list, verbose_name="البرنامج اليومي")
+    inclusions     = models.JSONField(default=list, verbose_name="يشمل")
+    exclusions     = models.JSONField(default=list, verbose_name="لا يشمل")
+    images         = models.JSONField(default=list, verbose_name="الصور")
+    min_pax        = models.PositiveSmallIntegerField(default=1, verbose_name="الحد الأدنى للأفراد")
+    max_pax        = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="الحد الأقصى للأفراد")
+    is_active      = models.BooleanField(default=True)
+    created_at     = models.DateTimeField(auto_now_add=True)
+    updated_at     = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "supplier_tour"
+        indexes  = [
+            models.Index(fields=['country', 'city', 'is_active']),
+            models.Index(fields=['content_status']),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.duration_days}D/{self.duration_nights}N)"
+
+
+class TourRateSupplier(models.Model):
+    id                   = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tour                 = models.ForeignKey(
+        TourSupplier, on_delete=models.CASCADE,
+        related_name="rates", verbose_name="الجولة"
+    )
+    season_name          = models.CharField(max_length=100, verbose_name="اسم الموسم")
+    date_from            = models.DateField(verbose_name="من تاريخ")
+    date_to              = models.DateField(verbose_name="إلى تاريخ")
+    cost_price_per_person = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        verbose_name="سعر الفرد"
+    )
+    cost_price_child     = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        null=True, blank=True, verbose_name="سعر الطفل"
+    )
+    currency             = models.CharField(
+        max_length=3, choices=Currency.choices,
+        default=Currency.MYR, verbose_name="العملة"
+    )
+    is_active            = models.BooleanField(default=True)
+    content_status       = models.CharField(
+        max_length=20, choices=ContentStatus.choices,
+        default=ContentStatus.DRAFT
+    )
+    created_at           = models.DateTimeField(auto_now_add=True)
+    updated_at           = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "supplier_tour_rate"
+
+
+# ─────────────────────────────────────────────
+# TRANSFER SUPPLIER
+# ─────────────────────────────────────────────
+
+class VehicleType(models.TextChoices):
+    SEDAN = "SEDAN", "Sedan (1-3 أفراد)"
+    MPV   = "MPV",   "MPV (4-6 أفراد)"
+    VAN   = "VAN",   "Van (7-12 فرد)"
+    BUS   = "BUS",   "Bus (13+ فرد)"
+
+
+class TransferRouteSupplier(models.Model):
+    id                         = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    supplier                   = models.ForeignKey(
+        Supplier, on_delete=models.CASCADE,
+        related_name="transfer_routes", verbose_name="المورد"
+    )
+    origin                     = models.CharField(max_length=255, verbose_name="نقطة الانطلاق")
+    destination                = models.CharField(max_length=255, verbose_name="الوجهة")
+    country                    = models.CharField(max_length=100, verbose_name="الدولة")
+    estimated_duration_minutes = models.PositiveSmallIntegerField(
+        null=True, blank=True, verbose_name="المدة التقريبية (دقائق)"
+    )
+    is_active                  = models.BooleanField(default=True)
+    content_status             = models.CharField(
+        max_length=20, choices=ContentStatus.choices,
+        default=ContentStatus.DRAFT
+    )
+    created_at                 = models.DateTimeField(auto_now_add=True)
+    updated_at                 = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "supplier_transfer_route"
+
+    def __str__(self):
+        return f"{self.origin} → {self.destination}"
+
+
+class TransferRateSupplier(models.Model):
+    id             = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    route          = models.ForeignKey(
+        TransferRouteSupplier, on_delete=models.CASCADE,
+        related_name="rates", verbose_name="المسار"
+    )
+    vehicle_type   = models.CharField(
+        max_length=20, choices=VehicleType.choices,
+        verbose_name="نوع المركبة"
+    )
+    cost_price     = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        verbose_name="سعر التكلفة"
+    )
+    currency       = models.CharField(
+        max_length=3, choices=Currency.choices,
+        default=Currency.MYR, verbose_name="العملة"
+    )
+    is_active      = models.BooleanField(default=True)
+    content_status = models.CharField(
+        max_length=20, choices=ContentStatus.choices,
+        default=ContentStatus.DRAFT
+    )
+    created_at     = models.DateTimeField(auto_now_add=True)
+    updated_at     = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table        = "supplier_transfer_rate"
+        unique_together = [("route", "vehicle_type")]
+
+
+# ─────────────────────────────────────────────
+# AIRLINE SUPPLIER
+# ─────────────────────────────────────────────
+
+class FlightRouteSupplier(models.Model):
+    id               = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    supplier         = models.ForeignKey(
+        Supplier, on_delete=models.CASCADE,
+        related_name="flight_routes", verbose_name="المورد"
+    )
+    origin_city      = models.CharField(max_length=100, verbose_name="مدينة المغادرة")
+    origin_code      = models.CharField(max_length=3, verbose_name="كود IATA للمغادرة")
+    destination_city = models.CharField(max_length=100, verbose_name="مدينة الوصول")
+    destination_code = models.CharField(max_length=3, verbose_name="كود IATA للوصول")
+    airline_name     = models.CharField(max_length=100, verbose_name="اسم الطيران")
+    airline_code     = models.CharField(max_length=5, blank=True, verbose_name="كود الطيران")
+    is_active        = models.BooleanField(default=True)
+    content_status   = models.CharField(
+        max_length=20, choices=ContentStatus.choices,
+        default=ContentStatus.DRAFT
+    )
+    created_at       = models.DateTimeField(auto_now_add=True)
+    updated_at       = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "supplier_flight_route"
+        indexes  = [
+            models.Index(fields=['origin_code', 'destination_code']),
+        ]
+
+    def __str__(self):
+        return f"{self.origin_code} → {self.destination_code} ({self.airline_name})"
+
+
+class CabinClass(models.TextChoices):
+    ECONOMY         = "ECONOMY",         "Economy"
+    PREMIUM_ECONOMY = "PREMIUM_ECONOMY", "Premium Economy"
+    BUSINESS        = "BUSINESS",        "Business"
+    FIRST           = "FIRST",           "First Class"
+
+
+class FlightRateSupplier(models.Model):
+    id                   = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    route                = models.ForeignKey(
+        FlightRouteSupplier, on_delete=models.CASCADE,
+        related_name="rates", verbose_name="المسار"
+    )
+    cabin_class          = models.CharField(
+        max_length=20, choices=CabinClass.choices,
+        default=CabinClass.ECONOMY, verbose_name="درجة السفر"
+    )
+    season_name          = models.CharField(max_length=100, verbose_name="اسم الموسم")
+    date_from            = models.DateField(verbose_name="من تاريخ")
+    date_to              = models.DateField(verbose_name="إلى تاريخ")
+    cost_price_adult     = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        verbose_name="سعر البالغ"
+    )
+    cost_price_child     = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        null=True, blank=True, verbose_name="سعر الطفل"
+    )
+    cost_price_infant    = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        null=True, blank=True, verbose_name="سعر الرضيع"
+    )
+    currency             = models.CharField(
+        max_length=3, choices=Currency.choices,
+        default=Currency.MYR, verbose_name="العملة"
+    )
+    available_seats      = models.PositiveSmallIntegerField(
+        default=0, verbose_name="المقاعد المتاحة"
+    )
+    baggage_included_kg  = models.PositiveSmallIntegerField(
+        default=0, verbose_name="وزن الأمتعة المسموح (كغ)"
+    )
+    is_active            = models.BooleanField(default=True)
+    content_status       = models.CharField(
+        max_length=20, choices=ContentStatus.choices,
+        default=ContentStatus.DRAFT
+    )
+    created_at           = models.DateTimeField(auto_now_add=True)
+    updated_at           = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "supplier_flight_rate"
+        indexes  = [
+            models.Index(fields=['route', 'date_from', 'date_to']),
+        ]

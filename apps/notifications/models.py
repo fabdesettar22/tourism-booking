@@ -7,11 +7,14 @@ from apps.accounts.models import User
 class Notification(models.Model):
 
     TYPE_CHOICES = [
-        ('new_booking',       'حجز جديد'),
-        ('booking_status',    'تغيير حالة حجز'),
-        ('new_agency',        'وكالة جديدة'),
-        ('agency_approved',   'قبول وكالة'),
-        ('agency_rejected',   'رفض وكالة'),
+        ('new_booking',        'حجز جديد'),
+        ('booking_status',     'تغيير حالة حجز'),
+        ('new_agency',         'وكالة جديدة'),
+        ('agency_approved',    'قبول وكالة'),
+        ('agency_rejected',    'رفض وكالة'),
+        ('new_supplier',       'مورّد جديد'),
+        ('supplier_approved',  'قبول مورّد'),
+        ('supplier_rejected',  'رفض مورّد'),
     ]
 
     recipient    = models.ForeignKey(
