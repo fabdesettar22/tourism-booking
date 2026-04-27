@@ -43,3 +43,6 @@ frontend/.env.production.local
 *.backup_*
 ~/mybridge_backups/
 runtime_stale*
+
+# Claude worktrees (embedded repo)
+.claude/
