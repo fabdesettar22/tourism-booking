@@ -8,8 +8,9 @@ import {
   CheckCircle2, XCircle, Loader2, Eye, EyeOff, AlertCircle,
   Building2, Mail, User, Lock, KeyRound,
 } from 'lucide-react';
+import { useLanguage } from '../../hooks/useLanguage';
 
-const API_BASE = 'http://127.0.0.1:8000/api/v1/accounts';
+const API_BASE = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api/v1/accounts';
 
 type CheckState =
   | { status: 'checking' }
@@ -17,6 +18,7 @@ type CheckState =
   | { status: 'valid'; agency_name: string; email: string; expires_at: string };
 
 export function AgencyActivationPage() {
+  const { t, isRTL } = useLanguage();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const token = searchParams.get('token') ?? '';
@@ -33,7 +35,7 @@ export function AgencyActivationPage() {
 
   useEffect(() => {
     if (!token) {
-      setCheckState({ status: 'invalid', error: 'لا يوجد رمز تفعيل في الرابط.' });
+      setCheckState({ status: 'invalid', error: t('agencyActivation.errors.noToken') });
       return;
     }
 
@@ -57,14 +59,14 @@ export function AgencyActivationPage() {
         } else {
           setCheckState({
             status: 'invalid',
-            error: data.error ?? 'رمز التفعيل غير صالح.',
+            error: data.error ?? t('agencyActivation.errors.defaultInvalid'),
           });
         }
       } catch (e: any) {
         if (e.name === 'AbortError') return;
         setCheckState({
           status: 'invalid',
-          error: 'فشل الاتصال بالخادم. تأكّد من اتصالك بالإنترنت.',
+          error: t('agencyActivation.errors.connectionFail'),
         });
       }
     })();
@@ -74,13 +76,13 @@ export function AgencyActivationPage() {
 
   const validateForm = (): string | null => {
     if (username.trim().length < 3)
-      return 'اسم المستخدم يجب ألا يقلّ عن 3 أحرف.';
+      return t('agencyActivation.errors.usernameMin');
     if (!/^[a-zA-Z0-9_]+$/.test(username))
-      return 'اسم المستخدم يقبل أحرف إنكليزية وأرقام و _ فقط.';
+      return t('agencyActivation.errors.usernamePattern');
     if (password.length < 8)
-      return 'كلمة المرور يجب ألا تقلّ عن 8 أحرف.';
+      return t('agencyActivation.errors.passwordMin');
     if (password !== passwordConfirm)
-      return 'كلمتا المرور غير متطابقتين.';
+      return t('agencyActivation.errors.passwordMismatch');
     return null;
   };
 
@@ -106,8 +108,8 @@ export function AgencyActivationPage() {
 
       if (!res.ok) {
         const firstErr = typeof data === 'object' && data !== null
-          ? (data.detail ?? (Object.values(data)[0] as any)?.[0] ?? 'فشل التفعيل.')
-          : 'فشل التفعيل.';
+          ? (data.detail ?? (Object.values(data)[0] as any)?.[0] ?? t('agencyActivation.errors.activationFailed'))
+          : t('agencyActivation.errors.activationFailed');
         setFormError(String(firstErr));
         setSubmitting(false);
         return;
@@ -122,17 +124,17 @@ export function AgencyActivationPage() {
       setSuccess(true);
       setTimeout(() => navigate('/dashboard', { replace: true }), 1500);
     } catch {
-      setFormError('خطأ في الاتصال بالخادم.');
+      setFormError(t('agencyActivation.errors.serverError'));
       setSubmitting(false);
     }
   };
 
   if (checkState.status === 'checking') {
     return (
-      <ActivationShell>
+      <ActivationShell isRTL={isRTL}>
         <div className="flex flex-col items-center gap-4 py-10 text-center">
           <Loader2 className="w-10 h-10 text-white animate-spin" />
-          <p className="text-white/90 text-sm">جاري التحقّق من رمز التفعيل...</p>
+          <p className="text-white/90 text-sm">{t('agencyActivation.checking')}</p>
         </div>
       </ActivationShell>
     );
@@ -140,28 +142,28 @@ export function AgencyActivationPage() {
 
   if (checkState.status === 'invalid') {
     return (
-      <ActivationShell>
+      <ActivationShell isRTL={isRTL}>
         <div className="flex flex-col items-center gap-4 py-6 text-center">
           <div className="w-16 h-16 rounded-full bg-red-500/20 border-2 border-red-400/50 flex items-center justify-center">
             <XCircle className="w-8 h-8 text-red-400" />
           </div>
-          <h2 className="text-xl font-bold text-white">رمز التفعيل غير صالح</h2>
+          <h2 className="text-xl font-bold text-white">{t('agencyActivation.invalidTitle')}</h2>
           <p className="text-white/80 text-sm leading-relaxed max-w-sm">
             {checkState.error}
           </p>
-          <div className="mt-2 space-y-2 text-right w-full">
-            <p className="text-white/70 text-xs font-semibold">الأسباب المحتملة:</p>
-            <ul className="text-white/70 text-xs space-y-1 list-disc pr-5">
-              <li>انتهت صلاحية الرابط (7 أيام)</li>
-              <li>تم استخدام الرابط سابقاً</li>
-              <li>الرابط غير مكتمل</li>
+          <div className={`mt-2 space-y-2 ${isRTL ? 'text-right' : 'text-left'} w-full`}>
+            <p className="text-white/70 text-xs font-semibold">{t('agencyActivation.possibleReasons')}</p>
+            <ul className={`text-white/70 text-xs space-y-1 list-disc ${isRTL ? 'pr-5' : 'pl-5'}`}>
+              <li>{t('agencyActivation.reason1')}</li>
+              <li>{t('agencyActivation.reason2')}</li>
+              <li>{t('agencyActivation.reason3')}</li>
             </ul>
           </div>
           <button
             onClick={() => navigate('/login')}
             className="mt-4 px-6 py-2.5 bg-white text-[#FF6B35] rounded-xl font-semibold text-sm hover:bg-white/90 transition-all"
           >
-            العودة لتسجيل الدخول
+            {t('agencyActivation.backToLogin')}
           </button>
         </div>
       </ActivationShell>
@@ -170,26 +172,32 @@ export function AgencyActivationPage() {
 
   if (success) {
     return (
-      <ActivationShell>
+      <ActivationShell isRTL={isRTL}>
         <div className="flex flex-col items-center gap-4 py-6 text-center">
           <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-400/50 flex items-center justify-center">
             <CheckCircle2 className="w-8 h-8 text-emerald-400" />
           </div>
-          <h2 className="text-xl font-bold text-white">تم تفعيل الحساب بنجاح</h2>
-          <p className="text-white/80 text-sm">جاري تحويلك إلى لوحة التحكم...</p>
+          <h2 className="text-xl font-bold text-white">{t('agencyActivation.successTitle')}</h2>
+          <p className="text-white/80 text-sm">{t('agencyActivation.successRedirect')}</p>
           <Loader2 className="w-5 h-5 text-white/60 animate-spin mt-2" />
         </div>
       </ActivationShell>
     );
   }
 
+  // Position helpers for RTL/LTR
+  const iconSide = isRTL ? 'right-3' : 'left-3';
+  const eyeSide  = isRTL ? 'left-3' : 'right-3';
+  const inputPaddingDouble = isRTL ? 'pr-10 pl-10' : 'pl-10 pr-10';
+  const inputPaddingSingle = isRTL ? 'pr-10 pl-3'  : 'pl-10 pr-3';
+
   return (
-    <ActivationShell>
+    <ActivationShell isRTL={isRTL}>
       <div className="text-center mb-5">
         <div className="inline-flex w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 items-center justify-center mb-3">
           <Building2 className="w-7 h-7 text-white" />
         </div>
-        <h1 className="text-2xl font-bold text-white">مرحباً بك في MYBRIDGE</h1>
+        <h1 className="text-2xl font-bold text-white">{t('agencyActivation.welcome')}</h1>
         <p className="text-white/85 text-sm mt-1">{checkState.agency_name}</p>
         <p className="text-white/65 text-xs mt-1 flex items-center justify-center gap-1">
           <Mail className="w-3 h-3" /> {checkState.email}
@@ -197,7 +205,7 @@ export function AgencyActivationPage() {
       </div>
 
       <div className="bg-white/10 border border-white/20 rounded-xl p-3 mb-5 text-white/85 text-xs leading-relaxed">
-        تم قبول طلب تسجيل وكالتك. أنشئ اسم مستخدم وكلمة مرور لإكمال تفعيل حسابك.
+        {t('agencyActivation.noticeAccepted')}
       </div>
 
       {formError && (
@@ -210,29 +218,29 @@ export function AgencyActivationPage() {
       <div className="space-y-3">
         <div>
           <label className="block text-white/90 text-xs font-semibold mb-1.5">
-            اسم المستخدم
+            {t('agencyActivation.usernameLabel')}
           </label>
           <div className="relative">
-            <User className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
+            <User className={`absolute ${iconSide} top-1/2 -translate-y-1/2 w-4 h-4 text-white/60`} />
             <input
               type="text"
               value={username}
               onChange={e => setUsername(e.target.value)}
               autoComplete="username"
               dir="ltr"
-              placeholder="my_agency"
-              className="w-full h-11 pr-10 pl-3 bg-white/15 backdrop-blur-md border border-white/25 rounded-xl text-white placeholder-white/40 text-sm focus:outline-none focus:border-white/60 focus:bg-white/20"
+              placeholder={t('agencyActivation.usernamePh')}
+              className={`w-full h-11 ${inputPaddingSingle} bg-white/15 backdrop-blur-md border border-white/25 rounded-xl text-white placeholder-white/40 text-sm focus:outline-none focus:border-white/60 focus:bg-white/20`}
             />
           </div>
-          <p className="text-white/50 text-[11px] mt-1">أحرف إنكليزية، أرقام، و _ فقط</p>
+          <p className="text-white/50 text-[11px] mt-1">{t('agencyActivation.usernameHint')}</p>
         </div>
 
         <div>
           <label className="block text-white/90 text-xs font-semibold mb-1.5">
-            كلمة المرور
+            {t('agencyActivation.passwordLabel')}
           </label>
           <div className="relative">
-            <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
+            <Lock className={`absolute ${iconSide} top-1/2 -translate-y-1/2 w-4 h-4 text-white/60`} />
             <input
               type={showPassword ? 'text' : 'password'}
               value={password}
@@ -240,26 +248,26 @@ export function AgencyActivationPage() {
               autoComplete="new-password"
               dir="ltr"
               placeholder="••••••••"
-              className="w-full h-11 pr-10 pl-10 bg-white/15 backdrop-blur-md border border-white/25 rounded-xl text-white placeholder-white/40 text-sm focus:outline-none focus:border-white/60 focus:bg-white/20"
+              className={`w-full h-11 ${inputPaddingDouble} bg-white/15 backdrop-blur-md border border-white/25 rounded-xl text-white placeholder-white/40 text-sm focus:outline-none focus:border-white/60 focus:bg-white/20`}
             />
             <button
               type="button"
               onClick={() => setShowPassword(s => !s)}
-              aria-label={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-white/60 hover:text-white"
+              aria-label={showPassword ? t('agencyActivation.hidePassword') : t('agencyActivation.showPassword')}
+              className={`absolute ${eyeSide} top-1/2 -translate-y-1/2 text-white/60 hover:text-white`}
             >
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
-          <p className="text-white/50 text-[11px] mt-1">8 أحرف على الأقل</p>
+          <p className="text-white/50 text-[11px] mt-1">{t('agencyActivation.passwordHint')}</p>
         </div>
 
         <div>
           <label className="block text-white/90 text-xs font-semibold mb-1.5">
-            تأكيد كلمة المرور
+            {t('agencyActivation.confirmLabel')}
           </label>
           <div className="relative">
-            <KeyRound className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
+            <KeyRound className={`absolute ${iconSide} top-1/2 -translate-y-1/2 w-4 h-4 text-white/60`} />
             <input
               type={showPassword ? 'text' : 'password'}
               value={passwordConfirm}
@@ -267,7 +275,7 @@ export function AgencyActivationPage() {
               autoComplete="new-password"
               dir="ltr"
               placeholder="••••••••"
-              className="w-full h-11 pr-10 pl-3 bg-white/15 backdrop-blur-md border border-white/25 rounded-xl text-white placeholder-white/40 text-sm focus:outline-none focus:border-white/60 focus:bg-white/20"
+              className={`w-full h-11 ${inputPaddingSingle} bg-white/15 backdrop-blur-md border border-white/25 rounded-xl text-white placeholder-white/40 text-sm focus:outline-none focus:border-white/60 focus:bg-white/20`}
             />
           </div>
         </div>
@@ -280,10 +288,10 @@ export function AgencyActivationPage() {
           {submitting ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              جاري التفعيل...
+              {t('agencyActivation.activating')}
             </>
           ) : (
-            'تفعيل الحساب والدخول'
+            t('agencyActivation.activateBtn')
           )}
         </button>
       </div>
@@ -295,10 +303,10 @@ export function AgencyActivationPage() {
   );
 }
 
-function ActivationShell({ children }: { children: React.ReactNode }) {
+function ActivationShell({ children, isRTL }: { children: React.ReactNode; isRTL: boolean }) {
   return (
     <div
-      dir="rtl"
+      dir={isRTL ? 'rtl' : 'ltr'}
       className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
       style={{
         background: 'linear-gradient(135deg, #FF5722 0%, #FF6B35 25%, #FF8F3C 50%, #FFA647 75%, #FFB547 100%)',

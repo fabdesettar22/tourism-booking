@@ -21,6 +21,7 @@ urlpatterns = [
     path('api/v1/waitlist/',          include('apps.waitlist.urls')),
     path('api/v1/waitlist-agency/',   include('apps.waitlist_agency.urls')),
     path('api/v1/hero-hotels/',       include('apps.hero_hotels.urls', namespace='hero_hotels')),
+    path('api/v1/advertising/',      include('apps.advertising.urls')),
 ]
 
 if settings.DEBUG:

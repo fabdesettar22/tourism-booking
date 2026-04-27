@@ -11,6 +11,8 @@ import {
 import { faGooglePlay, faAppStore, faFacebook, faInstagram, faTwitter, faWhatsapp } from "@fortawesome/free-brands-svg-icons";
 import { useLanguage } from "../../hooks/useLanguage";
 import { LANGUAGES, type Language } from "../../i18n/index";
+import { AdSlot } from "../../features/advertising/AdSlot";
+import { AdPopup } from "../../features/advertising/AdPopup";
 
 interface Destination { name:string; tours:number; activities:number; image:string; }
 interface Testimonial { name:string; location:string; text:string; rating:number; avatar:string; }
@@ -710,14 +712,50 @@ export function HomePage({ onLogin }: { onLogin?:()=>void }) {
         isRTL={isRTL}
       />
       <HeroSection          {...shared}/>
+
+      {/* 🎯 AdSlot 1: فوق الصفحة (بعد Hero) */}
+      <section className="bg-white py-6" dir={isRTL ? "rtl" : "ltr"}>
+        <div className="max-w-7xl mx-auto px-4">
+          <AdSlot placement="HOME_HERO_TOP" />
+        </div>
+      </section>
+
       <DestinationsSection  {...shared}/>
       <MalaysiaSection      {...shared}/>
+
+      {/* 🎯 AdSlot 2: وسط الصفحة */}
+      <section className="bg-gray-50 py-8" dir={isRTL ? "rtl" : "ltr"}>
+        <div className="max-w-7xl mx-auto px-4">
+          <AdSlot placement="HOME_MIDDLE" />
+        </div>
+      </section>
+
       <WhyChooseUs          {...shared}/>
+
+      {/* 🎯 AdSlot 3: بنر عريض كامل */}
+      <section className="bg-white py-8" dir={isRTL ? "rtl" : "ltr"}>
+        <div className="max-w-7xl mx-auto px-4">
+          <AdSlot placement="HOME_BANNER_FULL" />
+        </div>
+      </section>
+
       <SupplierCTASection   {...shared} onSupplier={goToSupplier}/>
       <TestimonialsSection  {...shared}/>
       <NewsSection          {...shared}/>
       <NewsletterSection    {...shared}/>
+
+      {/* 🎯 AdSlot 4: أسفل الصفحة */}
+      <section className="bg-gray-50 py-8" dir={isRTL ? "rtl" : "ltr"}>
+        <div className="max-w-7xl mx-auto px-4">
+          <AdSlot placement="HOME_BOTTOM" />
+        </div>
+      </section>
+
       <Footer               {...shared}/>
+
+      {/* 🎯 Popups */}
+      <AdPopup placement="POPUP_ENTRY" delay={3000} />
+      <AdPopup placement="POPUP_EXIT" />
     </div>
   );
 }

@@ -24,6 +24,7 @@ import { FinancialReports }       from '../features/analytics/FinancialReports';
 import { ExtranetManagement }     from '../features/hotels/ExtranetManagement';
 import { AnalyticsReports }       from '../features/analytics/AnalyticsReports';
 import { SettingsPage }           from '../pages/admin/SettingsPage';
+import { AdsManagement } from '../features/advertising/AdsManagement';
 import { getStoredUser, clearAuth } from '../services/authService';
 import type { AuthUser }          from '../services/authService';
 import { useLanguage }            from '../hooks/useLanguage';
@@ -189,6 +190,7 @@ function AdminApp() {
       case 'registrations': return isAdmin ? <RegistrationRequests /> : null;
       case 'agencies':     return isAdmin ? <AgenciesManagement /> : null;
       case 'analytics':    return isAdmin ? <AnalyticsReports /> : null;
+      case 'advertising':  return isAdmin ? <AdsManagement /> : null;
       default:             return isAdmin ? <DashboardContent /> : <AgencyDashboard user={user} />;
     }
   };

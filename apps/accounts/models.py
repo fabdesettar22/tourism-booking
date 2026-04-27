@@ -135,6 +135,20 @@ class Agency(models.Model):
 
 class User(AbstractUser):
 
+    # تعديل verbose_name للحقول الموروثة من AbstractUser
+    AbstractUser._meta.get_field('username').verbose_name = 'اسم المستخدم'
+    AbstractUser._meta.get_field('first_name').verbose_name = 'الاسم الأول'
+    AbstractUser._meta.get_field('last_name').verbose_name = 'الاسم الأخير'
+    AbstractUser._meta.get_field('email').verbose_name = 'البريد الإلكتروني'
+    AbstractUser._meta.get_field('is_active').verbose_name = 'نشط'
+    AbstractUser._meta.get_field('is_staff').verbose_name = 'موظف'
+    AbstractUser._meta.get_field('is_superuser').verbose_name = 'مدير عام'
+    AbstractUser._meta.get_field('date_joined').verbose_name = 'تاريخ الانضمام'
+    AbstractUser._meta.get_field('last_login').verbose_name = 'آخر دخول'
+    AbstractUser._meta.get_field('password').verbose_name = 'كلمة المرور'
+    AbstractUser._meta.get_field('groups').verbose_name = 'المجموعات'
+    AbstractUser._meta.get_field('user_permissions').verbose_name = 'صلاحيات المستخدم'
+
     ROLE_CHOICES = [
         ('super_admin', 'مدير عام'),
         ('admin',       'مشرف'),

@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'apps.suppliers',
     'apps.waitlist',
      'apps.hero_hotels',
+    'apps.advertising',
     'apps.waitlist_agency',
 ]
 
@@ -60,6 +61,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',

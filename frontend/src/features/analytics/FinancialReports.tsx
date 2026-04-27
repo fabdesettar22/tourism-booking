@@ -4,8 +4,8 @@ import {
   DollarSign, TrendingUp, CheckCircle2, XCircle, Clock,
   Loader2, RefreshCw, CreditCard
 } from 'lucide-react';
+import { useLanguage } from '../../hooks/useLanguage';
 
-// ─── Types ────────────────────────────────────────────────
 interface BookingStats {
   stats: {
     total: number;
@@ -20,12 +20,10 @@ interface BookingStats {
   };
 }
 
-// ─── Helpers ──────────────────────────────────────────────
 function fmt(val: string | number, currency = 'MYR') {
   return `${parseFloat(String(val)).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
 }
 
-// ─── Stat Card ────────────────────────────────────────────
 function StatCard({ label, value, currency, sub, icon, color, iconBg }:
   { label: string; value: string; currency?: string; sub?: string; icon: any; color: string; iconBg: string }) {
   const Icon = icon;
@@ -44,8 +42,8 @@ function StatCard({ label, value, currency, sub, icon, color, iconBg }:
   );
 }
 
-// ─── Main ─────────────────────────────────────────────────
 export function FinancialReports() {
+  const { t, isRTL } = useLanguage();
   const [stats, setStats]   = useState<BookingStats['stats'] | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -66,52 +64,48 @@ export function FinancialReports() {
   if (loading) return (
     <div className="flex flex-col items-center justify-center h-64 gap-4">
       <Loader2 className="w-10 h-10 text-blue-500 animate-spin"/>
-      <p className="text-gray-500">جاري تحميل التقارير المالية...</p>
+      <p className="text-gray-500">{t('financialRpt.loading')}</p>
     </div>
   );
 
   return (
-    <div className="space-y-6 bg-gray-50 min-h-screen -m-8 p-8" dir="rtl">
-
-      {/* Header */}
+    <div className="space-y-6 bg-gray-50 min-h-screen -m-8 p-8" dir={isRTL ? 'rtl' : 'ltr'}>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">التقارير المالية</h1>
-          <p className="text-gray-500 text-sm mt-0.5">إحصاءات الإيرادات والحجوزات</p>
+          <h1 className="text-2xl font-bold text-gray-800">{t('financialRpt.title')}</h1>
+          <p className="text-gray-500 text-sm mt-0.5">{t('financialRpt.subtitle')}</p>
         </div>
         <button onClick={fetchAll}
           className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 bg-white rounded-xl text-sm font-medium hover:bg-gray-50">
-          <RefreshCw className="w-4 h-4"/> تحديث
+          <RefreshCw className="w-4 h-4"/> {t('financialRpt.refresh')}
         </button>
       </div>
 
-      {/* Summary Stats */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <StatCard label="إجمالي الإيرادات"
+          <StatCard label={t('financialRpt.totalRevenue')}
             value={stats.total_revenue.toLocaleString('en-MY', { minimumFractionDigits: 2 })}
             currency={stats.currency} icon={TrendingUp} color="text-emerald-600" iconBg="bg-emerald-50"/>
-          <StatCard label="إجمالي الحجوزات"
+          <StatCard label={t('financialRpt.totalBookings')}
             value={String(stats.total)}
             icon={CreditCard} color="text-blue-600" iconBg="bg-blue-50"/>
-          <StatCard label="العمولات المكتسبة"
+          <StatCard label={t('financialRpt.commissionEarned')}
             value={stats.commission_earned.toLocaleString('en-MY', { minimumFractionDigits: 2 })}
             currency={stats.currency}
-            sub={`نسبة العمولة: ${stats.commission_rate}%`}
+            sub={t('financialRpt.commissionRate').replace('{rate}', String(stats.commission_rate))}
             icon={DollarSign} color="text-purple-600" iconBg="bg-purple-50"/>
         </div>
       )}
 
-      {/* Booking Stats */}
       {stats && (
         <div className="bg-white border border-gray-200 rounded-2xl p-6">
-          <h2 className="font-bold text-gray-800 mb-4">توزيع الحجوزات حسب الحالة</h2>
+          <h2 className="font-bold text-gray-800 mb-4">{t('financialRpt.bookingDistribution')}</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: 'معلقة',  val: stats.pending,   color: 'text-amber-600',   bg: 'bg-amber-50',   icon: Clock },
-              { label: 'مؤكدة',  val: stats.confirmed, color: 'text-emerald-600', bg: 'bg-emerald-50', icon: CheckCircle2 },
-              { label: 'ملغاة',  val: stats.cancelled, color: 'text-red-600',     bg: 'bg-red-50',     icon: XCircle },
-              { label: 'مكتملة', val: stats.completed, color: 'text-blue-600',    bg: 'bg-blue-50',    icon: CheckCircle2 },
+              { label: t('financialRpt.status.pending'),   val: stats.pending,   color: 'text-amber-600',   bg: 'bg-amber-50',   icon: Clock },
+              { label: t('financialRpt.status.confirmed'), val: stats.confirmed, color: 'text-emerald-600', bg: 'bg-emerald-50', icon: CheckCircle2 },
+              { label: t('financialRpt.status.cancelled'), val: stats.cancelled, color: 'text-red-600',     bg: 'bg-red-50',     icon: XCircle },
+              { label: t('financialRpt.status.completed'), val: stats.completed, color: 'text-blue-600',    bg: 'bg-blue-50',    icon: CheckCircle2 },
             ].map(s => (
               <div key={s.label} className={`rounded-xl p-4 ${s.bg} flex items-center gap-3`}>
                 <s.icon className={`w-5 h-5 ${s.color}`}/>
@@ -124,17 +118,18 @@ export function FinancialReports() {
           </div>
           <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-100">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">إجمالي الإيرادات</span>
+              <span className="text-sm text-gray-500">{t('financialRpt.totalRevenue')}</span>
               <span className="font-bold text-emerald-600">{fmt(stats.total_revenue, stats.currency)}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">العمولات المكتسبة ({stats.commission_rate}%)</span>
+              <span className="text-sm text-gray-500">
+                {t('financialRpt.commissionEarnedRate').replace('{rate}', String(stats.commission_rate))}
+              </span>
               <span className="font-bold text-purple-600">{fmt(stats.commission_earned, stats.currency)}</span>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }
