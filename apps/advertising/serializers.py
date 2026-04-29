@@ -186,6 +186,7 @@ class AdCreativeAdminSerializer(serializers.ModelSerializer):
     class Meta:
         model = AdCreative
         fields = (
+            'id',
             'uid',
             'name',
             'campaign',

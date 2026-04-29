@@ -46,3 +46,4 @@ runtime_stale*
 
 # Claude worktrees (embedded repo)
 .claude/
+project_dump.sh

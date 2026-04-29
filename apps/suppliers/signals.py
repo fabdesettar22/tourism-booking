@@ -1,6 +1,7 @@
 # apps/suppliers/signals.py
 
 from django.db.models.signals import post_save
+from django.db.models import Q
 from django.dispatch import receiver
 from .models import (
     RoomRateSupplier, FlightRateSupplier,
@@ -39,3 +40,13 @@ def approve_tour_rate(sender, instance, created, **kwargs):
 def approve_transfer_rate(sender, instance, created, **kwargs):
     if created and instance.route.supplier.is_trusted:
         _auto_approve(instance, TransferRateSupplier, instance.pk)
+
+
+# ═══════════════════════════════════════════════════════════
+# HotelSupplier → Hotel Auto-Creation (DISABLED - Step 1)
+# ═══════════════════════════════════════════════════════════
+# هذا الـ signal مُعطَّل لأن:
+#   1. كان يستخدم Q(label__...) و Country بلا حقل label
+#   2. سنعتمد على PropertyWaitlist بدلاً من HotelSupplier
+# سنبني signal جديد على PropertyWaitlist في الخطوة 7
+# ═══════════════════════════════════════════════════════════

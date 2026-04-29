@@ -9,9 +9,9 @@ import {
 } from 'lucide-react';
 
 // ─── Types ──────────────────────────────────────
-interface Country { id: number; name: string; }
+interface Country { id: number; name?: string; label?: string; name_en?: string; name_ar?: string; iso2?: string; }
 interface City {
-  id: number; name: string; country: number;
+  id: number; name: string; country: number; country_id?: number; label?: string; name_ar?: string; name_en?: string;
   description?: string; image?: string;
 }
 type ToastType = 'success' | 'error' | 'warning';
@@ -126,6 +126,8 @@ export function DestinationsManagement() {
   const itemsPerPage = viewMode === 'table' ? 8 : 12;
 
   const [showCityModal, setShowCityModal] = useState(false);
+  const [modalCountryCities, setModalCountryCities] = useState<City[]>([]);
+  const [loadingCities, setLoadingCities] = useState(false);
   const [showCountryModal, setShowCountryModal] = useState(false);
   const [editingCity, setEditingCity] = useState<City | null>(null);
   const [newCountryName, setNewCountryName] = useState('');
@@ -145,11 +147,34 @@ export function DestinationsManagement() {
 
   useEffect(() => { fetchData(); }, []);
 
+  // ─── تحميل ديناميكي للمدن عند تغيير فلتر الدولة ───
+  useEffect(() => {
+    if (selectedCountryFilter === null) return;
+    
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await apiFetch(`/api/v1/locations/cities/?country_id=${selectedCountryFilter}&limit=2000`);
+        if (res.ok) {
+          const data = await res.json();
+          const list = Array.isArray(data) ? data : (data.results || []);
+          setCities(list);
+          setCurrentPage(1);
+        }
+      } catch (e) {
+        console.error('فشل تحميل مدن الدولة', e);
+        addToast('error', 'فشل تحميل مدن الدولة');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [selectedCountryFilter]);
+
   const fetchData = async () => {
     try {
       const [cRes, ciRes] = await Promise.all([
         apiFetch(`/api/v1/locations/countries/`),
-        apiFetch(`/api/v1/locations/cities/`)
+        apiFetch(`/api/v1/locations/cities/?limit=1000`)
       ]);
       if (cRes.ok && ciRes.ok) {
         setCountries(await cRes.json());
@@ -169,8 +194,8 @@ export function DestinationsManagement() {
     .filter(city => {
       const matchesSearch =
         city.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        countries.find(c => c.id === city.country)?.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCountry = selectedCountryFilter === null || city.country === selectedCountryFilter;
+        (countries.find(c => c.id === (city.country_id || city.country))?.label || countries.find(c => c.id === (city.country_id || city.country))?.name_ar || countries.find(c => c.id === (city.country_id || city.country))?.name_en || '').toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCountry = selectedCountryFilter === null || (city.country_id || city.country) === selectedCountryFilter;
       return matchesSearch && matchesCountry;
     })
     .sort((a, b) => sortBy === 'name-asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name));
@@ -310,7 +335,7 @@ export function DestinationsManagement() {
         <select value={selectedCountryFilter || ''} onChange={e => { setSelectedCountryFilter(e.target.value ? Number(e.target.value) : null); setCurrentPage(1); }}
           className="border p-2.5 rounded-xl text-sm md:w-48 w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
           <option value="">{t('destinations.allCountries')}</option>
-          {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          {countries.map(c => <option key={c.id} value={c.id}>{c.label || c.name_ar || c.name_en || c.name || `Country ${c.id}`}</option>)}
         </select>
         <select value={sortBy} onChange={e => setSortBy(e.target.value as any)}
           className="border p-2.5 rounded-xl text-sm md:w-44 w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -495,7 +520,7 @@ export function DestinationsManagement() {
                 <select value={selectedCountryId || ''} onChange={e => setSelectedCountryId(Number(e.target.value))}
                   className="w-full border p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-sm">
                   <option value="">{t('destinations.cityModal.countryPlaceholder')}</option>
-                  {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {countries.map(c => <option key={c.id} value={c.id}>{c.label || c.name_ar || c.name_en || c.name || `Country ${c.id}`}</option>)}
                 </select>
               </div>
               <div>

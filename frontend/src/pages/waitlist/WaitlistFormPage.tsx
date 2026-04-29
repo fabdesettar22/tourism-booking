@@ -49,6 +49,11 @@ const SUBTYPES: Record<string, {
       fields: [
         { key: 'vehicles_count', label_en: 'Number of Vehicles', label_ar: 'عدد المركبات', label_ms: 'Bilangan Kenderaan', type: 'number' },
         { key: 'has_license', label_en: 'Tourism License?', label_ar: 'لديك رخصة سياحية؟', label_ms: 'Lesen Pelancongan?', type: 'boolean' },
+        // 🆕 الأسعار
+        { key: 'price_airport_transfer', label_en: 'Airport Transfer Price (MYR)', label_ar: 'سعر نقل المطار (رينغيت)', label_ms: 'Harga Pemindahan Lapangan Terbang (MYR)', type: 'number' },
+        { key: 'price_hourly', label_en: 'Hourly Rate (MYR)', label_ar: 'سعر الساعة (رينغيت)', label_ms: 'Harga Sejam (MYR)', type: 'number' },
+        { key: 'price_intercity', label_en: 'Intercity Trip Price (MYR)', label_ar: 'سعر الرحلة بين المدن (رينغيت)', label_ms: 'Harga Antara Bandar (MYR)', type: 'number' },
+        { key: 'price_full_day', label_en: 'Full Day Price (8h, MYR)', label_ar: 'سعر اليوم الكامل (8 ساعات، رينغيت)', label_ms: 'Harga Sehari Penuh (8 jam, MYR)', type: 'number' },
       ],
     },
     ar: { label: 'نوع النقل' },
@@ -67,6 +72,9 @@ const SUBTYPES: Record<string, {
       fields: [
         { key: 'capacity', label_en: 'Seating Capacity', label_ar: 'الطاقة الاستيعابية', label_ms: 'Kapasiti Tempat Duduk', type: 'number' },
         { key: 'is_halal', label_en: 'Halal Certified?', label_ar: 'حلال معتمد؟', label_ms: 'Halal Diperakui?', type: 'boolean' },
+        // 🆕 الأسعار
+        { key: 'price_per_person', label_en: 'Avg Meal Price per Person (MYR)', label_ar: 'متوسط سعر الوجبة للشخص (رينغيت)', label_ms: 'Purata Harga Hidangan / Orang (MYR)', type: 'number' },
+        { key: 'price_set_menu', label_en: 'Set Menu Price (MYR, optional)', label_ar: 'سعر القائمة الثابتة (رينغيت، اختياري)', label_ms: 'Harga Menu Set (MYR, pilihan)', type: 'number' },
       ],
     },
     ar: { label: 'نوع المطعم' },
@@ -85,6 +93,10 @@ const SUBTYPES: Record<string, {
         { key: 'experience_years', label_en: 'Years of Experience', label_ar: 'سنوات الخبرة', label_ms: 'Tahun Pengalaman', type: 'number' },
         { key: 'accepts_groups', label_en: 'Accept Groups?', label_ar: 'تقبل مجموعات؟', label_ms: 'Terima Kumpulan?', type: 'boolean' },
         { key: 'has_license', label_en: 'Guide License?', label_ar: 'رخصة مرشد؟', label_ms: 'Lesen Pemandu?', type: 'boolean' },
+        // 🆕 الأسعار
+        { key: 'price_half_day', label_en: 'Half Day Price (4h, MYR)', label_ar: 'سعر نصف يوم (4 ساعات، رينغيت)', label_ms: 'Harga Separuh Hari (4 jam, MYR)', type: 'number' },
+        { key: 'price_full_day', label_en: 'Full Day Price (8h, MYR)', label_ar: 'سعر يوم كامل (8 ساعات، رينغيت)', label_ms: 'Harga Sehari Penuh (8 jam, MYR)', type: 'number' },
+        { key: 'price_hourly', label_en: 'Hourly Rate (MYR)', label_ar: 'سعر الساعة (رينغيت)', label_ms: 'Harga Sejam (MYR)', type: 'number' },
       ],
     },
     ar: { label: 'التخصصات (يمكن اختيار أكثر من واحد)' },
@@ -105,6 +117,10 @@ const SUBTYPES: Record<string, {
         { key: 'suitable_kids', label_en: 'Suitable for Kids?', label_ar: 'مناسب للأطفال؟', label_ms: 'Sesuai untuk Kanak?', type: 'boolean' },
         { key: 'has_insurance', label_en: 'Has Insurance?', label_ar: 'لديك تأمين؟', label_ms: 'Ada Insurans?', type: 'boolean' },
         { key: 'has_license', label_en: 'Has License?', label_ar: 'لديك رخصة؟', label_ms: 'Ada Lesen?', type: 'boolean' },
+        // 🆕 الأسعار
+        { key: 'price_per_person', label_en: 'Price per Person (MYR)', label_ar: 'سعر النشاط للشخص (رينغيت)', label_ms: 'Harga / Orang (MYR)', type: 'number' },
+        { key: 'price_per_group', label_en: 'Price per Group (MYR, optional)', label_ar: 'سعر النشاط للمجموعة (رينغيت، اختياري)', label_ms: 'Harga / Kumpulan (MYR, pilihan)', type: 'number' },
+        { key: 'min_group_size', label_en: 'Minimum Group Size', label_ar: 'الحد الأدنى للأشخاص', label_ms: 'Saiz Kumpulan Minimum', type: 'number' },
       ],
     },
     ar: { label: 'أنواع الأنشطة (يمكن اختيار أكثر من واحد)' },
@@ -123,6 +139,10 @@ const SUBTYPES: Record<string, {
         { key: 'capacity', label_en: 'Capacity (persons at once)', label_ar: 'السعة في نفس الوقت', label_ms: 'Kapasiti Serentak', type: 'number' },
         { key: 'is_halal_certified', label_en: 'Halal Certified?', label_ar: 'حلال معتمد؟', label_ms: 'Halal Diperakui?', type: 'boolean' },
         { key: 'has_license', label_en: 'Has License?', label_ar: 'لديك رخصة؟', label_ms: 'Ada Lesen?', type: 'boolean' },
+        // 🆕 الأسعار
+        { key: 'price_per_session', label_en: 'Price per Session (MYR)', label_ar: 'سعر الجلسة (رينغيت)', label_ms: 'Harga / Sesi (MYR)', type: 'number' },
+        { key: 'session_duration_min', label_en: 'Session Duration (minutes)', label_ar: 'مدة الجلسة (دقيقة)', label_ms: 'Tempoh Sesi (minit)', type: 'number' },
+        { key: 'price_package', label_en: 'Package Price (MYR, optional)', label_ar: 'سعر الباقة (رينغيت، اختياري)', label_ms: 'Harga Pakej (MYR, pilihan)', type: 'number' },
       ],
     },
     ar: { label: 'أنواع الخدمات (يمكن اختيار أكثر من واحد)' },
@@ -140,6 +160,9 @@ const SUBTYPES: Record<string, {
       fields: [
         { key: 'service_description', label_en: 'Brief Service Description', label_ar: 'وصف مختصر للخدمة', label_ms: 'Penerangan Ringkas', type: 'textarea' },
         { key: 'has_license', label_en: 'Has License / Certificate?', label_ar: 'لديك رخصة أو شهادة؟', label_ms: 'Ada Lesen/Sijil?', type: 'boolean' },
+        // 🆕 الأسعار
+        { key: 'base_price', label_en: 'Base Price (MYR)', label_ar: 'السعر الأساسي (رينغيت)', label_ms: 'Harga Asas (MYR)', type: 'number' },
+        { key: 'pricing_notes', label_en: 'Additional Pricing Notes', label_ar: 'ملاحظات إضافية للتسعير', label_ms: 'Nota Tambahan Harga', type: 'textarea' },
       ],
     },
     ar: { label: 'أنواع الخدمات (يمكن اختيار أكثر من واحد)' },
@@ -200,6 +223,8 @@ export function WaitlistFormPage() {
     full_name: '', email: '', phone: '', company_name: '',
     country: '', country_code: '',
     city: '', region: '', worked_before: false,
+    // 🆕 المراجع الصحيحة (IDs من قاعدة البيانات)
+    country_ref: null, city_ref: null,
     sync_mode: 'MANUAL', channel_name: '',
     how_did_you_hear: '', how_did_you_hear_other: '',
     subtype: isMulti ? [] : '',
@@ -258,6 +283,10 @@ export function WaitlistFormPage() {
       // Base fields
       const baseFields = ['full_name', 'email', 'phone', 'company_name', 'country', 'country_code', 'city', 'region', 'worked_before', 'sync_mode', 'channel_name', 'how_did_you_hear', 'how_did_you_hear_other'];
       baseFields.forEach(k => fd.append(k, String(form[k] ?? '')));
+
+      // 🆕 إرسال IDs الصحيحة (إن وُجدت — قد لا تُرسل لو فشل المستخدم في الاختيار من القائمة)
+      if (form.country_ref) fd.append('country_ref', String(form.country_ref));
+      if (form.city_ref) fd.append('city_ref', String(form.city_ref));
 
       // Subtype field
       const subtypeKey = isMulti
@@ -537,8 +566,15 @@ export function WaitlistFormPage() {
                         setField('country_code' as any, iso);
                         setField('country' as any, country?.label || '');
                         setField('city', '');
+                        // 🆕 حفظ ID الدولة وتفريغ المدينة
+                        setField('country_ref' as any, country?.id ?? null);
+                        setField('city_ref' as any, null);
                       }}
-                      onCityChange={(name) => setField('city', name)}
+                      onCityChange={(name, city) => {
+                        setField('city', name);
+                        // 🆕 حفظ ID المدينة (يأتي من API)
+                        setField('city_ref' as any, city?.id ?? null);
+                      }}
                     />
                   </div>
                   <div>

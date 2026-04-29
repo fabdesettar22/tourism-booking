@@ -13,8 +13,8 @@ import { CustomPackageWizard } from '../bookings/CustomPackageWizard';
 import type { AuthUser } from '../../services/authService';
 
 // ─── Types ────────────────────────────────────────────────
-interface Country { id: number; name: string; }
-interface City { id: number; name: string; country: number; image?: string; }
+interface Country { id: number; name?: string; label?: string; name_en?: string; name_ar?: string; iso2?: string; }
+interface City { id: number; name: string; country?: number; country_id?: number; label?: string; name_ar?: string; name_en?: string; image?: string; }
 interface Hotel { id: number; name: string; city: number; stars: number; image?: string; }
 interface Service { id: number; name: string; category: number; city: number; base_price: string; currency: string; is_optional: boolean; }
 interface AgencyUser { id: number; username: string; first_name: string; last_name: string; email: string; role: string; is_active: boolean; }
@@ -367,7 +367,7 @@ function CityStep({ cities, countries, hotels, services, pkgCities, onChange, is
   const removeCity = (i: number) => onChange(pkgCities.filter((_,idx)=>idx!==i));
   const updateCity = (i: number, data: Partial<PackageCity>) =>
     onChange(pkgCities.map((c,idx)=>idx===i?{...c,...data}:c));
-  const filteredCities = cities.filter(c => !selCountry || c.country === Number(selCountry));
+  const filteredCities = cities.filter(c => !selCountry || (c.country_id || c.country) === Number(selCountry));
   const getHotelsForCity = (cityId: number) => hotels.filter(h => h.city === cityId);
   const getServicesForCity = (cityId: number) => services.filter(s => s.city === cityId);
 
@@ -385,7 +385,7 @@ function CityStep({ cities, countries, hotels, services, pkgCities, onChange, is
           <select value={selCountry} onChange={e=>setSelCountry(e.target.value)}
             className="border p-2 rounded-xl text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-400">
             <option value="">{t('packagesMgmt.cityStep.allCountries')}</option>
-            {countries.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+            {countries.map(c=><option key={c.id} value={c.id}>{c.label || c.name_ar || c.name_en || `Country ${c.id}`}</option>)}
           </select>
         </div>
       )}
@@ -400,7 +400,7 @@ function CityStep({ cities, countries, hotels, services, pkgCities, onChange, is
                 <select value={pc.city||''} onChange={e=>updateCity(ci,{city:Number(e.target.value),hotels:[],services:[]})}
                   className="border p-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
                   <option value="">{t('packagesMgmt.cityStep.selectCity')}</option>
-                  {filteredCities.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                  {filteredCities.map(c=><option key={c.id} value={c.id}>{c.name || c.name_ar || c.name_en || `City ${c.id}`}</option>)}
                 </select>
                 {!isCustomizable && (
                   <div className="flex items-center gap-1">

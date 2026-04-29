@@ -21,11 +21,13 @@ from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from django.shortcuts import get_object_or_404
 
 from .models import (
+
     AdCreative,
     Placement,
     AdType,
     DeviceType,
     UserType,
+    AdEvent,
 )
 from .serializers import (
     AdCreativePublicSerializer,
@@ -279,6 +281,41 @@ def admin_list_ads(request):
     })
 
 
+def _parse_json_field(data, field, default=None):
+    """يقرأ حقل JSON من FormData أو dict."""
+    import json
+    value = data.get(field)
+    if value is None:
+        return default
+    if isinstance(value, (list, dict)):
+        return value
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except (json.JSONDecodeError, ValueError):
+            return default
+    return value
+
+
+def _parse_bool(value):
+    """يحول 'true'/'false' string إلى bool."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.lower() in ('true', '1', 'yes', 'on')
+    return bool(value)
+
+
+def _parse_int(value, default=None):
+    """يحول string إلى int."""
+    if value is None or value == '':
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 @api_view(['POST'])
 @permission_classes([IsAdminUser])
 def admin_create_ad(request):
@@ -287,22 +324,22 @@ def admin_create_ad(request):
     
     # تحقق أساسي
     if not data.get('name'):
-        return Response({'error': 'name required'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': 'name مطلوب'}, status=status.HTTP_400_BAD_REQUEST)
     if not data.get('placement_key'):
-        return Response({'error': 'placement_key required'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': 'placement_key مطلوب'}, status=status.HTTP_400_BAD_REQUEST)
     
     try:
         # الإعلان نفسه
         ad = AdCreative.objects.create(
             name=data.get('name'),
             ad_type=data.get('ad_type', 'BANNER'),
-            content=data.get('content', {}),
+            content=_parse_json_field(data, 'content', {}),
             image_alt_text=data.get('image_alt_text', ''),
             link_url=data.get('link_url', ''),
             link_target=data.get('link_target', 'SAME_TAB'),
-            is_active=data.get('is_active', False),
-            priority=data.get('priority', 50),
-            weight=data.get('weight', 1),
+            is_active=_parse_bool(data.get('is_active', False)),
+            priority=_parse_int(data.get('priority'), 50),
+            weight=_parse_int(data.get('weight'), 1),
             created_by=request.user,
         )
         
@@ -324,17 +361,19 @@ def admin_create_ad(request):
         # Targeting (default: للجميع)
         AdTargeting.objects.create(
             creative=ad,
-            languages=data.get('languages', ['all']),
-            countries=data.get('countries', ['all']),
-            devices=data.get('devices', ['mobile', 'desktop', 'tablet']),
-            user_types=data.get('user_types', ['anonymous', 'tourist', 'agency', 'supplier', 'admin']),
-            max_views_per_user_day=data.get('max_views_per_user_day') or None,
-            max_views_per_session=data.get('max_views_per_session') or None,
+            languages=_parse_json_field(data, 'languages', ['all']),
+            countries=_parse_json_field(data, 'countries', ['all']),
+            devices=_parse_json_field(data, 'devices', ['mobile', 'desktop', 'tablet']),
+            user_types=_parse_json_field(data, 'user_types', ['anonymous', 'tourist', 'agency', 'supplier', 'admin']),
+            max_views_per_user_day=_parse_int(data.get('max_views_per_user_day')),
+            max_views_per_session=_parse_int(data.get('max_views_per_session')),
         )
         
         serializer = AdCreativeAdminSerializer(ad, context={'request': request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -355,14 +394,15 @@ def admin_ad_detail(request, ad_id):
         data = request.data
         
         # تحديث الحقول الأساسية
-        for field in ['name', 'ad_type', 'content', 'image_alt_text',
-                      'link_url', 'link_target', 'is_active', 'priority', 'weight']:
-            if field in data:
-                value = data[field]
-                # is_active قد يأتي كـ string من FormData
-                if field == 'is_active' and isinstance(value, str):
-                    value = value.lower() in ('true', '1', 'yes')
-                setattr(ad, field, value)
+        if 'name' in data: ad.name = data['name']
+        if 'ad_type' in data: ad.ad_type = data['ad_type']
+        if 'content' in data: ad.content = _parse_json_field(data, 'content', ad.content)
+        if 'image_alt_text' in data: ad.image_alt_text = data['image_alt_text']
+        if 'link_url' in data: ad.link_url = data['link_url']
+        if 'link_target' in data: ad.link_target = data['link_target']
+        if 'is_active' in data: ad.is_active = _parse_bool(data['is_active'])
+        if 'priority' in data: ad.priority = _parse_int(data['priority'], ad.priority)
+        if 'weight' in data: ad.weight = _parse_int(data['weight'], ad.weight)
         
         # تحديث الصور
         if 'image_desktop' in request.FILES:
@@ -393,10 +433,18 @@ def admin_ad_detail(request, ad_id):
         # تحديث Targeting
         try:
             targeting = ad.targeting
-            for field in ['languages', 'countries', 'devices', 'user_types',
-                          'max_views_per_user_day', 'max_views_per_session']:
-                if field in data:
-                    setattr(targeting, field, data[field])
+            if 'languages' in data:
+                targeting.languages = _parse_json_field(data, 'languages', targeting.languages)
+            if 'countries' in data:
+                targeting.countries = _parse_json_field(data, 'countries', targeting.countries)
+            if 'devices' in data:
+                targeting.devices = _parse_json_field(data, 'devices', targeting.devices)
+            if 'user_types' in data:
+                targeting.user_types = _parse_json_field(data, 'user_types', targeting.user_types)
+            if 'max_views_per_user_day' in data:
+                targeting.max_views_per_user_day = _parse_int(data['max_views_per_user_day'])
+            if 'max_views_per_session' in data:
+                targeting.max_views_per_session = _parse_int(data['max_views_per_session'])
             targeting.save()
         except AdTargeting.DoesNotExist:
             AdTargeting.objects.create(

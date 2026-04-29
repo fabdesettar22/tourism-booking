@@ -34,7 +34,8 @@ class Service(models.Model):
     ]
 
     category    = models.ForeignKey(
-        ServiceCategory, on_delete=models.CASCADE,
+        ServiceCategory, on_delete=models.SET_NULL,
+        null=True, blank=True,
         related_name='services', verbose_name="الفئة"
     )
     city        = models.ForeignKey(
@@ -54,7 +55,9 @@ class Service(models.Model):
 
     # ── التسعير ───────────────────────────────────────────
     base_price          = models.DecimalField(
-        max_digits=10, decimal_places=2, verbose_name="السعر الأساسي"
+        max_digits=10, decimal_places=2,
+        null=True, blank=True,
+        verbose_name="السعر الأساسي"
     )
     currency            = models.CharField(
         max_length=3, default='MYR', verbose_name="العملة"
@@ -117,7 +120,9 @@ class Service(models.Model):
         default=True, verbose_name="نشطة"
     )
     relative_day    = models.IntegerField(
-        verbose_name="اليوم النسبي في الباقة"
+        null=True, blank=True,
+        verbose_name="اليوم النسبي في الباقة",
+        help_text="فقط للخدمات المرتبطة بباقة. يُترك فارغاً للخدمات المستقلة."
     )
     created_at      = models.DateTimeField(auto_now_add=True)
     updated_at      = models.DateTimeField(auto_now=True)

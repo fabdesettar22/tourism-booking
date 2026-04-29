@@ -409,6 +409,25 @@ class HotelSupplier(models.Model):
     is_active  = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    # ─── Refs لربط HotelSupplier بـ Hotel و City ───
+    city_ref = models.ForeignKey(
+        'locations.City',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='hotel_suppliers',
+        verbose_name='المدينة (مرجع)',
+        help_text='ربط بـ City object الفعلي (للبحث في DB)',
+    )
+    created_hotel = models.OneToOneField(
+        'hotels.Hotel',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='source_supplier',
+        verbose_name='الفندق المُنشأ',
+        help_text='الفندق المُنشأ تلقائياً عند الموافقة',
+    )
+
 
     class Meta:
         db_table = "supplier_hotel"

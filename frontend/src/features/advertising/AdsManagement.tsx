@@ -328,8 +328,8 @@ export function AdsManagement() {
                   <ImageIcon className="w-12 h-12 mx-auto mb-3 text-gray-200"/>
                   <p className="text-gray-400 text-sm">لا يوجد إعلانات</p>
                 </td></tr>
-              ) : paginated.map(ad => (
-                <tr key={ad.id} className="hover:bg-gray-50 transition-colors">
+              ) : paginated.map((ad, idx) => (
+                <tr key={ad.id || ad.uid || idx} className="hover:bg-gray-50 transition-colors">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
                       {ad.image_desktop ? (

@@ -223,12 +223,40 @@ class PropertyWaitlist(WaitlistBase):
     star_rating    = models.PositiveSmallIntegerField(null=True, blank=True)
     listed_online  = models.BooleanField(default=False, verbose_name='مسجل في Booking/Agoda/Airbnb؟')
 
+    # ── المرجع الصحيح للدولة والمدينة (يختاره المورد من قائمة منسدلة) ──
+    country_ref = models.ForeignKey(
+        'locations.Country',
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name='property_waitlist_entries',
+        verbose_name='الدولة (مرجع)',
+        help_text='يُحدَّد من قائمة منسدلة — لا يُكتب نصاً حراً',
+    )
+    city_ref = models.ForeignKey(
+        'locations.City',
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name='property_waitlist_entries',
+        verbose_name='المدينة (مرجع)',
+        help_text='يُحدَّد من قائمة منسدلة — لا يُكتب نصاً حراً',
+    )
+
     # بيانات خاصة بكل نوع (JSON مرن)
     extra_data     = models.JSONField(default=dict, blank=True)
 
     # وثائق
     property_photo = models.FileField(upload_to='waitlist/property/photos/', null=True, blank=True)
     license_doc    = models.FileField(upload_to='waitlist/property/licenses/', null=True, blank=True)
+
+    # ── الفندق المُنشأ تلقائياً عند الموافقة ──────────────────
+    created_hotel = models.OneToOneField(
+        'hotels.Hotel',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='source_waitlist',
+        verbose_name='الفندق المُنشأ',
+        help_text='يُملأ تلقائياً عند الموافقة على الطلب',
+    )
 
     class Meta(WaitlistBase.Meta):
         db_table = 'waitlist_property'
@@ -253,6 +281,22 @@ class TransportWaitlist(WaitlistBase):
     vehicle_license = models.FileField(upload_to='waitlist/transport/licenses/', null=True, blank=True)
     tourism_license = models.FileField(upload_to='waitlist/transport/tourism/', null=True, blank=True)
 
+    # ── أسعار النقل (يُدخلها المورد) ──
+    price_airport_transfer = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='سعر نقل المطار')
+    price_hourly           = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='سعر الساعة')
+    price_intercity        = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='سعر الرحلة بين المدن')
+    price_full_day         = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='سعر اليوم الكامل')
+
+    # ── مراجع الموقع ──
+    country_ref = models.ForeignKey('locations.Country', on_delete=models.PROTECT, null=True, blank=True, related_name='transport_waitlist_entries', verbose_name='الدولة (مرجع)')
+    city_ref    = models.ForeignKey('locations.City',    on_delete=models.PROTECT, null=True, blank=True, related_name='transport_waitlist_entries', verbose_name='المدينة (مرجع)')
+
+    # ── العملة ──
+    currency = models.CharField(max_length=3, default='MYR', verbose_name='العملة')
+
+    # ── الخدمة المُنشأة تلقائياً ──
+    created_service = models.OneToOneField('services.Service', on_delete=models.SET_NULL, null=True, blank=True, related_name='source_transport_waitlist', verbose_name='الخدمة المُنشأة')
+
     class Meta(WaitlistBase.Meta):
         db_table = 'waitlist_transport'
         verbose_name = 'قائمة انتظار — نقل'
@@ -275,6 +319,20 @@ class RestaurantWaitlist(WaitlistBase):
     # وثائق
     restaurant_license = models.FileField(upload_to='waitlist/restaurant/licenses/', null=True, blank=True)
     halal_certificate  = models.FileField(upload_to='waitlist/restaurant/halal/', null=True, blank=True)
+
+    # ── أسعار المطعم (يُدخلها المورد) ──
+    price_per_person = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='متوسط سعر الوجبة للشخص')
+    price_set_menu   = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='سعر القائمة الثابتة')
+
+    # ── مراجع الموقع ──
+    country_ref = models.ForeignKey('locations.Country', on_delete=models.PROTECT, null=True, blank=True, related_name='restaurant_waitlist_entries', verbose_name='الدولة (مرجع)')
+    city_ref    = models.ForeignKey('locations.City',    on_delete=models.PROTECT, null=True, blank=True, related_name='restaurant_waitlist_entries', verbose_name='المدينة (مرجع)')
+
+    # ── العملة ──
+    currency = models.CharField(max_length=3, default='MYR', verbose_name='العملة')
+
+    # ── الخدمة المُنشأة تلقائياً ──
+    created_service = models.OneToOneField('services.Service', on_delete=models.SET_NULL, null=True, blank=True, related_name='source_restaurant_waitlist', verbose_name='الخدمة المُنشأة')
 
     class Meta(WaitlistBase.Meta):
         db_table = 'waitlist_restaurant'
@@ -299,6 +357,21 @@ class GuideWaitlist(WaitlistBase):
     id_document      = models.FileField(upload_to='waitlist/guide/id/', null=True, blank=True)
     guide_license    = models.FileField(upload_to='waitlist/guide/licenses/', null=True, blank=True)
 
+    # ── أسعار المرشد (يُدخلها المورد) ──
+    price_half_day = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='سعر نصف يوم')
+    price_full_day = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='سعر اليوم الكامل')
+    price_hourly   = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='سعر الساعة')
+
+    # ── مراجع الموقع ──
+    country_ref = models.ForeignKey('locations.Country', on_delete=models.PROTECT, null=True, blank=True, related_name='guide_waitlist_entries', verbose_name='الدولة (مرجع)')
+    city_ref    = models.ForeignKey('locations.City',    on_delete=models.PROTECT, null=True, blank=True, related_name='guide_waitlist_entries', verbose_name='المدينة (مرجع)')
+
+    # ── العملة ──
+    currency = models.CharField(max_length=3, default='MYR', verbose_name='العملة')
+
+    # ── الخدمة المُنشأة تلقائياً ──
+    created_service = models.OneToOneField('services.Service', on_delete=models.SET_NULL, null=True, blank=True, related_name='source_guide_waitlist', verbose_name='الخدمة المُنشأة')
+
     class Meta(WaitlistBase.Meta):
         db_table = 'waitlist_guide'
         verbose_name = 'قائمة انتظار — مرشد'
@@ -321,6 +394,21 @@ class ActivityWaitlist(WaitlistBase):
     # وثائق
     activity_license = models.FileField(upload_to='waitlist/activity/licenses/', null=True, blank=True)
     insurance_doc    = models.FileField(upload_to='waitlist/activity/insurance/', null=True, blank=True)
+
+    # ── أسعار النشاط (يُدخلها المورد) ──
+    price_per_person = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='سعر النشاط للشخص')
+    price_per_group  = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='سعر النشاط للمجموعة')
+    min_group_size   = models.PositiveIntegerField(null=True, blank=True, verbose_name='الحد الأدنى للأشخاص')
+
+    # ── مراجع الموقع ──
+    country_ref = models.ForeignKey('locations.Country', on_delete=models.PROTECT, null=True, blank=True, related_name='activity_waitlist_entries', verbose_name='الدولة (مرجع)')
+    city_ref    = models.ForeignKey('locations.City',    on_delete=models.PROTECT, null=True, blank=True, related_name='activity_waitlist_entries', verbose_name='المدينة (مرجع)')
+
+    # ── العملة ──
+    currency = models.CharField(max_length=3, default='MYR', verbose_name='العملة')
+
+    # ── الخدمة المُنشأة تلقائياً ──
+    created_service = models.OneToOneField('services.Service', on_delete=models.SET_NULL, null=True, blank=True, related_name='source_activity_waitlist', verbose_name='الخدمة المُنشأة')
 
     class Meta(WaitlistBase.Meta):
         db_table = 'waitlist_activity'
@@ -349,6 +437,21 @@ class WellnessWaitlist(WaitlistBase):
     wellness_license   = models.FileField(upload_to='waitlist/wellness/licenses/', null=True, blank=True)
     staff_certificates = models.FileField(upload_to='waitlist/wellness/certificates/', null=True, blank=True)
 
+    # ── أسعار السبا (يُدخلها المورد) ──
+    price_per_session    = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='سعر الجلسة')
+    session_duration_min = models.PositiveIntegerField(null=True, blank=True, verbose_name='مدة الجلسة (دقيقة)')
+    price_package        = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='سعر الباقة')
+
+    # ── مراجع الموقع ──
+    country_ref = models.ForeignKey('locations.Country', on_delete=models.PROTECT, null=True, blank=True, related_name='wellness_waitlist_entries', verbose_name='الدولة (مرجع)')
+    city_ref    = models.ForeignKey('locations.City',    on_delete=models.PROTECT, null=True, blank=True, related_name='wellness_waitlist_entries', verbose_name='المدينة (مرجع)')
+
+    # ── العملة ──
+    currency = models.CharField(max_length=3, default='MYR', verbose_name='العملة')
+
+    # ── الخدمة المُنشأة تلقائياً ──
+    created_service = models.OneToOneField('services.Service', on_delete=models.SET_NULL, null=True, blank=True, related_name='source_wellness_waitlist', verbose_name='الخدمة المُنشأة')
+
     class Meta(WaitlistBase.Meta):
         db_table = 'waitlist_wellness'
         verbose_name = 'قائمة انتظار — سبا وعافية'
@@ -373,6 +476,27 @@ class OtherServiceWaitlist(WaitlistBase):
     # وثائق
     id_document       = models.FileField(upload_to='waitlist/other/id/', null=True, blank=True)
     service_proof     = models.FileField(upload_to='waitlist/other/proof/', null=True, blank=True)
+
+    # ── أسعار الخدمات الأخرى (يُدخلها المورد) ──
+    base_price     = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='السعر الأساسي')
+    price_unit     = models.CharField(
+        max_length=20,
+        choices=[('person','لكل شخص'),('hour','لكل ساعة'),('day','لكل يوم'),('unit','لكل قطعة'),('group','للمجموعة')],
+        default='person',
+        blank=True,
+        verbose_name='وحدة التسعير'
+    )
+    pricing_notes  = models.TextField(blank=True, verbose_name='ملاحظات التسعير')
+
+    # ── مراجع الموقع ──
+    country_ref = models.ForeignKey('locations.Country', on_delete=models.PROTECT, null=True, blank=True, related_name='other_waitlist_entries', verbose_name='الدولة (مرجع)')
+    city_ref    = models.ForeignKey('locations.City',    on_delete=models.PROTECT, null=True, blank=True, related_name='other_waitlist_entries', verbose_name='المدينة (مرجع)')
+
+    # ── العملة ──
+    currency = models.CharField(max_length=3, default='MYR', verbose_name='العملة')
+
+    # ── الخدمة المُنشأة تلقائياً ──
+    created_service = models.OneToOneField('services.Service', on_delete=models.SET_NULL, null=True, blank=True, related_name='source_other_waitlist', verbose_name='الخدمة المُنشأة')
 
     class Meta(WaitlistBase.Meta):
         db_table = 'waitlist_other'

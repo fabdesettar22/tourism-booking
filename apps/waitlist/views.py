@@ -17,6 +17,8 @@ from .serializers import (
     ActivityWaitlistSerializer, WellnessWaitlistSerializer,
     OtherServiceWaitlistSerializer,
 )
+from django.db import transaction
+from django.core.exceptions import ValidationError
 from django.contrib.auth       import get_user_model
 from rest_framework              import permissions
 from rest_framework.permissions  import IsAuthenticated
@@ -318,8 +320,25 @@ class SupplierWaitlistApproveView(APIView):
             return Response({'error': 'تمت الموافقة مسبقاً.'},
                             status=status.HTTP_400_BAD_REQUEST)
 
-        obj.status = 'APPROVED'
-        obj.save(update_fields=['status', 'updated_at'] if hasattr(obj, 'updated_at') else ['status'])
+        # نحفظ في transaction كي يلتقط الـ signal أي مشاكل
+        # ويُلغي التغيير لو رفع ValidationError (مثل غياب city_ref)
+        try:
+            with transaction.atomic():
+                obj.status = 'APPROVED'
+                obj.save()  # save كامل ليُشغّل الـ signals بشكل صحيح
+        except ValidationError as e:
+            # غياب city_ref أو أي validation أخرى من الـ signal
+            err_msg = e.message if hasattr(e, 'message') else str(e)
+            logger.warning(f'❌ Approval rejected: {type}/{pk} — {err_msg}')
+            return Response({
+                'error': err_msg,
+                'hint': 'يجب أن يحتوي الطلب على دولة ومدينة من القائمة قبل الموافقة.',
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.exception(f'❌ Unexpected error approving {type}/{pk}')
+            return Response({
+                'error': f'خطأ غير متوقع: {str(e)}',
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         logger.info(f'✅ Supplier waitlist approved: {type}/{pk}')
 
