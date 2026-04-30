@@ -12,6 +12,12 @@ class ServiceSerializer(serializers.ModelSerializer):
     category_name = serializers.SerializerMethodField()
     city_name     = serializers.SerializerMethodField()
 
+    # 🆕 Properties محسوبة (read-only)
+    commission_amount       = serializers.ReadOnlyField()
+    final_price             = serializers.ReadOnlyField()
+    is_ready_for_activation = serializers.ReadOnlyField()
+    missing_for_activation  = serializers.ReadOnlyField()
+
     class Meta:
         model  = Service
         fields = [
@@ -27,6 +33,10 @@ class ServiceSerializer(serializers.ModelSerializer):
             'meeting_point', 'extra_data',
             'is_optional', 'is_active',
             'relative_day', 'created_at',
+            # 🆕 العمولة والتفعيل
+            'commission_percentage',
+            'commission_amount', 'final_price',
+            'is_ready_for_activation', 'missing_for_activation',
         ]
 
     def get_category_name(self, obj):

@@ -1,4 +1,5 @@
 import { apiFetch, BASE } from '../../services/apiFetch';
+import ActivationCard from '../../components/admin/ActivationCard';
 import { useState, useEffect } from 'react';
 import { useLanguage } from '../../hooks/useLanguage';
 import {
@@ -478,6 +479,17 @@ export function HotelsManagement() {
                     <div className="mt-2"><StarsDisplay count={hotel.stars}/></div>
                     {hotel.description && <p className="text-xs text-gray-500 mt-2 line-clamp-2">{hotel.description}</p>}
                   </div>
+                  {/* 🆕 ActivationCard */}
+                  <ActivationCard
+                    itemId={hotel.id}
+                    itemType="hotel"
+                    isActive={hotel.is_active ?? false}
+                    commissionPercentage={hotel.commission_percentage}
+                    isReadyForActivation={hotel.is_ready_for_activation ?? false}
+                    missingForActivation={hotel.missing_for_activation ?? []}
+                    onUpdate={() => window.location.reload()}
+                    lang={lang}
+                  />
                 </div>
               );
             })}

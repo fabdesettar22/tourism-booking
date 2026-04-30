@@ -46,9 +46,46 @@ class Hotel(models.Model):
         max_length=20, choices=PROVIDER_TYPE_CHOICES,
         default='direct', verbose_name="نوع المزود"
     )
-    is_active   = models.BooleanField(default=True, verbose_name="نشط")
+    is_active   = models.BooleanField(default=False, verbose_name="نشط")
+    # ── العمولة ─────────────────────────────────────────
+    commission_percentage = models.DecimalField(
+        max_digits=5, decimal_places=2,
+        null=True, blank=True,
+        verbose_name="نسبة عمولة الوكالة (%)",
+        help_text="مثلاً 20.00 تعني 20% فوق سعر المورد",
+    )
     created_at  = models.DateTimeField(auto_now_add=True)
     updated_at  = models.DateTimeField(auto_now=True)
+
+    # ═══════════════════════════════════════════════
+    # Computed Properties: commission, final_price
+    # ═══════════════════════════════════════════════
+    @property
+    def commission_amount(self):
+        """العمولة بالعملة (مثلاً 20 MYR)"""
+        # ملاحظة: الفنادق يُسعَّرون عبر الغرف، لذا base_price ليس على Hotel مباشرة
+        # نُرجع None هنا، الحساب الفعلي يحدث على Room
+        return None
+
+    @property
+    def is_ready_for_activation(self):
+        """هل الفندق جاهز للتفعيل؟ (يحتاج صورة + وصف + عمولة)"""
+        has_image       = bool(self.image)
+        has_description = bool(self.description and self.description.strip())
+        has_commission  = self.commission_percentage is not None
+        return has_image and has_description and has_commission
+
+    @property
+    def missing_for_activation(self):
+        """قائمة بما ينقص الفندق ليُفعَّل"""
+        missing = []
+        if not self.image:
+            missing.append('image')
+        if not (self.description and self.description.strip()):
+            missing.append('description')
+        if self.commission_percentage is None:
+            missing.append('commission_percentage')
+        return missing
 
     def __str__(self):
         return self.name

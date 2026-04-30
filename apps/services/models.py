@@ -117,7 +117,13 @@ class Service(models.Model):
         default=True, verbose_name="خدمة اختيارية"
     )
     is_active       = models.BooleanField(
-        default=True, verbose_name="نشطة"
+        default=False, verbose_name="نشطة"
+    )
+    commission_percentage = models.DecimalField(
+        max_digits=5, decimal_places=2,
+        null=True, blank=True,
+        verbose_name="نسبة عمولة الوكالة (%)",
+        help_text="مثلاً 20.00 تعني 20% فوق سعر المورد",
     )
     relative_day    = models.IntegerField(
         null=True, blank=True,
@@ -126,6 +132,44 @@ class Service(models.Model):
     )
     created_at      = models.DateTimeField(auto_now_add=True)
     updated_at      = models.DateTimeField(auto_now=True)
+
+    # ═══════════════════════════════════════════════
+    # Computed Properties: commission, final_price
+    # ═══════════════════════════════════════════════
+    @property
+    def commission_amount(self):
+        """العمولة بالعملة (مثلاً 20 MYR)"""
+        if self.base_price is None or self.commission_percentage is None:
+            return None
+        from decimal import Decimal
+        return self.base_price * (self.commission_percentage / Decimal('100'))
+
+    @property
+    def final_price(self):
+        """السعر النهائي للسائح = base_price + commission_amount"""
+        if self.base_price is None or self.commission_percentage is None:
+            return None
+        return self.base_price + self.commission_amount
+
+    @property
+    def is_ready_for_activation(self):
+        """هل الخدمة جاهزة للتفعيل؟ (تحتاج صورة + وصف + عمولة)"""
+        has_image       = bool(self.image)
+        has_description = bool(self.description and self.description.strip())
+        has_commission  = self.commission_percentage is not None
+        return has_image and has_description and has_commission
+
+    @property
+    def missing_for_activation(self):
+        """قائمة بما ينقص الخدمة لتُفعَّل"""
+        missing = []
+        if not self.image:
+            missing.append('image')
+        if not (self.description and self.description.strip()):
+            missing.append('description')
+        if self.commission_percentage is None:
+            missing.append('commission_percentage')
+        return missing
 
     def __str__(self):
         return f"{self.name} - {self.city.name}"

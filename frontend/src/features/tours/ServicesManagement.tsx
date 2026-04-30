@@ -1,3 +1,4 @@
+import ActivationCard from '../../components/admin/ActivationCard';
 import { apiFetch, BASE } from '../../services/apiFetch';
 import { useState, useEffect } from 'react';
 import { useLanguage } from '../../hooks/useLanguage';
@@ -146,9 +147,9 @@ function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label:
 }
 
 // ─── Service Card ─────────────────────────────────────────
-function ServiceCard({ service, cities, categories, onEdit, onDelete }: {
+function ServiceCard({ service, cities, categories, onEdit, onDelete, onUpdate, lang }: {
   service: Service; cities: City[]; categories: ServiceCategory[];
-  onEdit: () => void; onDelete: () => void;
+  onEdit: () => void; onDelete: () => void; onUpdate?: () => void; lang?: 'ar' | 'en' | 'ms';
 }) {
   const { t, isRTL } = useLanguage();
   const city = cities.find(c => c.id === service.city);
@@ -232,6 +233,19 @@ function ServiceCard({ service, cities, categories, onEdit, onDelete }: {
           )}
         </div>
       </div>
+      {/* 🆕 ActivationCard */}
+      <ActivationCard
+        itemId={service.id}
+        itemType="service"
+        isActive={service.is_active ?? false}
+        basePrice={service.base_price}
+        currency={service.currency}
+        commissionPercentage={service.commission_percentage}
+        isReadyForActivation={service.is_ready_for_activation ?? false}
+        missingForActivation={service.missing_for_activation ?? []}
+        onUpdate={onUpdate}
+        lang={lang}
+      />
     </div>
   );
 }
