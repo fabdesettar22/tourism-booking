@@ -217,6 +217,8 @@ export function WaitlistFormPage() {
   const [success, setSuccess] = useState(false);
   const [refNum, setRefNum] = useState('');
   const [error, setError] = useState('');
+  const [waitlistId, setWaitlistId] = useState<string | null>(null);
+  const [showPhotoUpload, setShowPhotoUpload] = useState(false);
 
   // Form state
   const [form, setForm] = useState<Record<string, unknown>>({
@@ -333,13 +335,66 @@ export function WaitlistFormPage() {
       }
 
       setRefNum(data.ref_number);
-      setSuccess(true);
+      // 🆕 نحفظ ID الطلب لرفع الصور
+      if (data.id) {
+        setWaitlistId(data.id);
+        setShowPhotoUpload(true);  // نعرض خطوة رفع الصور
+      } else {
+        setSuccess(true);
+      }
     } catch {
       setError('Connection error. Please try again.');
     } finally {
       setLoading(false);
     }
   };
+
+  // ─── Photo Upload Screen ──────────────────────────────
+  const contentTypeMap: Record<string, string> = {
+    property: 'propertywaitlist', transport: 'transportwaitlist',
+    restaurant: 'restaurantwaitlist', guide: 'guidewaitlist',
+    activity: 'activitywaitlist', wellness: 'wellnesswaitlist',
+    other: 'otherservicewaitlist',
+  };
+
+  if (showPhotoUpload && waitlistId && type) return (
+    <div className="min-h-screen bg-[#F9FAFB]" dir={isRTL ? 'rtl' : 'ltr'}>
+      <PublicNavbar
+        variant="solid" lang={lang} onLangChange={changeLang} t={t} isRTL={isRTL}
+        onLogin={() => navigate('/supplier')}
+        onSupplier={() => navigate('/register/supplier')}
+        onAgency={() => navigate('/register/agency')}
+      />
+      <div className="pt-16 flex items-center justify-center p-4 min-h-[calc(100vh-4rem)]">
+        <div className="bg-white rounded-3xl shadow-xl p-8 max-w-2xl w-full">
+          {/* Header */}
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FontAwesomeIcon icon={faUpload} className="text-[#FF6B35] text-2xl" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900">
+              {lang === 'ar' ? 'أضف صور منشأتك' : lang === 'ms' ? 'Tambah Gambar' : 'Add Your Photos'}
+            </h2>
+            <p className="text-gray-500 text-sm mt-2">
+              {lang === 'ar'
+                ? 'أضف صوراً واضحة لتزيد فرص قبول طلبك. يمكنك تخطّي هذه الخطوة والإضافة لاحقاً.'
+                : lang === 'ms'
+                ? 'Tambah gambar yang jelas. Anda boleh langkau langkah ini.'
+                : 'Add clear photos to improve approval chances. You can skip this step.'}
+            </p>
+          </div>
+
+          {/* Photo Uploader */}
+          <WaitlistPhotoUploader
+            waitlistId={waitlistId}
+            contentType={contentTypeMap[type] || 'propertywaitlist'}
+            lang={lang}
+            onDone={() => setSuccess(true)}
+          />
+        </div>
+      </div>
+    </div>
+  );
 
   // Success Screen
   if (success) return (
@@ -848,6 +903,198 @@ export function WaitlistFormPage() {
 
         </div>
       </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// WaitlistPhotoUploader — Component داخلي لرفع الصور
+// ═══════════════════════════════════════════════════════════
+
+function WaitlistPhotoUploader({
+  waitlistId,
+  contentType,
+  lang,
+  onDone,
+}: {
+  waitlistId: string;
+  contentType: string;
+  lang: 'ar' | 'en' | 'ms';
+  onDone: () => void;
+}) {
+  const BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+  const [photos, setPhotos] = useState<{
+    id: number; url: string; is_primary: boolean; order: number;
+  }[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const t = {
+    ar: {
+      addPhotos: 'اختر صوراً', primary: 'رئيسية', setPrimary: 'تعيين كرئيسية',
+      delete: 'حذف', done: 'إنهاء والمتابعة', skip: 'تخطّي',
+      uploading: 'جاري الرفع...', noPhotos: 'لم تُضَف صور بعد',
+      tip: 'الصورة الرئيسية ستظهر أولاً للسائح',
+    },
+    en: {
+      addPhotos: 'Choose Photos', primary: 'Primary', setPrimary: 'Set as Primary',
+      delete: 'Delete', done: 'Finish & Continue', skip: 'Skip',
+      uploading: 'Uploading...', noPhotos: 'No photos added yet',
+      tip: 'The primary photo will be shown first to tourists',
+    },
+    ms: {
+      addPhotos: 'Pilih Gambar', primary: 'Utama', setPrimary: 'Tetapkan sebagai Utama',
+      delete: 'Padam', done: 'Selesai & Teruskan', skip: 'Langkau',
+      uploading: 'Memuat naik...', noPhotos: 'Tiada gambar ditambah',
+      tip: 'Gambar utama akan dipaparkan pertama kepada pelancong',
+    },
+  }[lang];
+
+  const uploadPhoto = async (file: File, isPrimary: boolean) => {
+    setUploading(true);
+    setError('');
+    const fd = new FormData();
+    fd.append('image', file);
+    fd.append('content_type', contentType);
+    fd.append('object_id', waitlistId);
+    fd.append('is_primary', String(isPrimary));
+    fd.append('order', String(photos.length));
+
+    try {
+      const res = await fetch(`${BASE}/api/v1/waitlist/photos/upload/`, {
+        method: 'POST',
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      setPhotos(prev => [...prev, {
+        id: data.photo.id,
+        url: data.photo.url || `${BASE}${data.photo.image}`,
+        is_primary: data.photo.is_primary,
+        order: data.photo.order,
+      }]);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files) return;
+    for (let i = 0; i < files.length; i++) {
+      const isPrimary = photos.length === 0 && i === 0;
+      await uploadPhoto(files[i], isPrimary);
+    }
+  };
+
+  const deletePhoto = async (id: number) => {
+    try {
+      await fetch(`${BASE}/api/v1/waitlist/photos/${id}/delete/`, { method: 'DELETE' });
+      setPhotos(prev => prev.filter(p => p.id !== id));
+    } catch {}
+  };
+
+  const setPrimary = async (id: number) => {
+    try {
+      await fetch(`${BASE}/api/v1/waitlist/photos/${id}/set-primary/`, { method: 'POST' });
+      setPhotos(prev => prev.map(p => ({ ...p, is_primary: p.id === id })));
+    } catch {}
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* تلميح */}
+      <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg text-center">
+        💡 {t.tip}
+      </p>
+
+      {/* الصور الموجودة */}
+      {photos.length > 0 ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {photos.map(photo => (
+            <div key={photo.id} className="relative group rounded-xl overflow-hidden border-2 border-gray-100">
+              <img src={photo.url} alt="" className="w-full h-32 object-cover" />
+
+              {/* شارة رئيسية */}
+              {photo.is_primary && (
+                <span className="absolute top-2 left-2 bg-[#FF6B35] text-white text-xs px-2 py-0.5 rounded-full font-bold">
+                  ★ {t.primary}
+                </span>
+              )}
+
+              {/* أزرار التحكم */}
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                {!photo.is_primary && (
+                  <button
+                    onClick={() => setPrimary(photo.id)}
+                    className="bg-white text-[#FF6B35] text-xs px-2 py-1 rounded-lg font-medium hover:bg-orange-50"
+                  >
+                    {t.setPrimary}
+                  </button>
+                )}
+                <button
+                  onClick={() => deletePhoto(photo.id)}
+                  className="bg-red-500 text-white text-xs px-2 py-1 rounded-lg font-medium hover:bg-red-600"
+                >
+                  {t.delete}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center text-gray-400">
+          <FontAwesomeIcon icon={faUpload} className="text-3xl mb-2 opacity-30" />
+          <p className="text-sm">{t.noPhotos}</p>
+        </div>
+      )}
+
+      {/* زر إضافة صور */}
+      <div className="flex gap-3">
+        <button
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          className="flex-1 py-3 border-2 border-[#FF6B35] text-[#FF6B35] rounded-xl font-medium hover:bg-orange-50 transition flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          {uploading ? (
+            <><FontAwesomeIcon icon={faSpinner} className="animate-spin" /> {t.uploading}</>
+          ) : (
+            <><FontAwesomeIcon icon={faUpload} /> {t.addPhotos}</>
+          )}
+        </button>
+      </div>
+
+      {/* رسالة خطأ */}
+      {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+
+      {/* أزرار الإنهاء والتخطّي */}
+      <div className="flex gap-3 pt-2 border-t">
+        <button
+          onClick={onDone}
+          className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-medium hover:bg-gray-200 transition text-sm"
+        >
+          {t.skip}
+        </button>
+        <button
+          onClick={onDone}
+          disabled={photos.length === 0}
+          className="flex-2 flex-grow py-3 bg-[#FF6B35] text-white rounded-xl font-bold hover:bg-[#e07a38] transition disabled:opacity-40"
+        >
+          {t.done}
+        </button>
+      </div>
+
+      {/* hidden file input */}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={e => handleFiles(e.target.files)}
+      />
     </div>
   );
 }

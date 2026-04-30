@@ -403,3 +403,139 @@ class SupplierWaitlistRejectView(APIView):
             'reason':     reason,
             'email_sent': email_sent,
         })
+
+# ═══════════════════════════════════════════════════════════
+# WaitlistPhoto — Upload / Delete / Set Primary
+# ═══════════════════════════════════════════════════════════
+
+class WaitlistPhotoUploadView(APIView):
+    """
+    POST /api/v1/waitlist/photos/upload/
+    يرفع صورة جديدة مرتبطة بطلب Waitlist.
+    متاح لـ AllowAny (المورد لم يسجّل دخول بعد).
+    """
+    permission_classes = [AllowAny]
+    parser_classes     = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        from .serializers import WaitlistPhotoSerializer, WaitlistPhotoReadSerializer
+        from .models import WaitlistPhoto
+        from django.contrib.contenttypes.models import ContentType
+
+        serializer = WaitlistPhotoSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({
+                'success': False,
+                'errors': serializer.errors,
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        data = serializer.validated_data
+        ct   = ContentType.objects.get(app_label='waitlist', model=data['content_type'])
+
+        # لو طلب is_primary=True، نُلغي الأولوية عن الصور الأخرى
+        if data['is_primary']:
+            WaitlistPhoto.objects.filter(
+                content_type=ct,
+                object_id=data['object_id'],
+                is_primary=True,
+            ).update(is_primary=False)
+
+        photo = WaitlistPhoto.objects.create(
+            content_type = ct,
+            object_id    = data['object_id'],
+            image        = data['image'],
+            is_primary   = data['is_primary'],
+            order        = data['order'],
+            caption      = data.get('caption', ''),
+        )
+
+        return Response({
+            'success': True,
+            'photo':   WaitlistPhotoReadSerializer(photo, context={'request': request}).data,
+        }, status=status.HTTP_201_CREATED)
+
+
+class WaitlistPhotoDeleteView(APIView):
+    """
+    DELETE /api/v1/waitlist/photos/<id>/delete/
+    يحذف صورة محددة.
+    """
+    permission_classes = [AllowAny]
+
+    def delete(self, request, pk):
+        from .models import WaitlistPhoto
+        try:
+            photo = WaitlistPhoto.objects.get(pk=pk)
+        except WaitlistPhoto.DoesNotExist:
+            return Response({'error': 'الصورة غير موجودة.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # حذف الملف الفعلي
+        if photo.image:
+            photo.image.delete(save=False)
+        photo.delete()
+
+        return Response({'success': True, 'message': 'تم حذف الصورة.'})
+
+
+class WaitlistPhotoSetPrimaryView(APIView):
+    """
+    POST /api/v1/waitlist/photos/<id>/set-primary/
+    يُعيّن صورة محددة كصورة رئيسية.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request, pk):
+        from .models import WaitlistPhoto
+        try:
+            photo = WaitlistPhoto.objects.get(pk=pk)
+        except WaitlistPhoto.DoesNotExist:
+            return Response({'error': 'الصورة غير موجودة.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # إلغاء الصورة الرئيسية الحالية
+        WaitlistPhoto.objects.filter(
+            content_type=photo.content_type,
+            object_id=photo.object_id,
+            is_primary=True,
+        ).update(is_primary=False)
+
+        # تعيين الصورة الجديدة
+        photo.is_primary = True
+        photo.save(update_fields=['is_primary'])
+
+        return Response({'success': True, 'message': 'تم تعيين الصورة الرئيسية.'})
+
+
+class WaitlistPhotoListView(APIView):
+    """
+    GET /api/v1/waitlist/photos/?content_type=propertywaitlist&object_id=<uuid>
+    يُرجع كل صور طلب معيّن.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        from .models import WaitlistPhoto
+        from .serializers import WaitlistPhotoReadSerializer
+        from django.contrib.contenttypes.models import ContentType
+
+        content_type_name = request.query_params.get('content_type', '').lower()
+        object_id         = request.query_params.get('object_id', '')
+
+        if not content_type_name or not object_id:
+            return Response({'error': 'content_type و object_id مطلوبان.'}, status=400)
+
+        try:
+            ct = ContentType.objects.get(app_label='waitlist', model=content_type_name)
+        except ContentType.DoesNotExist:
+            return Response({'error': 'نوع غير معروف.'}, status=400)
+
+        photos = WaitlistPhoto.objects.filter(
+            content_type=ct,
+            object_id=object_id,
+        ).order_by('order', 'uploaded_at')
+
+        return Response({
+            'count':  photos.count(),
+            'photos': WaitlistPhotoReadSerializer(
+                photos, many=True, context={'request': request}
+            ).data,
+        })

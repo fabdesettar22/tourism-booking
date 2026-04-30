@@ -318,3 +318,66 @@ class OtherServiceWaitlistSerializer(WaitlistBaseSerializer):
                 'city_ref': 'المدينة المختارة لا تنتمي للدولة المختارة.'
             })
         return attrs
+
+# ── WaitlistPhoto Serializer ───────────────────────────
+
+class WaitlistPhotoSerializer(serializers.Serializer):
+    """
+    Serializer لرفع صورة واحدة مرتبطة بـ Waitlist.
+    يُستخدم في POST /api/v1/waitlist/photos/upload/
+    """
+    # الصورة المرفوعة
+    image          = serializers.ImageField()
+
+    # نوع الـ Waitlist (مثلاً: propertywaitlist, transportwaitlist)
+    content_type   = serializers.CharField(
+        max_length=50,
+        help_text='اسم نموذج الـ Waitlist بالحروف الصغيرة (مثلاً: propertywaitlist)',
+    )
+
+    # UUID الطلب
+    object_id      = serializers.UUIDField()
+
+    # معلومات الصورة
+    is_primary     = serializers.BooleanField(default=False)
+    order          = serializers.IntegerField(default=0, min_value=0)
+    caption        = serializers.CharField(
+        max_length=200, required=False, allow_blank=True, default=''
+    )
+
+    def validate_content_type(self, value):
+        from django.contrib.contenttypes.models import ContentType
+        try:
+            ContentType.objects.get(app_label='waitlist', model=value.lower())
+        except ContentType.DoesNotExist:
+            raise serializers.ValidationError(
+                f'نوع غير معروف: {value}. يجب أن يكون اسم model صحيح من app waitlist.'
+            )
+        return value.lower()
+
+    def validate(self, attrs):
+        """نتحقق أن object_id يخص سجلاً موجوداً فعلاً."""
+        from django.contrib.contenttypes.models import ContentType
+        ct = ContentType.objects.get(app_label='waitlist', model=attrs['content_type'])
+        Model = ct.model_class()
+        if not Model.objects.filter(pk=attrs['object_id']).exists():
+            raise serializers.ValidationError({
+                'object_id': 'لا يوجد طلب بهذا الـ ID.'
+            })
+        return attrs
+
+
+class WaitlistPhotoReadSerializer(serializers.ModelSerializer):
+    """للقراءة: يُرجع بيانات الصورة كاملة."""
+    url = serializers.SerializerMethodField()
+
+    class Meta:
+        from apps.waitlist.models import WaitlistPhoto
+        model  = WaitlistPhoto
+        fields = ['id', 'image', 'url', 'is_primary', 'order', 'caption', 'uploaded_at']
+
+    def get_url(self, obj):
+        request = self.context.get('request')
+        if obj.image and request:
+            return request.build_absolute_uri(obj.image.url)
+        return None

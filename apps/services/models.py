@@ -182,3 +182,62 @@ class Service(models.Model):
             models.Index(fields=['city', 'service_type', 'is_active']),
             models.Index(fields=['base_price', 'currency']),
         ]
+
+# ═══════════════════════════════════════════════════════════
+# ServicePhoto — صور الخدمات الدائمة (بعد الموافقة)
+# ═══════════════════════════════════════════════════════════
+
+class ServicePhoto(models.Model):
+    """
+    صور الخدمة الدائمة.
+    تُنشأ تلقائياً من WaitlistPhoto عند موافقة الأدمن.
+    """
+    service     = models.ForeignKey(
+        Service,
+        on_delete=models.CASCADE,
+        related_name='photos',
+        verbose_name='الخدمة',
+    )
+    image       = models.ImageField(
+        upload_to='services/photos/%Y/%m/',
+        verbose_name='الصورة',
+    )
+    is_primary  = models.BooleanField(
+        default=False,
+        verbose_name='الصورة الرئيسية',
+    )
+    order       = models.PositiveSmallIntegerField(
+        default=0,
+        verbose_name='ترتيب العرض',
+    )
+    caption     = models.CharField(
+        max_length=200, blank=True,
+        verbose_name='تعليق على الصورة',
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"صورة {self.service.name} — {'رئيسية' if self.is_primary else f'#{self.order}'}"
+
+    def save(self, *args, **kwargs):
+        """نضمن صورة رئيسية واحدة فقط لكل خدمة."""
+        if self.is_primary:
+            ServicePhoto.objects.filter(
+                service=self.service,
+                is_primary=True,
+            ).exclude(pk=self.pk).update(is_primary=False)
+            # نُحدّث Service.image بالصورة الرئيسية
+            super().save(*args, **kwargs)
+            Service.objects.filter(pk=self.service_id).update(image=self.image.name)
+            return
+        super().save(*args, **kwargs)
+
+    class Meta:
+        db_table   = 'service_photo'
+        ordering   = ['order', 'uploaded_at']
+        verbose_name        = 'صورة خدمة'
+        verbose_name_plural = 'صور الخدمات'
+        indexes = [
+            models.Index(fields=['service', 'is_primary']),
+            models.Index(fields=['service', 'order']),
+        ]

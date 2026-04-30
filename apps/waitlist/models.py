@@ -2,6 +2,8 @@
 
 import uuid
 from django.db import models
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 
 
 # ── Choices ───────────────────────────────────────────────
@@ -502,3 +504,76 @@ class OtherServiceWaitlist(WaitlistBase):
         db_table = 'waitlist_other'
         verbose_name = 'قائمة انتظار — خدمات أخرى'
         verbose_name_plural = 'قائمة انتظار — خدمات أخرى'
+
+# ═══════════════════════════════════════════════════════════
+# WaitlistPhoto — صور مرفوعة من المورد أثناء التسجيل
+# ═══════════════════════════════════════════════════════════
+
+class WaitlistPhoto(models.Model):
+    """
+    صور مؤقتة مرفوعة من المورد أثناء التسجيل.
+    ترتبط بأي نوع من الـ Waitlists عبر GenericForeignKey.
+    عند الموافقة، تُنسَخ إلى HotelPhoto أو ServicePhoto.
+    """
+
+    # ── ربط عام بأي نوع Waitlist ─────────────────────────
+    content_type   = models.ForeignKey(
+        ContentType,
+        on_delete=models.CASCADE,
+        verbose_name='نوع الطلب',
+    )
+    object_id      = models.UUIDField(
+        verbose_name='معرّف الطلب',
+    )
+    waitlist       = GenericForeignKey('content_type', 'object_id')
+
+    # ── الصورة ────────────────────────────────────────────
+    image          = models.ImageField(
+        upload_to='waitlist/photos/%Y/%m/',
+        verbose_name='الصورة',
+    )
+
+    # ── ترتيب وأولوية ────────────────────────────────────
+    is_primary     = models.BooleanField(
+        default=False,
+        verbose_name='الصورة الرئيسية',
+        help_text='الصورة الأولى التي تظهر للسائح',
+    )
+    order          = models.PositiveSmallIntegerField(
+        default=0,
+        verbose_name='ترتيب العرض',
+        help_text='0 = الأول',
+    )
+
+    # ── معلومات إضافية ────────────────────────────────────
+    caption        = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name='تعليق على الصورة',
+    )
+    uploaded_at    = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"صورة طلب {self.object_id} — {'رئيسية' if self.is_primary else f'#{self.order}'}"
+
+    def save(self, *args, **kwargs):
+        """
+        نضمن أن سجلاً واحداً فقط هو is_primary=True لنفس الطلب.
+        """
+        if self.is_primary:
+            WaitlistPhoto.objects.filter(
+                content_type=self.content_type,
+                object_id=self.object_id,
+                is_primary=True,
+            ).exclude(pk=self.pk).update(is_primary=False)
+        super().save(*args, **kwargs)
+
+    class Meta:
+        db_table   = 'waitlist_photo'
+        ordering   = ['order', 'uploaded_at']
+        verbose_name        = 'صورة طلب'
+        verbose_name_plural = 'صور الطلبات'
+        indexes = [
+            models.Index(fields=['content_type', 'object_id']),
+            models.Index(fields=['content_type', 'object_id', 'is_primary']),
+        ]

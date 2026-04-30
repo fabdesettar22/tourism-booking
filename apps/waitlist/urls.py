@@ -13,6 +13,10 @@ from .views import (
     SupplierWaitlistPendingListView,
     SupplierWaitlistApproveView,
     SupplierWaitlistRejectView,
+    WaitlistPhotoUploadView,
+    WaitlistPhotoDeleteView,
+    WaitlistPhotoSetPrimaryView,
+    WaitlistPhotoListView,
 )
 
 urlpatterns = [
@@ -32,4 +36,10 @@ urlpatterns = [
     path('admin/pending/',                        SupplierWaitlistPendingListView.as_view(), name='admin-suppliers-pending'),
     path('admin/<str:type>/<uuid:pk>/approve/',   SupplierWaitlistApproveView.as_view(),     name='admin-supplier-approve'),
     path('admin/<str:type>/<uuid:pk>/reject/',    SupplierWaitlistRejectView.as_view(),      name='admin-supplier-reject'),
+
+    # ── Photos ────────────────────────────────────────────
+    path('photos/upload/',              WaitlistPhotoUploadView.as_view(),    name='waitlist-photo-upload'),
+    path('photos/',                     WaitlistPhotoListView.as_view(),      name='waitlist-photo-list'),
+    path('photos/<int:pk>/delete/',     WaitlistPhotoDeleteView.as_view(),    name='waitlist-photo-delete'),
+    path('photos/<int:pk>/set-primary/',WaitlistPhotoSetPrimaryView.as_view(),name='waitlist-photo-set-primary'),
 ]

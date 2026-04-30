@@ -79,12 +79,16 @@ def create_hotel_on_approval(sender, instance, created, **kwargs):
         hotel = Hotel.objects.create(
             city=instance.city_ref,
             name=instance.company_name or instance.full_name,
+            description=getattr(instance, 'description', '') or '',
             email=instance.email or '',
             phone=instance.phone or '',
             stars=instance.star_rating or 3,
             provider_type='direct',
-            is_active=True,
+            is_active=False,
         )
+
+        # نقل صور الـ Waitlist إلى HotelPhoto
+        _copy_waitlist_photos(instance, 'hotel', hotel)
 
         # ربط الـ Waitlist بالفندق المُنشأ (بدون تشغيل signals)
         PropertyWaitlist.objects.filter(pk=instance.pk).update(
@@ -97,6 +101,57 @@ def create_hotel_on_approval(sender, instance, created, **kwargs):
 # ═══════════════════════════════════════════════════════════
 
 # ───────────── Helpers ─────────────
+
+def _copy_waitlist_photos(waitlist_instance, target_model_name, target_obj):
+    """
+    تنسخ صور الـ WaitlistPhoto إلى HotelPhoto أو ServicePhoto.
+    target_model_name: 'hotel' أو 'service'
+    target_obj: الكيان المُنشأ (Hotel أو Service instance)
+    """
+    from apps.waitlist.models import WaitlistPhoto
+    from django.contrib.contenttypes.models import ContentType
+
+    ct = ContentType.objects.get_for_model(waitlist_instance)
+    photos = WaitlistPhoto.objects.filter(
+        content_type=ct,
+        object_id=waitlist_instance.pk,
+    ).order_by('order', 'uploaded_at')
+
+    if not photos.exists():
+        return
+
+    if target_model_name == 'hotel':
+        from apps.hotels.models import HotelPhoto
+        PhotoModel = HotelPhoto
+        fk_field = 'hotel'
+    else:
+        from apps.services.models import ServicePhoto
+        PhotoModel = ServicePhoto
+        fk_field = 'service'
+
+    primary_image = None
+    for wp in photos:
+        kwargs = {
+            fk_field:   target_obj,
+            'image':     wp.image,
+            'is_primary': wp.is_primary,
+            'order':     wp.order,
+            'caption':   wp.caption,
+        }
+        photo = PhotoModel(**kwargs)
+        # نتجاوز save() العادي لتفادي تحديث target_obj.image مرتين
+        # سنُحدّثه مرة واحدة في النهاية
+        from django.db.models import Model
+        Model.save(photo)
+
+        if wp.is_primary:
+            primary_image = wp.image
+
+    # تحديث صورة الكيان الرئيسية
+    if primary_image:
+        type(target_obj).objects.filter(pk=target_obj.pk).update(image=primary_image)
+        target_obj.image = primary_image
+
 
 def _get_first_price(*prices):
     """يرجع أول سعر غير فارغ من قائمة الأسعار."""
@@ -198,6 +253,9 @@ def transport_create_service_on_approval(sender, instance, created, **kwargs):
             },
             is_active=False,  # غير نشطة حتى يراجعها الأدمن
         )
+        # نقل صور الـ Waitlist إلى ServicePhoto
+        _copy_waitlist_photos(instance, 'service', service)
+
         TransportWaitlist.objects.filter(pk=instance.pk).update(created_service=service)
         instance.created_service = service
 
@@ -238,6 +296,9 @@ def restaurant_create_service_on_approval(sender, instance, created, **kwargs):
             },
             is_active=False,
         )
+        # نقل صور الـ Waitlist إلى ServicePhoto
+        _copy_waitlist_photos(instance, 'service', service)
+
         RestaurantWaitlist.objects.filter(pk=instance.pk).update(created_service=service)
         instance.created_service = service
 
@@ -281,6 +342,9 @@ def guide_create_service_on_approval(sender, instance, created, **kwargs):
             },
             is_active=False,
         )
+        # نقل صور الـ Waitlist إلى ServicePhoto
+        _copy_waitlist_photos(instance, 'service', service)
+
         GuideWaitlist.objects.filter(pk=instance.pk).update(created_service=service)
         instance.created_service = service
 
@@ -323,6 +387,9 @@ def activity_create_service_on_approval(sender, instance, created, **kwargs):
             },
             is_active=False,
         )
+        # نقل صور الـ Waitlist إلى ServicePhoto
+        _copy_waitlist_photos(instance, 'service', service)
+
         ActivityWaitlist.objects.filter(pk=instance.pk).update(created_service=service)
         instance.created_service = service
 
@@ -365,6 +432,9 @@ def wellness_create_service_on_approval(sender, instance, created, **kwargs):
             },
             is_active=False,
         )
+        # نقل صور الـ Waitlist إلى ServicePhoto
+        _copy_waitlist_photos(instance, 'service', service)
+
         WellnessWaitlist.objects.filter(pk=instance.pk).update(created_service=service)
         instance.created_service = service
 
@@ -404,5 +474,8 @@ def other_create_service_on_approval(sender, instance, created, **kwargs):
             },
             is_active=False,
         )
+        # نقل صور الـ Waitlist إلى ServicePhoto
+        _copy_waitlist_photos(instance, 'service', service)
+
         OtherServiceWaitlist.objects.filter(pk=instance.pk).update(created_service=service)
         instance.created_service = service

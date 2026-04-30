@@ -97,3 +97,64 @@ class Hotel(models.Model):
             models.Index(fields=['city', 'stars', 'is_active']),
             models.Index(fields=['provider_type']),
         ]
+
+# ═══════════════════════════════════════════════════════════
+# HotelPhoto — صور الفنادق الدائمة (بعد الموافقة)
+# ═══════════════════════════════════════════════════════════
+
+class HotelPhoto(models.Model):
+    """
+    صور الفندق الدائمة.
+    تُنشأ تلقائياً من WaitlistPhoto عند موافقة الأدمن.
+    يمكن للأدمن إضافة صور يدوياً لاحقاً.
+    """
+    hotel       = models.ForeignKey(
+        Hotel,
+        on_delete=models.CASCADE,
+        related_name='photos',
+        verbose_name='الفندق',
+    )
+    image       = models.ImageField(
+        upload_to='hotels/photos/%Y/%m/',
+        verbose_name='الصورة',
+    )
+    is_primary  = models.BooleanField(
+        default=False,
+        verbose_name='الصورة الرئيسية',
+        help_text='تظهر كأول صورة في صفحة الفندق',
+    )
+    order       = models.PositiveSmallIntegerField(
+        default=0,
+        verbose_name='ترتيب العرض',
+    )
+    caption     = models.CharField(
+        max_length=200, blank=True,
+        verbose_name='تعليق على الصورة',
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"صورة {self.hotel.name} — {'رئيسية' if self.is_primary else f'#{self.order}'}"
+
+    def save(self, *args, **kwargs):
+        """نضمن صورة رئيسية واحدة فقط لكل فندق."""
+        if self.is_primary:
+            HotelPhoto.objects.filter(
+                hotel=self.hotel,
+                is_primary=True,
+            ).exclude(pk=self.pk).update(is_primary=False)
+            # نُحدّث Hotel.image بالصورة الرئيسية
+            super().save(*args, **kwargs)
+            Hotel.objects.filter(pk=self.hotel_id).update(image=self.image.name)
+            return
+        super().save(*args, **kwargs)
+
+    class Meta:
+        db_table   = 'hotel_photo'
+        ordering   = ['order', 'uploaded_at']
+        verbose_name        = 'صورة فندق'
+        verbose_name_plural = 'صور الفنادق'
+        indexes = [
+            models.Index(fields=['hotel', 'is_primary']),
+            models.Index(fields=['hotel', 'order']),
+        ]
