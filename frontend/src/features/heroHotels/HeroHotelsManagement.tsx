@@ -164,18 +164,30 @@ export function HeroHotelsManagement() {
                     <img src={h.logo_url} alt="" className="w-10 h-10 rounded-lg object-contain bg-gray-50 flex-shrink-0"/>
                   )}
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-gray-900 truncate">{h.name}</h3>
-                    <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                      <MapPin className="w-3 h-3"/>{h.location}
-                    </p>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <h3 className="font-bold text-gray-900 truncate">{h.name}</h3>
+                      <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
+                        h.card_type === 'hotel' ? 'bg-blue-100 text-blue-700' :
+                        h.card_type === 'partner' ? 'bg-emerald-100 text-emerald-700' :
+                        h.card_type === 'sponsor' ? 'bg-amber-100 text-amber-800' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>{h.card_type}</span>
+                    </div>
+                    {h.location && (
+                      <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                        <MapPin className="w-3 h-3"/>{h.location}
+                      </p>
+                    )}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-0.5 mt-2">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} className={`w-3.5 h-3.5 ${i < h.stars ? 'fill-amber-500 text-amber-500' : 'text-gray-200'}`}/>
-                  ))}
-                </div>
+                {h.card_type === 'hotel' && h.stars ? (
+                  <div className="flex items-center gap-0.5 mt-2">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star key={i} className={`w-3.5 h-3.5 ${i < (h.stars||0) ? 'fill-amber-500 text-amber-500' : 'text-gray-200'}`}/>
+                    ))}
+                  </div>
+                ) : null}
 
                 <p className="text-xs text-gray-600 line-clamp-2 mt-3 leading-relaxed">
                   {h.description}
@@ -242,17 +254,24 @@ function HeroHotelModal({ item, onClose, onSaved }: {
   onSaved: () => void;
 }) {
   const { lang, isRTL } = useLanguage();
+  const [cardType, setCardType] = useState<'hotel'|'partner'|'sponsor'|'custom'>(item?.card_type || 'hotel');
   const [name, setName] = useState(item?.name || '');
   const [location, setLocation] = useState(item?.location || '');
-  const [stars, setStars] = useState(item?.stars || 5);
+  const [stars, setStars] = useState<number>(item?.stars || 5);
   const [description, setDescription] = useState(item?.description || '');
+  const [linkUrl, setLinkUrl] = useState(item?.link_url || '');
+  const [ctaText, setCtaText] = useState(item?.cta_text || '');
   const [displayOrder, setDisplayOrder] = useState(item?.display_order || 0);
   const [isActive, setIsActive] = useState(item?.is_active ?? true);
   const [logo, setLogo] = useState<File | null>(null);
   const [cardImage, setCardImage] = useState<File | null>(null);
+  const [cardVideo, setCardVideo] = useState<File | null>(null);
   const [heroImage, setHeroImage] = useState<File | null>(null);
+  const [heroVideo, setHeroVideo] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  const isHotel = cardType === 'hotel';
 
   const T = {
     title:    item ? (lang === 'ar' ? 'تعديل بطاقة' : 'Edit Card') : (lang === 'ar' ? 'إضافة بطاقة' : 'New Card'),
@@ -274,24 +293,48 @@ function HeroHotelModal({ item, onClose, onSaved }: {
   };
 
   const save = async () => {
-    if (!name.trim() || !location.trim() || !description.trim()) {
-      setError(lang === 'ar' ? 'الاسم، الموقع، والوصف إجبارية' : 'Name, location, and description are required');
+    if (!name.trim()) {
+      setError(lang === 'ar' ? 'الاسم إجباري' : 'Name is required');
       return;
+    }
+    if (isHotel && (!location.trim())) {
+      setError(lang === 'ar' ? 'الموقع إجباري للفنادق' : 'Location is required for hotels');
+      return;
+    }
+    // عند الإنشاء، يجب رفع media واحد على الأقل لكل من card و hero
+    if (!item) {
+      if (!cardImage && !cardVideo) {
+        setError(lang === 'ar' ? 'ارفع صورة أو فيديو للبطاقة' : 'Upload card image or video');
+        return;
+      }
+      if (!heroImage && !heroVideo) {
+        setError(lang === 'ar' ? 'ارفع صورة أو فيديو للخلفية' : 'Upload hero image or video');
+        return;
+      }
     }
 
     setSaving(true);
     setError('');
 
     const fd = new FormData();
+    fd.append('card_type', cardType);
     fd.append('name', name);
-    fd.append('location', location);
-    fd.append('stars', String(stars));
     fd.append('description', description);
     fd.append('display_order', String(displayOrder));
     fd.append('is_active', String(isActive));
-    if (logo)      fd.append('logo', logo);
-    if (cardImage) fd.append('card_image', cardImage);
-    if (heroImage) fd.append('hero_image', heroImage);
+    if (isHotel) {
+      fd.append('location', location);
+      fd.append('stars', String(stars));
+    } else {
+      fd.append('location', '');
+    }
+    if (linkUrl) fd.append('link_url', linkUrl);
+    if (ctaText) fd.append('cta_text', ctaText);
+    if (logo)       fd.append('logo', logo);
+    if (cardImage)  fd.append('card_image', cardImage);
+    if (cardVideo)  fd.append('card_video', cardVideo);
+    if (heroImage)  fd.append('hero_image', heroImage);
+    if (heroVideo)  fd.append('hero_video', heroVideo);
 
     try {
       if (item) await updateHeroHotel(item.id, fd);
@@ -321,32 +364,60 @@ function HeroHotelModal({ item, onClose, onSaved }: {
             </div>
           )}
 
-          {/* Name + Location */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Card type selector */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
+              {lang === 'ar' ? 'نوع البطاقة *' : 'Card type *'}
+            </label>
+            <div className="grid grid-cols-4 gap-2">
+              {([
+                { v: 'hotel',   l_ar: 'فندق',   l_en: 'Hotel' },
+                { v: 'partner', l_ar: 'شريك',   l_en: 'Partner' },
+                { v: 'sponsor', l_ar: 'ممول',   l_en: 'Sponsor' },
+                { v: 'custom',  l_ar: 'عام',    l_en: 'Custom' },
+              ] as const).map(opt => (
+                <button key={opt.v} type="button" onClick={() => setCardType(opt.v)}
+                  className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${
+                    cardType === opt.v
+                      ? 'bg-[#FF6B35] text-white border-[#FF6B35]'
+                      : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
+                  }`}>
+                  {lang === 'ar' ? opt.l_ar : opt.l_en}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Name + (Location for hotels) */}
+          <div className={`grid ${isHotel ? 'grid-cols-2' : 'grid-cols-1'} gap-3`}>
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">{T.name}</label>
               <input value={name} onChange={e => setName(e.target.value)}
                 className="w-full h-10 px-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#FF6B35]"
-                placeholder="Mandarin Oriental"/>
+                placeholder={isHotel ? 'Mandarin Oriental' : (lang === 'ar' ? 'اسم الشركة/الراعي' : 'Company / sponsor name')}/>
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">{T.location}</label>
-              <input value={location} onChange={e => setLocation(e.target.value)}
-                className="w-full h-10 px-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#FF6B35]"
-                placeholder="Kuala Lumpur"/>
-            </div>
+            {isHotel && (
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">{T.location}</label>
+                <input value={location} onChange={e => setLocation(e.target.value)}
+                  className="w-full h-10 px-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#FF6B35]"
+                  placeholder="Kuala Lumpur"/>
+              </div>
+            )}
           </div>
 
-          {/* Stars + Order */}
+          {/* Stars (hotels only) + Order */}
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">{T.stars}</label>
-              <select value={stars} onChange={e => setStars(Number(e.target.value))}
-                className="w-full h-10 px-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#FF6B35]">
-                {[5, 4, 3, 2, 1].map(n => <option key={n} value={n}>{n} ⭐</option>)}
-              </select>
-            </div>
-            <div>
+            {isHotel && (
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">{T.stars}</label>
+                <select value={stars} onChange={e => setStars(Number(e.target.value))}
+                  className="w-full h-10 px-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#FF6B35]">
+                  {[5, 4, 3, 2, 1].map(n => <option key={n} value={n}>{n} ⭐</option>)}
+                </select>
+              </div>
+            )}
+            <div className={isHotel ? '' : 'col-span-2'}>
               <label className="block text-xs font-semibold text-gray-700 mb-1">{T.order}</label>
               <input type="number" value={displayOrder} onChange={e => setDisplayOrder(Number(e.target.value))}
                 className="w-full h-10 px-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#FF6B35]"
@@ -362,10 +433,52 @@ function HeroHotelModal({ item, onClose, onSaved }: {
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm resize-none focus:outline-none focus:border-[#FF6B35]"/>
           </div>
 
-          {/* Image uploads */}
-          <FileField label={T.logo}    current={item?.logo_url}       file={logo}      onChange={setLogo}      lang={lang} uploadText={T.upload}/>
-          <FileField label={T.cardImg} current={item?.card_image_url} file={cardImage} onChange={setCardImage} lang={lang} uploadText={T.upload}/>
-          <FileField label={T.heroImg} current={item?.hero_image_url} file={heroImage} onChange={setHeroImage} lang={lang} uploadText={T.upload}/>
+          {/* CTA (optional) */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                {lang === 'ar' ? 'رابط الزر (اختياري)' : 'CTA link (optional)'}
+              </label>
+              <input value={linkUrl} onChange={e => setLinkUrl(e.target.value)} type="url"
+                className="w-full h-10 px-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#FF6B35]"
+                placeholder="https://..."/>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                {lang === 'ar' ? 'نص الزر (اختياري)' : 'CTA text (optional)'}
+              </label>
+              <input value={ctaText} onChange={e => setCtaText(e.target.value)} maxLength={40}
+                className="w-full h-10 px-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#FF6B35]"
+                placeholder={lang === 'ar' ? 'احجز الآن' : 'Book now'}/>
+            </div>
+          </div>
+
+          {/* Logo (optional) */}
+          <FileField label={T.logo} current={item?.logo_url} file={logo} onChange={setLogo} lang={lang} uploadText={T.upload}/>
+
+          {/* Card media — image OR video */}
+          <div className="bg-gray-50 rounded-xl p-3 border border-gray-200">
+            <p className="text-xs font-bold text-gray-700 mb-2">
+              {lang === 'ar' ? '📸 media البطاقة (صورة أو فيديو)' : '📸 Card media (image OR video)'}
+            </p>
+            <div className="space-y-2">
+              <FileField label={T.cardImg} current={item?.card_image_url} file={cardImage} onChange={setCardImage} lang={lang} uploadText={T.upload}/>
+              <FileField label={lang === 'ar' ? 'فيديو البطاقة' : 'Card video'} accept="video/*"
+                current={item?.card_video_url} file={cardVideo} onChange={setCardVideo} lang={lang} uploadText={T.upload}/>
+            </div>
+          </div>
+
+          {/* Hero media — image OR video */}
+          <div className="bg-gray-50 rounded-xl p-3 border border-gray-200">
+            <p className="text-xs font-bold text-gray-700 mb-2">
+              {lang === 'ar' ? '🌅 media الخلفية (صورة أو فيديو)' : '🌅 Hero background (image OR video)'}
+            </p>
+            <div className="space-y-2">
+              <FileField label={T.heroImg} current={item?.hero_image_url} file={heroImage} onChange={setHeroImage} lang={lang} uploadText={T.upload}/>
+              <FileField label={lang === 'ar' ? 'فيديو الخلفية' : 'Hero video'} accept="video/*"
+                current={item?.hero_video_url} file={heroVideo} onChange={setHeroVideo} lang={lang} uploadText={T.upload}/>
+            </div>
+          </div>
 
           {/* Active toggle */}
           <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
@@ -396,16 +509,18 @@ function HeroHotelModal({ item, onClose, onSaved }: {
 // ════════════════════════════════════════════════════════
 // File field with preview
 // ════════════════════════════════════════════════════════
-function FileField({ label, current, file, onChange, uploadText }: {
+function FileField({ label, current, file, onChange, uploadText, accept = 'image/*' }: {
   label: string;
   current: string | null | undefined;
   file: File | null;
   onChange: (f: File | null) => void;
   lang: string;
   uploadText: string;
+  accept?: string;
 }) {
   const ref = useRef<HTMLInputElement>(null);
   const previewUrl = file ? URL.createObjectURL(file) : current;
+  const isVideo = accept.includes('video');
 
   return (
     <div>
@@ -419,10 +534,14 @@ function FileField({ label, current, file, onChange, uploadText }: {
         </button>
         {previewUrl && (
           <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-50 border border-gray-200 flex-shrink-0">
-            <img src={previewUrl} alt="" className="w-full h-full object-cover"/>
+            {isVideo ? (
+              <video src={previewUrl} muted playsInline className="w-full h-full object-cover" />
+            ) : (
+              <img src={previewUrl} alt="" className="w-full h-full object-cover"/>
+            )}
           </div>
         )}
-        <input ref={ref} type="file" accept="image/*" className="hidden"
+        <input ref={ref} type="file" accept={accept} className="hidden"
           onChange={e => onChange(e.target.files?.[0] || null)}/>
       </div>
     </div>

@@ -89,8 +89,7 @@ export function HotelCard({ hotel, lang }: Props) {
           </h3>
           <div className="flex items-center gap-1 shrink-0 text-sm">
             <Star className="w-4 h-4 fill-gray-900 text-gray-900" />
-            <span className="font-medium text-gray-900">{(4.5 + (hotel.id % 5) / 10).toFixed(1)}</span>
-            <span className="text-gray-500 font-normal">({50 + (hotel.id * 7) % 300})</span>
+            <span className="font-medium text-gray-900">{hotel.stars}.0</span>
           </div>
         </div>
         <p className="text-sm text-gray-500 line-clamp-1 mt-0.5">

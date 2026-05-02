@@ -34,9 +34,6 @@ export function HotelListCard({ hotel, lang }: Props) {
 
   useEffect(() => { setFav(isFav(hotel.id)); }, [hotel.id]);
 
-  const rating = parseFloat((4.5 + (hotel.id % 5) / 10).toFixed(1));
-  const reviews = 50 + (hotel.id * 7) % 300;
-  const tier = rating >= 4.7 ? tr.excellent : rating >= 4.5 ? tr.veryGood : tr.good;
 
   return (
     <Link
@@ -87,17 +84,8 @@ export function HotelListCard({ hotel, lang }: Props) {
             </p>
           </div>
 
-          {/* Rating block (right) */}
-          <div className={`flex sm:flex-col ${isRTL ? 'sm:items-start' : 'sm:items-end'} justify-between sm:justify-start gap-2 sm:min-w-[140px]`}>
-            <div className={`flex items-center gap-2 ${isRTL ? 'sm:flex-row-reverse' : ''}`}>
-              <div className="text-right">
-                <div className="text-xs font-semibold text-gray-700">{tier}</div>
-                <div className="text-[11px] text-gray-500">{reviews} {tr.reviews}</div>
-              </div>
-              <div className="bg-[#003B95] text-white text-sm font-bold px-2 py-1 rounded-md min-w-[40px] text-center">
-                {rating}
-              </div>
-            </div>
+          {/* CTA */}
+          <div className={`flex sm:flex-col ${isRTL ? 'sm:items-start' : 'sm:items-end'} justify-end gap-2 sm:min-w-[140px]`}>
             <div className="hidden sm:inline-flex items-center justify-center px-4 py-2 bg-[#FF6B35] text-white text-xs font-semibold rounded-lg group-hover:bg-[#e07a38] transition-colors">
               {tr.viewDeal} →
             </div>

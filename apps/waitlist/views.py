@@ -388,13 +388,15 @@ def _serialize_waitlist_item(obj, supplier_type_key, request):
         }
     elif supplier_type_key == 'other':
         type_specific = {
-            'service_types':       list(getattr(obj, 'service_types', []) or []),
-            'service_description': safe('service_description'),
-            'target_audience':     safe('target_audience'),
-            'has_license':         bool(getattr(obj, 'has_license', False)),
-            'base_price':          decimal_str('base_price'),
-            'price_unit':          safe('price_unit'),
-            'pricing_notes':       safe('pricing_notes'),
+            'service_types':           list(getattr(obj, 'service_types', []) or []),
+            'service_description':     safe('service_description'),
+            'target_audience':         safe('target_audience'),
+            'has_license':             bool(getattr(obj, 'has_license', False)),
+            'base_price':              decimal_str('base_price'),
+            'price_unit':              safe('price_unit'),
+            'pricing_notes':           safe('pricing_notes'),
+            'proposed_category_name':  safe('proposed_category_name'),
+            'custom_fields':           list(getattr(obj, 'custom_fields', []) or []),
         }
         documents = {
             'id_document':  file_url('id_document'),
@@ -484,6 +486,12 @@ class SupplierWaitlistApproveView(APIView):
 
         # نحفظ في transaction كي يلتقط الـ signal أي مشاكل
         # ويُلغي التغيير لو رفع ValidationError (مثل غياب city_ref)
+        # خاص بـ "other": اقبل promote_to_category + category_name من body
+        # يُمرَّر للـ signal عبر attribute مؤقت على الـ instance
+        if type.lower() == 'other':
+            obj._promote_to_category = bool(request.data.get('promote_to_category', False))
+            obj._promoted_category_name = (request.data.get('category_name') or '').strip()
+
         try:
             with transaction.atomic():
                 obj.status = 'APPROVED'

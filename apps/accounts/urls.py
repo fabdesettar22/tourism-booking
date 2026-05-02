@@ -1,7 +1,10 @@
 # apps/accounts/urls.py
 
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
+
+from apps.accounts.views.crud_views import AgencyViewSet, UserViewSet
 
 from apps.accounts.views.auth_views import (
     SupplierRegisterStep1View,
@@ -78,4 +81,13 @@ urlpatterns = [
     path('admin/agencies/',                               HQAgencyListView.as_view(),        name='admin-agencies-list'),
     path('admin/agencies/create/',                        HQAgencyCreateView.as_view(),      name='admin-agency-create'),
     path('admin/agencies/<int:agency_id>/',               HQAgencyDetailView.as_view(),      name='admin-agency-detail'),
+]
+
+# ─── ViewSets للـ CRUD العام (يستخدمها الـ Frontend في الـ Dashboard) ───
+router = DefaultRouter()
+router.register(r'agencies', AgencyViewSet, basename='agency')
+router.register(r'users',    UserViewSet,   basename='user')
+
+urlpatterns += [
+    path('', include(router.urls)),
 ]

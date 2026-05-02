@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Star, MapPin, Car, Utensils, MapIcon, Activity, Sparkles, Package } from 'lucide-react';
+import { MapPin, Car, Utensils, MapIcon, Activity, Sparkles, Package } from 'lucide-react';
 import type { PublicServiceListItem } from '../../services/publicApi';
 
 interface Props {
@@ -31,9 +31,6 @@ export function ServiceCard({ service, lang }: Props) {
   const Icon = SERVICE_ICONS[service.service_type] || Package;
   const typeLabel = SERVICE_LABELS[service.service_type]?.[lang] || service.service_type;
 
-  // Mock rating + reviews (real backend integration later)
-  const rating = (4.5 + (service.id % 5) / 10).toFixed(1);
-  const reviews = 50 + (service.id * 7) % 300;
 
   return (
     <Link
@@ -62,12 +59,6 @@ export function ServiceCard({ service, lang }: Props) {
           {typeLabel}
         </div>
 
-        {/* Top-right rating pill (Klook-style) */}
-        <div className={`absolute top-3 ${isRTL ? 'left-3' : 'right-3'} bg-white/95 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1 text-xs font-bold shadow-sm`}>
-          <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
-          <span className="text-gray-900">{rating}</span>
-          <span className="text-gray-500 font-normal">({reviews})</span>
-        </div>
       </div>
 
       {/* Content */}

@@ -310,6 +310,8 @@ class OtherServiceWaitlistSerializer(WaitlistBaseSerializer):
             'service_types', 'service_description', 'target_audience', 'has_license',
             # 🆕 الأسعار + العملة
             'base_price', 'price_unit', 'pricing_notes', 'currency',
+            # 🆕 فئة مقترحة + حقول مخصصة
+            'proposed_category_name', 'custom_fields',
             'id_document', 'service_proof',
             'status', 'email_sent', 'created_at',
             # 🆕 الخدمة المُنشأة (read-only)

@@ -514,8 +514,23 @@ def other_create_service_on_approval(sender, instance, created, **kwargs):
     from apps.services.models import Service
 
     with transaction.atomic():
+        # ─── ترقية فئة جديدة إن طلب المورد ───
+        # promote_to_category يأتي من instance._promote_to_category إن مرّره admin
+        # في حالة عدم وجوده، نستخدم category 'other' الافتراضية
+        from apps.services.models import ServiceCategory
+        from django.utils.text import slugify
+        category = _get_category('other')
+        promote = getattr(instance, '_promote_to_category', False)
+        cat_name_override = getattr(instance, '_promoted_category_name', '') or instance.proposed_category_name
+        if promote and cat_name_override:
+            slug = slugify(cat_name_override) or f'custom-{instance.pk}'
+            category, _created = ServiceCategory.objects.get_or_create(
+                slug=slug,
+                defaults={'name': cat_name_override},
+            )
+
         service = Service.objects.create(
-            category=_get_category('other'),
+            category=category,
             city=instance.city_ref,
             name=instance.company_name or instance.full_name,
             description=instance.description or instance.service_description or '',
@@ -529,8 +544,10 @@ def other_create_service_on_approval(sender, instance, created, **kwargs):
                 'pricing_notes':       instance.pricing_notes,
                 'service_types':       instance.service_types,
                 'target_audience':     instance.target_audience,
+                'proposed_category':   instance.proposed_category_name,
                 'source_waitlist_ref': instance.ref_number,
             },
+            custom_fields=instance.custom_fields or [],
             is_active=False,
         )
         # نقل صور الـ Waitlist إلى ServicePhoto

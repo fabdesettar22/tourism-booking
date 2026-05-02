@@ -130,6 +130,11 @@ class Service(models.Model):
         verbose_name="اليوم النسبي في الباقة",
         help_text="فقط للخدمات المرتبطة بباقة. يُترك فارغاً للخدمات المستقلة."
     )
+    custom_fields   = models.JSONField(
+        default=list, blank=True,
+        verbose_name="حقول مخصصة",
+        help_text="قائمة من {name, type, value} للخدمات المخصصة من المورد",
+    )
     created_at      = models.DateTimeField(auto_now_add=True)
     updated_at      = models.DateTimeField(auto_now=True)
 

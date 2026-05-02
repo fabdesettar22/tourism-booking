@@ -22,7 +22,7 @@ export const en = {
     discover:    'Discover Malaysia',
     title:       'MYBRIDGE',
     titleSpan:   'The link you need',
-    subtitle:    'MYBRIDGE connects Arab travelers with the best of Malaysia. Hotels, transport, restaurants, activities — all in one place.',
+    subtitle:    'Welcome to a platform where two continents, two cultures, and two markets finally become one soul.',
     exploreTours: 'Explore Tours',
     learnMore:   'Learn More',
   },

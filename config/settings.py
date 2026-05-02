@@ -290,8 +290,8 @@ CORS_ALLOW_HEADERS = [
 
 # ─── Media Files (Development) ────────────────────────────
 # في الإنتاج استبدل بـ S3 أو Cloudflare R2
-FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024   # 5MB
-DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024   # 5MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024  # 50MB — يدعم رفع فيديوهات Hero
+DATA_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024  # 50MB
 
 # ─── Misc ─────────────────────────────────────────────────
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

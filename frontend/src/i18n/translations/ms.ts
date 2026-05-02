@@ -22,7 +22,7 @@ export const ms: TranslationKeys = {
     discover:     'Temui Malaysia',
     title:        'MYBRIDGE',
     titleSpan:    'Pautan yang anda perlukan',
-    subtitle:     'MYBRIDGE menghubungkan pelancong Arab dengan pengalaman terbaik Malaysia. Hotel, pengangkutan, restoran, aktiviti — semuanya di satu tempat.',
+    subtitle:     'Selamat datang ke platform yang menyatukan dua benua, dua budaya, dan dua pasaran menjadi satu jiwa.',
     exploreTours: 'Jelajah Pelancongan',
     learnMore:    'Ketahui Lebih Lanjut',
   },

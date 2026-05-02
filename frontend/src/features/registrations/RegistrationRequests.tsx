@@ -153,12 +153,21 @@ function RejectModal({ name, onConfirm, onCancel, loading }: {
 // Approve Modal
 // ═══════════════════════════════════════════════════════════
 
-function ApproveModal({ name, isAgency, onConfirm, onCancel, loading }: {
+function ApproveModal({ name, isAgency, supplierType, proposedCategoryName, customFields,
+                       onConfirm, onCancel, loading }: {
   name: string; isAgency: boolean;
-  onConfirm: (commission?: number) => void; onCancel: () => void; loading: boolean;
+  supplierType?: string;
+  proposedCategoryName?: string;
+  customFields?: Array<{ name: string; type: string; value: string }>;
+  onConfirm: (opts: { commission?: number; promote_to_category?: boolean; category_name?: string }) => void;
+  onCancel: () => void;
+  loading: boolean;
 }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [commission, setCommission] = useState('10');
+  const [promote, setPromote] = useState(true);
+  const [categoryName, setCategoryName] = useState(proposedCategoryName || '');
+  const isOther = supplierType === 'other';
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -190,10 +199,70 @@ function ApproveModal({ name, isAgency, onConfirm, onCancel, loading }: {
           </>
         )}
 
-        {!isAgency && (
+        {!isAgency && !isOther && (
           <p className="text-sm text-gray-600">
             {t('regRequests.approveModal.supplierNote')}
           </p>
+        )}
+
+        {isOther && (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600">
+              {t('regRequests.approveModal.supplierNote')}
+            </p>
+
+            {customFields && customFields.length > 0 && (
+              <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                <p className="text-xs font-bold text-gray-700 mb-2">
+                  {lang === 'ar' ? 'حقول مخصصة من المورد:' : lang === 'ms' ? 'Medan tersuai pembekal:' : 'Supplier custom fields:'}
+                </p>
+                <div className="space-y-1">
+                  {customFields.map((f, i) => (
+                    <div key={i} className="flex items-center gap-2 text-xs">
+                      <span className="text-gray-500 uppercase tracking-wider text-[10px]">{f.type}</span>
+                      <span className="font-semibold text-gray-700">{f.name}:</span>
+                      <span className="text-gray-900">{f.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 bg-orange-50 border border-orange-100 rounded-xl p-3">
+              <input
+                type="checkbox"
+                id="promote"
+                checked={promote}
+                onChange={e => setPromote(e.target.checked)}
+                className="w-4 h-4 accent-[#FF6B35]"
+              />
+              <label htmlFor="promote" className="text-sm font-semibold text-gray-700 flex-1">
+                {lang === 'ar' ? 'ترقية إلى فئة جديدة'
+                  : lang === 'ms' ? 'Naik taraf ke kategori baharu'
+                  : 'Promote to new category'}
+              </label>
+            </div>
+
+            {promote && (
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
+                  {lang === 'ar' ? 'اسم الفئة' : lang === 'ms' ? 'Nama kategori' : 'Category name'}
+                </label>
+                <input
+                  type="text"
+                  value={categoryName}
+                  onChange={e => setCategoryName(e.target.value)}
+                  placeholder={proposedCategoryName || (lang === 'ar' ? 'مثلاً: تأجير اليخوت' : 'e.g. Yacht Rental')}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35]"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  {lang === 'ar' ? 'ستُضاف فئة جديدة في فئات الخدمات وتُربط الخدمة بها'
+                    : lang === 'ms' ? 'Kategori baharu akan dibuat'
+                    : 'A new ServiceCategory will be created and linked'}
+                </p>
+              </div>
+            )}
+          </div>
         )}
 
         <div className="flex gap-3 mt-5">
@@ -201,7 +270,11 @@ function ApproveModal({ name, isAgency, onConfirm, onCancel, loading }: {
             {t('regRequests.approveModal.cancel')}
           </button>
           <button
-            onClick={() => onConfirm(isAgency ? parseFloat(commission) : undefined)}
+            onClick={() => onConfirm({
+              commission: isAgency ? parseFloat(commission) : undefined,
+              promote_to_category: isOther ? promote : undefined,
+              category_name: isOther && promote ? (categoryName || proposedCategoryName) : undefined,
+            })}
             disabled={loading}
             className="flex-1 py-2.5 bg-emerald-500 text-white rounded-xl font-medium text-sm hover:bg-emerald-600 flex items-center justify-center gap-2 disabled:opacity-50"
           >
@@ -244,7 +317,11 @@ export function RegistrationRequests() {
 
   // Modals
   const [rejectTarget, setRejectTarget]   = useState<{ id: string; name: string; type: TabKey; supplierType?: string } | null>(null);
-  const [approveTarget, setApproveTarget] = useState<{ id: string; name: string; type: TabKey; supplierType?: string } | null>(null);
+  const [approveTarget, setApproveTarget] = useState<{
+    id: string; name: string; type: TabKey; supplierType?: string;
+    proposedCategoryName?: string;
+    customFields?: Array<{ name: string; type: string; value: string }>;
+  } | null>(null);
   const [detailItem, setDetailItem]       = useState<{ data: AgencyPending | SupplierPending; type: TabKey } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -338,7 +415,7 @@ export function RegistrationRequests() {
   };
 
   // ── Actions ───────────────────────────────────────────
-  const handleApprove = async (commission?: number) => {
+  const handleApprove = async (opts: { commission?: number; promote_to_category?: boolean; category_name?: string }) => {
     if (!approveTarget) return;
     setActionLoading(true);
     const { id, name, type } = approveTarget;
@@ -347,9 +424,13 @@ export function RegistrationRequests() {
       ? `/api/v1/waitlist-agency/admin/${id}/approve/`
       : `/api/v1/waitlist/admin/${approveTarget.supplierType}/${id}/approve/`;
 
-    const body = type === 'agencies' && commission !== undefined
-      ? JSON.stringify({ commission_rate: commission })
-      : JSON.stringify({});
+    const payload: Record<string, unknown> = {};
+    if (type === 'agencies' && opts.commission !== undefined) payload.commission_rate = opts.commission;
+    if (approveTarget.supplierType === 'other') {
+      payload.promote_to_category = !!opts.promote_to_category;
+      if (opts.category_name) payload.category_name = opts.category_name;
+    }
+    const body = JSON.stringify(payload);
 
     try {
       const res = await apiFetch(url, { method: 'POST', body });
@@ -535,7 +616,12 @@ export function RegistrationRequests() {
                   key={s.id}
                   supplier={s}
                   formatDaysAgo={formatDaysAgo}
-                  onApprove={() => setApproveTarget({ id: s.id, name: s.company_name, type: 'suppliers', supplierType: s.supplier_type })}
+                  onApprove={() => setApproveTarget({
+                    id: s.id, name: s.company_name, type: 'suppliers',
+                    supplierType: s.supplier_type,
+                    proposedCategoryName: (s as any).proposed_category_name,
+                    customFields: (s as any).custom_fields,
+                  })}
                   onReject={() => setRejectTarget({ id: s.id, name: s.company_name, type: 'suppliers', supplierType: s.supplier_type })}
                   onViewDetails={() => setDetailItem({ data: s, type: 'suppliers' })}
                 />
@@ -556,6 +642,9 @@ export function RegistrationRequests() {
         <ApproveModal
           name={approveTarget.name}
           isAgency={approveTarget.type === 'agencies'}
+          supplierType={approveTarget.supplierType}
+          proposedCategoryName={approveTarget.proposedCategoryName}
+          customFields={approveTarget.customFields}
           onCancel={() => setApproveTarget(null)}
           onConfirm={handleApprove}
           loading={actionLoading}
@@ -572,7 +661,12 @@ export function RegistrationRequests() {
             const name = detailItem.type === 'agencies'
               ? (d as AgencyPending).name
               : (d as SupplierPending).company_name;
-            setApproveTarget({ id: d.id, name, type: detailItem.type, supplierType: (d as any).supplier_type });
+            setApproveTarget({
+              id: d.id, name, type: detailItem.type,
+              supplierType: (d as any).supplier_type,
+              proposedCategoryName: (d as any).proposed_category_name,
+              customFields: (d as any).custom_fields,
+            });
             setDetailItem(null);
           }}
           onReject={() => {

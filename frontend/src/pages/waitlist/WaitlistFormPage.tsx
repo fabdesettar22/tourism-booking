@@ -239,6 +239,15 @@ export function WaitlistFormPage() {
   });
   const [files, setFiles] = useState<Record<string, File | null>>({});
 
+  // 🆕 خاص بـ "other" — فئة مقترحة + حقول مخصصة
+  const [proposedCategoryName, setProposedCategoryName] = useState('');
+  const [customFields, setCustomFields] = useState<Array<{ name: string; type: string; value: string }>>([]);
+  const addCustomField = () => setCustomFields(arr => [...arr, { name: '', type: 'text', value: '' }]);
+  const updateCustomField = (i: number, k: 'name' | 'type' | 'value', v: string) =>
+    setCustomFields(arr => arr.map((f, idx) => idx === i ? { ...f, [k]: v } : f));
+  const removeCustomField = (i: number) =>
+    setCustomFields(arr => arr.filter((_, idx) => idx !== i));
+
   if (!config) {
     navigate('/register/supplier');
     return null;
@@ -362,6 +371,17 @@ export function WaitlistFormPage() {
           fd.append(f.key, String(form[f.key]));
         }
       });
+
+      // 🆕 الحقول المخصصة (لـ other فقط)
+      if (type === 'other') {
+        if (proposedCategoryName.trim()) {
+          fd.append('proposed_category_name', proposedCategoryName.trim());
+        }
+        const cleaned = customFields.filter(f => f.name.trim() && String(f.value).trim());
+        if (cleaned.length > 0) {
+          fd.append('custom_fields', JSON.stringify(cleaned));
+        }
+      }
 
       // Files
       docs.forEach(d => {
@@ -676,6 +696,101 @@ export function WaitlistFormPage() {
                     />
                   </div>
                 </div>
+
+                {/* 🆕 خاص بـ "other" — Proposed category + custom fields builder */}
+                {type === 'other' && (
+                  <div className="bg-orange-50/50 border border-orange-100 rounded-2xl p-4 space-y-4">
+                    <div>
+                      <label className={lc}>
+                        {lang === 'ar' ? 'اسم الفئة المقترحة (إن لم تجد فئة مناسبة)'
+                          : lang === 'ms' ? 'Nama kategori dicadangkan'
+                          : 'Proposed category name (if your service does not fit the existing types)'}
+                      </label>
+                      <input
+                        className={ic}
+                        value={proposedCategoryName}
+                        onChange={e => setProposedCategoryName(e.target.value)}
+                        placeholder={lang === 'ar' ? 'مثلاً: تأجير اليخوت، ترجمة فورية...'
+                          : lang === 'ms' ? 'cth: Sewa Yacht, Terjemahan Langsung'
+                          : 'e.g. Yacht Rental, Live Translation'}
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className={lc + ' mb-0'}>
+                          {lang === 'ar' ? 'حقول مخصصة (اختياري)'
+                            : lang === 'ms' ? 'Medan tersuai (pilihan)'
+                            : 'Custom fields (optional)'}
+                        </label>
+                        <button
+                          type="button"
+                          onClick={addCustomField}
+                          className="text-xs font-semibold text-[#FF6B35] hover:text-[#e07a38] px-3 py-1 rounded-lg border border-[#FF6B35]/30 hover:bg-orange-50"
+                        >
+                          + {lang === 'ar' ? 'إضافة حقل' : lang === 'ms' ? 'Tambah' : 'Add field'}
+                        </button>
+                      </div>
+                      {customFields.length === 0 ? (
+                        <p className="text-xs text-gray-500 italic">
+                          {lang === 'ar' ? 'مثال: المدة، السعة، اللغة... — أضف حقولاً تصف خدمتك'
+                            : lang === 'ms' ? 'Contoh: Tempoh, Kapasiti, Bahasa...'
+                            : 'e.g. Duration, Capacity, Language... — describe your service'}
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          {customFields.map((f, i) => (
+                            <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                              <select
+                                className="col-span-3 h-10 px-2 border border-gray-200 rounded-lg text-xs bg-white"
+                                value={f.type}
+                                onChange={e => updateCustomField(i, 'type', e.target.value)}
+                              >
+                                <option value="text">{lang === 'ar' ? 'نص' : 'Text'}</option>
+                                <option value="number">{lang === 'ar' ? 'رقم' : 'Number'}</option>
+                                <option value="date">{lang === 'ar' ? 'تاريخ' : 'Date'}</option>
+                                <option value="boolean">{lang === 'ar' ? 'نعم/لا' : 'Yes/No'}</option>
+                                <option value="select">{lang === 'ar' ? 'قائمة' : 'List'}</option>
+                              </select>
+                              <input
+                                className="col-span-4 h-10 px-3 border border-gray-200 rounded-lg text-sm"
+                                placeholder={lang === 'ar' ? 'اسم الحقل' : 'Field name'}
+                                value={f.name}
+                                onChange={e => updateCustomField(i, 'name', e.target.value)}
+                              />
+                              {f.type === 'boolean' ? (
+                                <select
+                                  className="col-span-4 h-10 px-3 border border-gray-200 rounded-lg text-sm bg-white"
+                                  value={f.value}
+                                  onChange={e => updateCustomField(i, 'value', e.target.value)}
+                                >
+                                  <option value="">--</option>
+                                  <option value="true">{lang === 'ar' ? 'نعم' : 'Yes'}</option>
+                                  <option value="false">{lang === 'ar' ? 'لا' : 'No'}</option>
+                                </select>
+                              ) : (
+                                <input
+                                  className="col-span-4 h-10 px-3 border border-gray-200 rounded-lg text-sm"
+                                  type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text'}
+                                  placeholder={lang === 'ar' ? 'القيمة' : 'Value'}
+                                  value={f.value}
+                                  onChange={e => updateCustomField(i, 'value', e.target.value)}
+                                />
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => removeCustomField(i)}
+                                className="col-span-1 h-10 text-rose-500 hover:bg-rose-50 rounded-lg text-sm"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Extra fields */}
                 {config.en.fields.map(f => (

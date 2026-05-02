@@ -491,6 +491,19 @@ class OtherServiceWaitlist(WaitlistBase):
     )
     pricing_notes  = models.TextField(blank=True, verbose_name='ملاحظات التسعير')
 
+    # ── حقول للفئات المخصصة ──
+    proposed_category_name = models.CharField(
+        max_length=100, blank=True,
+        verbose_name='اسم الفئة المقترحة',
+        help_text='اسم نوع الخدمة الذي يقترحه المورد إن لم يجد فئة مناسبة',
+    )
+
+    custom_fields = models.JSONField(
+        default=list, blank=True,
+        verbose_name='حقول مخصصة',
+        help_text='قائمة من {name, type, value} — type ∈ [text, number, date, select, boolean]',
+    )
+
     # ── مراجع الموقع ──
     country_ref = models.ForeignKey('locations.Country', on_delete=models.PROTECT, null=True, blank=True, related_name='other_waitlist_entries', verbose_name='الدولة (مرجع)')
     city_ref    = models.ForeignKey('locations.City',    on_delete=models.PROTECT, null=True, blank=True, related_name='other_waitlist_entries', verbose_name='المدينة (مرجع)')

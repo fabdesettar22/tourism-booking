@@ -11,7 +11,7 @@ import { HotelListCard } from '../../components/public/HotelListCard';
 import { CountryCityPicker } from '../../components/forms/CountryCityPicker';
 import { fetchPublicHotels, type PublicHotelListItem } from '../../services/publicApi';
 
-type SortKey = 'recommended' | 'starsDesc' | 'starsAsc' | 'mostReviewed' | 'nameAsc';
+type SortKey = 'recommended' | 'starsDesc' | 'starsAsc' | 'nameAsc';
 type ViewMode = 'grid' | 'list';
 
 const T = {
@@ -23,7 +23,7 @@ const T = {
     any: 'أي', empty: 'لا توجد فنادق مطابقة', emptyHint: 'جرّب إزالة بعض الفلاتر',
     count: (n: number) => `${n} فندق`, reset: 'مسح الكل', applyFilters: 'تطبيق',
     sort: 'الترتيب', view: 'العرض', loadMore: 'عرض المزيد',
-    sortOpts: { recommended: 'الموصى به', starsDesc: 'النجوم: من الأعلى', starsAsc: 'النجوم: من الأقل', mostReviewed: 'الأكثر تقييماً', nameAsc: 'الاسم: أ-ي' },
+    sortOpts: { recommended: 'الموصى به', starsDesc: 'النجوم: من الأعلى', starsAsc: 'النجوم: من الأقل', nameAsc: 'الاسم: أ-ي' },
   },
   en: {
     title: 'Malaysia Hotels', subtitle: 'Book your perfect stay at the best prices',
@@ -33,7 +33,7 @@ const T = {
     any: 'Any', empty: 'No hotels match your filters', emptyHint: 'Try removing some filters',
     count: (n: number) => `${n} properties`, reset: 'Clear all', applyFilters: 'Apply',
     sort: 'Sort', view: 'View', loadMore: 'Show more',
-    sortOpts: { recommended: 'Recommended', starsDesc: 'Stars: high to low', starsAsc: 'Stars: low to high', mostReviewed: 'Most reviewed', nameAsc: 'Name (A-Z)' },
+    sortOpts: { recommended: 'Recommended', starsDesc: 'Stars: high to low', starsAsc: 'Stars: low to high', nameAsc: 'Name (A-Z)' },
   },
   ms: {
     title: 'Hotel Malaysia', subtitle: 'Tempah penginapan sempurna pada harga terbaik',
@@ -43,12 +43,10 @@ const T = {
     any: 'Mana-mana', empty: 'Tiada hotel sepadan', emptyHint: 'Cuba alih keluar penapis',
     count: (n: number) => `${n} hotel`, reset: 'Padam semua', applyFilters: 'Guna',
     sort: 'Susun', view: 'Paparan', loadMore: 'Lihat lagi',
-    sortOpts: { recommended: 'Disyorkan', starsDesc: 'Bintang: tinggi-rendah', starsAsc: 'Bintang: rendah-tinggi', mostReviewed: 'Paling diulas', nameAsc: 'Nama (A-Z)' },
+    sortOpts: { recommended: 'Disyorkan', starsDesc: 'Bintang: tinggi-rendah', starsAsc: 'Bintang: rendah-tinggi', nameAsc: 'Nama (A-Z)' },
   },
 };
 
-const mockReviews = (id: number) => 50 + (id * 7) % 300;
-const mockRating = (id: number) => parseFloat((4.5 + (id % 5) / 10).toFixed(1));
 
 const PAGE_SIZE = 24;
 
@@ -62,7 +60,6 @@ export function HotelsListPage() {
 
   const [query, setQuery] = useState('');
   const [starsMin, setStarsMin] = useState<number | undefined>();
-  const [reviewsMin, setReviewsMin] = useState<number | undefined>();
   const [countryCode, setCountryCode] = useState('');
   const [cityId, setCityId] = useState<number | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('recommended');
@@ -103,19 +100,17 @@ export function HotelsListPage() {
                   (h.country_name || '').toLowerCase().includes(q);
       if (!hit) return false;
     }
-    if (reviewsMin !== undefined && mockReviews(h.id) < reviewsMin) return false;
     return true;
-  }), [hotels, query, reviewsMin]);
+  }), [hotels, query]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
     switch (sortKey) {
       case 'starsDesc': arr.sort((a, b) => b.stars - a.stars); break;
       case 'starsAsc':  arr.sort((a, b) => a.stars - b.stars); break;
-      case 'mostReviewed': arr.sort((a, b) => mockReviews(b.id) - mockReviews(a.id)); break;
       case 'nameAsc': arr.sort((a, b) => a.name.localeCompare(b.name)); break;
       case 'recommended':
-      default: arr.sort((a, b) => mockRating(b.id) - mockRating(a.id));
+      default: arr.sort((a, b) => b.stars - a.stars);
     }
     return arr;
   }, [filtered, sortKey]);
@@ -125,7 +120,6 @@ export function HotelsListPage() {
   // Active filter chips with individual removal
   const chips: { label: string; clear: () => void }[] = [];
   if (starsMin) chips.push({ label: `${starsMin}+ ★`, clear: () => setStarsMin(undefined) });
-  if (reviewsMin) chips.push({ label: `${reviewsMin}+ ${tr.reviews}`, clear: () => setReviewsMin(undefined) });
   if (countryCode) chips.push({ label: countryCode, clear: () => { setCountryCode(''); setCityId(null); } });
   if (cityId) chips.push({ label: `City #${cityId}`, clear: () => setCityId(null) });
 
@@ -136,12 +130,11 @@ export function HotelsListPage() {
       const q = query.toLowerCase();
       if (!h.name.toLowerCase().includes(q) && !(h.city_name || '').toLowerCase().includes(q)) return false;
     }
-    if (reviewsMin !== undefined && mockReviews(h.id) < reviewsMin) return false;
     return true;
   }).length;
 
   const reset = () => {
-    setQuery(''); setStarsMin(undefined); setReviewsMin(undefined);
+    setQuery(''); setStarsMin(undefined);
     setCountryCode(''); setCityId(null); setSortKey('recommended');
   };
 
@@ -191,27 +184,6 @@ export function HotelsListPage() {
               </button>
             );
           })}
-        </div>
-      </div>
-
-      <div className="border-t border-gray-100" />
-
-      <div>
-        <h3 className="text-sm font-bold text-gray-900 mb-3">{tr.reviews}</h3>
-        <div className="grid grid-cols-2 gap-2">
-          {[undefined, 50, 100, 200].map((r) => (
-            <button
-              key={r ?? 'any'}
-              onClick={() => setReviewsMin(r)}
-              className={`px-3 py-2 rounded-xl text-sm transition-all border focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 ${
-                reviewsMin === r
-                  ? 'bg-orange-50 border-[#FF6B35] text-[#FF6B35] font-semibold'
-                  : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              {r === undefined ? tr.any : `${r}+`}
-            </button>
-          ))}
         </div>
       </div>
 

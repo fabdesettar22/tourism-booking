@@ -12,6 +12,7 @@ class HeroHotelCardAdmin(admin.ModelAdmin):
     list_display = (
         'card_thumbnail',
         'name',
+        'card_type',
         'location',
         'stars',
         'display_order',
@@ -19,7 +20,7 @@ class HeroHotelCardAdmin(admin.ModelAdmin):
         'updated_at',
     )
     list_display_links = ('name',)
-    list_filter = ('is_active', 'stars', 'location')
+    list_filter = ('card_type', 'is_active', 'stars', 'location')
     search_fields = ('name', 'location', 'description')
     list_editable = ('display_order', 'is_active')
     readonly_fields = (
@@ -28,19 +29,27 @@ class HeroHotelCardAdmin(admin.ModelAdmin):
     )
 
     fieldsets = (
+        ('نوع البطاقة', {
+            'fields': ('card_type',),
+            'description': 'فندق / شريك / ممول / عام — يتحكم بطريقة العرض',
+        }),
         ('معلومات أساسية', {
             'fields': ('name', 'location', 'stars', 'description'),
         }),
         ('الشعار', {
             'fields': ('logo', 'logo_preview'),
         }),
-        ('صورة البطاقة', {
-            'description': 'الصورة التي تظهر داخل بطاقة الفندق',
-            'fields': ('card_image', 'card_image_preview'),
+        ('media البطاقة (صورة أو فيديو)', {
+            'description': 'استخدم واحداً منهما — الفيديو يأخذ الأولوية إن وُجد',
+            'fields': ('card_image', 'card_image_preview', 'card_video'),
         }),
-        ('صورة الخلفية', {
-            'description': 'الصورة التي تظهر كخلفية للـ Hero (الصفحة كاملة)',
-            'fields': ('hero_image', 'hero_image_preview'),
+        ('media الخلفية (صورة أو فيديو)', {
+            'description': 'الـ Hero الكبير — الفيديو يأخذ الأولوية إن وُجد',
+            'fields': ('hero_image', 'hero_image_preview', 'hero_video'),
+        }),
+        ('CTA (اختياري)', {
+            'fields': ('link_url', 'cta_text'),
+            'description': 'زر يظهر داخل البطاقة عند ملء الحقلَين',
         }),
         ('التحكم في العرض', {
             'fields': ('display_order', 'is_active'),

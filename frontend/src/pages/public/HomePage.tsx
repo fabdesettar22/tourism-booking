@@ -36,18 +36,25 @@ interface NewsPost { id:number; category:string; date:string; readTime:string; t
 // ═══════════════════════════════════════════════════════
 interface HeroHotel {
   id: number;
+  card_type: 'hotel' | 'partner' | 'sponsor' | 'custom';
   name: string;
-  logo: string;
-  stars: number;
+  logo: string | null;
+  stars: number | null;
   description: string;
   location: string;
-  card_image: string;   // الصورة داخل البطاقة
-  hero_image: string;   // الصورة كخلفية للـ Hero
+  card_image: string | null;
+  card_video: string | null;
+  hero_image: string | null;
+  hero_video: string | null;
+  card_media_kind: 'image' | 'video' | 'none';
+  hero_media_kind: 'image' | 'video' | 'none';
+  link_url: string;
+  cta_text: string;
   display_order: number;
 }
 
 // API endpoint
-const HERO_HOTELS_API = 'http://127.0.0.1:8000/api/v1/hero-hotels/';
+const HERO_HOTELS_API = `${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/api/v1/hero-hotels/`;
 
 const DESTINATIONS: Destination[] = [
   { name:"Kuala Lumpur", tours:120, activities:85,  image:"https://images.unsplash.com/photo-1596422846543-75c6fc197f07?w=400&q=80" },
@@ -256,11 +263,22 @@ const HeroSection = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) => {
 
   return (
     <section className="relative min-h-[680px] flex items-center overflow-hidden">
-      {/* خلفية Hero تستخدم hero_image */}
+      {/* خلفية Hero — صورة أو فيديو */}
       {heroHotels.map((hotel, i) => (
         <div key={hotel.id}
-          className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000"
-          style={{backgroundImage:`url(${hotel.hero_image})`, opacity: i === currentIdx ? 1 : 0}}/>
+          className="absolute inset-0 transition-opacity duration-1000"
+          style={{ opacity: i === currentIdx ? 1 : 0 }}>
+          {hotel.hero_media_kind === 'video' && hotel.hero_video ? (
+            <video
+              src={hotel.hero_video}
+              autoPlay muted loop playsInline preload="metadata"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full bg-cover bg-center"
+              style={{backgroundImage:`url(${hotel.hero_image || ''})`}}/>
+          )}
+        </div>
       ))}
       <div className="absolute inset-0 bg-gradient-to-r from-[#0F2742]/90 via-[#0F2742]/70 to-[#0F2742]/45"/>
 
@@ -287,49 +305,83 @@ const HeroSection = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) => {
               className="relative rounded-3xl overflow-hidden border border-white/20 shadow-2xl transition-all duration-700 animate-fade-in"
               style={{ minHeight: 420 }}
             >
-              {/* خلفية البطاقة تستخدم card_image */}
-              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700"
-                style={{backgroundImage:`url(${currentHotel.card_image})`}}/>
+              {/* media البطاقة — صورة أو فيديو */}
+              {currentHotel.card_media_kind === 'video' && currentHotel.card_video ? (
+                <video
+                  src={currentHotel.card_video}
+                  autoPlay muted loop playsInline preload="metadata"
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              ) : (
+                <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700"
+                  style={{backgroundImage:`url(${currentHotel.card_image || ''})`}}/>
+              )}
               <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/50 to-black/85"/>
 
               <div className={`relative z-10 h-full flex flex-col justify-end p-7 ${isRTL?"text-right":""}`} style={{minHeight:420}}>
-                <div className={`absolute top-5 ${isRTL?"right-5":"left-5"} bg-white/15 backdrop-blur-md border border-white/25 rounded-full px-3 py-1.5 flex items-center gap-1.5`}>
-                  <FontAwesomeIcon icon={faLocationDot} className="text-[#FF6B35] text-xs"/>
-                  <span className="text-white text-xs font-semibold">{currentHotel.location}</span>
-                </div>
+                {/* Top-right badge: location (hotel) أو type tag (others) */}
+                {currentHotel.card_type === 'hotel' && currentHotel.location ? (
+                  <div className={`absolute top-5 ${isRTL?"right-5":"left-5"} bg-white/15 backdrop-blur-md border border-white/25 rounded-full px-3 py-1.5 flex items-center gap-1.5`}>
+                    <FontAwesomeIcon icon={faLocationDot} className="text-[#FF6B35] text-xs"/>
+                    <span className="text-white text-xs font-semibold">{currentHotel.location}</span>
+                  </div>
+                ) : currentHotel.card_type === 'sponsor' ? (
+                  <div className={`absolute top-5 ${isRTL?"right-5":"left-5"} bg-[#C9A961]/90 backdrop-blur-md rounded-full px-3 py-1 flex items-center gap-1`}>
+                    <span className="text-white text-[10px] font-bold uppercase tracking-wider">Sponsored</span>
+                  </div>
+                ) : currentHotel.card_type === 'partner' ? (
+                  <div className={`absolute top-5 ${isRTL?"right-5":"left-5"} bg-white/15 backdrop-blur-md border border-white/25 rounded-full px-3 py-1`}>
+                    <span className="text-white text-[10px] font-bold uppercase tracking-wider">Partner</span>
+                  </div>
+                ) : null}
 
                 <div className={`flex items-center gap-3 mb-4 ${isRTL?"flex-row-reverse":""}`}>
-                  <div className="w-14 h-14 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg overflow-hidden">
-                    <img
-                      src={currentHotel.logo}
-                      alt={`${currentHotel.name} logo`}
-                      className="w-10 h-10 object-contain"
-                      onError={(e)=>{
-                        (e.currentTarget as HTMLImageElement).style.display = 'none';
-                        const parent = e.currentTarget.parentElement;
-                        if (parent) parent.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="#FF6B35"><path d="M2 20h20v2H2zm2-7h16v6H4zm0-5h4v4H4zm6 0h4v4h-4zm6 0h4v4h-4zM3 3l9-1 9 1v4H3z"/></svg>';
-                      }}
-                    />
-                  </div>
+                  {currentHotel.logo && (
+                    <div className="w-14 h-14 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg overflow-hidden">
+                      <img
+                        src={currentHotel.logo}
+                        alt={`${currentHotel.name} logo`}
+                        className="w-10 h-10 object-contain"
+                        onError={(e)=>{(e.currentTarget as HTMLImageElement).style.display='none';}}
+                      />
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <h3 className="text-2xl font-bold text-white leading-tight">{currentHotel.name}</h3>
                   </div>
                 </div>
 
-                <div className={`flex items-center gap-1 mb-4 ${isRTL?"justify-end":""}`}>
-                  {Array.from({length:5}).map((_,i)=>(
-                    <FontAwesomeIcon
-                      key={i}
-                      icon={faStar}
-                      className={`text-sm ${i<currentHotel.stars?"text-[#FFD700]":"text-white/20"}`}
-                    />
-                  ))}
-                  <span className="text-white/80 text-xs font-semibold ml-2 mr-2">{currentHotel.stars}.0</span>
-                </div>
+                {/* Stars — للفنادق فقط */}
+                {currentHotel.card_type === 'hotel' && currentHotel.stars ? (
+                  <div className={`flex items-center gap-1 mb-4 ${isRTL?"justify-end":""}`}>
+                    {Array.from({length:5}).map((_,i)=>(
+                      <FontAwesomeIcon
+                        key={i}
+                        icon={faStar}
+                        className={`text-sm ${i < (currentHotel.stars||0) ? "text-[#FFD700]" : "text-white/20"}`}
+                      />
+                    ))}
+                    <span className="text-white/80 text-xs font-semibold ml-2 mr-2">{currentHotel.stars}.0</span>
+                  </div>
+                ) : null}
 
-                <p className="text-white/85 text-sm leading-relaxed mb-2">
-                  {currentHotel.description}
-                </p>
+                {currentHotel.description && (
+                  <p className="text-white/85 text-sm leading-relaxed mb-3">
+                    {currentHotel.description}
+                  </p>
+                )}
+
+                {/* CTA — اختياري */}
+                {currentHotel.cta_text && currentHotel.link_url && (
+                  <a
+                    href={currentHotel.link_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 mt-2 px-5 py-2.5 bg-[#FF6B35] hover:bg-[#e07a38] text-white text-sm font-semibold rounded-xl transition-colors w-fit shadow-lg"
+                  >
+                    {currentHotel.cta_text} →
+                  </a>
+                )}
               </div>
             </div>
 
@@ -878,10 +930,10 @@ export function HomePage({ onLogin }: { onLogin?: () => void }) {
         <StatsBanner
           lang={lang}
           isRTL={isRTL}
-          customers={cfg?.stats_customers ?? 2400}
+          customers={cfg?.stats_customers ?? 0}
           destinations={cfg?.stats_destinations ?? 15}
-          suppliers={cfg?.stats_suppliers ?? 120}
-          partners={cfg?.stats_partners ?? 50}
+          suppliers={cfg?.stats_suppliers ?? 0}
+          partners={cfg?.stats_partners ?? 250}
         />
       )}
 
