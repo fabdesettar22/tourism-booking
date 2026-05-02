@@ -1,6 +1,6 @@
-from rest_framework.permissions import BasePermission, IsAdminUser
+from apps.accounts.permissions import IsAdminUser
 
 
 class IsBlogEditor(IsAdminUser):
-    """Currently delegates to IsAdminUser. Extend later for an Editor role."""
+    """Currently delegates to project IsAdminUser (is_admin flag). Extend later for an Editor role."""
     pass

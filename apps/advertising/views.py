@@ -15,7 +15,8 @@ Permissions:
 
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
-from rest_framework.permissions import AllowAny, IsAdminUser
+from rest_framework.permissions import AllowAny
+from apps.accounts.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from django.shortcuts import get_object_or_404
@@ -263,7 +264,7 @@ def list_placements(request):
 # ADMIN ENDPOINTS (CRUD للأدمن فقط)
 # ═══════════════════════════════════════════════════════════
 
-from rest_framework.permissions import IsAdminUser
+# IsAdminUser already imported above from apps.accounts.permissions
 from .models import AdTargeting, AdPlacement
 from .serializers import AdCreativeAdminSerializer
 from django.utils import timezone

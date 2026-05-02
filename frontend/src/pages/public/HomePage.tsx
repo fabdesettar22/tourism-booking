@@ -310,9 +310,9 @@ const HeroSection = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) => {
               </a>
               <a
                 href="/register/agency"
-                className="group inline-flex items-center justify-center gap-2.5 px-7 py-3.5 bg-white/5 hover:bg-white/15 text-white border-2 border-[#C9A961]/60 hover:border-[#C9A961] font-semibold text-sm rounded-xl backdrop-blur-sm transition-all hover:-translate-y-0.5"
+                className="group inline-flex items-center justify-center gap-2.5 px-7 py-3.5 bg-[#FF6B35] hover:bg-[#e07a38] text-white font-semibold text-sm rounded-xl shadow-xl shadow-[#FF6B35]/20 transition-all hover:shadow-2xl hover:shadow-[#FF6B35]/30 hover:-translate-y-0.5"
               >
-                <FontAwesomeIcon icon={faBriefcase} className="text-[#C9A961]" />
+                <FontAwesomeIcon icon={faBriefcase} className="text-white/90" />
                 {t("hero.cta_agency")}
                 <FontAwesomeIcon icon={isRTL ? faArrowLeft : faArrowRight} className="text-xs opacity-80 group-hover:translate-x-0.5 transition-transform" />
               </a>
