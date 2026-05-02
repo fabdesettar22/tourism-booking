@@ -7,6 +7,7 @@ from rest_framework import status, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 
@@ -276,9 +277,20 @@ class LogoutView(APIView):
 
 class MeView(APIView):
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get(self, request):
         return Response(UserMeSerializer(request.user).data)
+
+    def patch(self, request):
+        user = request.user
+        for f in ('first_name', 'last_name', 'email', 'phone'):
+            if f in request.data:
+                setattr(user, f, request.data.get(f))
+        if 'avatar' in request.FILES:
+            user.avatar = request.FILES['avatar']
+        user.save()
+        return Response(UserMeSerializer(user).data)
 
 
 # ─────────────────────────────────────────────
