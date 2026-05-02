@@ -409,3 +409,178 @@ class SupplierAllListView(APIView):
             'count'  : qs.count(),
             'results': serializer.data,
         })
+
+
+# ═══════════════════════════════════════════════════════════
+# OTP AUTH — تسجيل الدخول للموردين عبر رمز إيميل
+# ═══════════════════════════════════════════════════════════
+
+class OtpRequestView(APIView):
+    """
+    POST /api/v1/accounts/otp/request/
+    body: { "email": "..." }
+
+    يُولّد رمز 6 أرقام، يُرسله إيميل، ويُسجّله في DB.
+    حد أقصى 5 طلبات/ساعة لكل إيميل.
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        from apps.accounts.models import User, EmailOTP
+        from apps.accounts.services.email_service import send_otp_email
+        from datetime import timedelta
+
+        email = (request.data.get('email') or '').strip().lower()
+        if not email:
+            return Response({'error': 'البريد الإلكتروني مطلوب'}, status=400)
+
+        # تحقق أن المستخدم موجود ودوره supplier
+        try:
+            user = User.objects.get(email=email, role='supplier', is_active=True)
+        except User.DoesNotExist:
+            # نُرجع نفس الرسالة سواء وُجد أم لا (لمنع enumeration)
+            return Response({
+                'success': True,
+                'expires_in': 600,
+                'message': 'إن كان هذا الإيميل مُسجَّلاً، فسيصلك رمز الدخول خلال دقائق.',
+            })
+
+        # rate limit: 5 طلبات/ساعة
+        one_hour_ago = timezone.now() - timedelta(hours=1)
+        recent = EmailOTP.objects.filter(email=email, created_at__gte=one_hour_ago).count()
+        if recent >= 5:
+            return Response({
+                'error': 'تم تجاوز الحد المسموح. حاول مرة أخرى بعد ساعة.',
+            }, status=429)
+
+        # إبطال أي OTP صالح سابق لنفس الإيميل
+        EmailOTP.objects.filter(email=email, used=False).update(used=True, used_at=timezone.now())
+
+        # إنشاء رمز جديد
+        otp = EmailOTP.objects.create(
+            email=email,
+            ip_address=request.META.get('REMOTE_ADDR'),
+        )
+
+        # إرسال الإيميل
+        send_otp_email(email, otp.code)
+
+        return Response({
+            'success': True,
+            'expires_in': 600,
+            'message': 'تم إرسال رمز الدخول إلى بريدك الإلكتروني.',
+        })
+
+
+class OtpVerifyView(APIView):
+    """
+    POST /api/v1/accounts/otp/verify/
+    body: { "email": "...", "code": "123456" }
+
+    يتحقق من الرمز ويُرجع JWT tokens.
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        from apps.accounts.models import User, EmailOTP
+
+        email = (request.data.get('email') or '').strip().lower()
+        code  = (request.data.get('code') or '').strip()
+
+        if not email or not code:
+            return Response({'error': 'البريد الإلكتروني والرمز مطلوبان'}, status=400)
+
+        try:
+            otp = EmailOTP.objects.filter(
+                email=email, code=code, used=False
+            ).order_by('-created_at').first()
+        except EmailOTP.DoesNotExist:
+            otp = None
+
+        if not otp or not otp.is_valid:
+            return Response({'error': 'الرمز غير صحيح أو منتهي الصلاحية'}, status=400)
+
+        # تأكيد المستخدم
+        try:
+            user = User.objects.get(email=email, role='supplier', is_active=True)
+        except User.DoesNotExist:
+            return Response({'error': 'الحساب غير موجود'}, status=404)
+
+        # تحديد الرمز كمُستخدم
+        otp.mark_used()
+
+        # توليد JWT tokens
+        tokens = get_tokens_for_user(user)
+
+        return Response({
+            'success': True,
+            'tokens': tokens,
+            'user': {
+                'id':    str(user.id) if hasattr(user, 'id') else user.pk,
+                'email': user.email,
+                'role':  user.role,
+                'first_name': user.first_name,
+                'last_name':  user.last_name,
+            },
+        })
+
+
+# ═══════════════════════════════════════════════════════════
+# SUPPLIER PROFILE — جلب بيانات المورد المسجَّل دخولاً
+# ═══════════════════════════════════════════════════════════
+
+class SupplierMeView(APIView):
+    """
+    GET /api/v1/accounts/supplier/me/
+
+    يُرجع بيانات Supplier المسجَّل + الكيان المرتبط (Hotel/Service).
+    يتطلب JWT بدور 'supplier'.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != 'supplier':
+            return Response({'error': 'صلاحية مورد مطلوبة'}, status=403)
+
+        try:
+            supplier = request.user.supplier_profile
+        except Supplier.DoesNotExist:
+            return Response({'error': 'لا يوجد ملف مورد مرتبط'}, status=404)
+
+        # بيانات Hotel أو Service المرتبطة
+        linked = None
+        if supplier.created_hotel_id:
+            from apps.hotels.serializers.serializers import HotelSerializer
+            linked = {
+                'kind': 'hotel',
+                'data': HotelSerializer(supplier.created_hotel).data,
+            }
+        elif supplier.created_service_id:
+            from apps.services.serializers import ServiceSerializer
+            linked = {
+                'kind': 'service',
+                'data': ServiceSerializer(supplier.created_service).data,
+            }
+
+        return Response({
+            'user': {
+                'id':         request.user.pk,
+                'email':      request.user.email,
+                'first_name': request.user.first_name,
+                'last_name':  request.user.last_name,
+                'role':       request.user.role,
+            },
+            'supplier': {
+                'id':            str(supplier.id),
+                'supplier_type': supplier.supplier_type,
+                'status':        supplier.status,
+                'company_name':  supplier.company_name,
+                'country':       supplier.country,
+                'city':          supplier.city,
+                'phone':         supplier.phone,
+                'waitlist_id':   str(supplier.waitlist_id) if supplier.waitlist_id else None,
+            },
+            'linked': linked,
+        })

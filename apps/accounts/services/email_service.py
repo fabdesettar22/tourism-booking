@@ -570,3 +570,129 @@ def send_admin_new_agency_notification(agency):
             logger.error(f"❌ Failed to notify {admin_email}: {e}")
     
     return success_count > 0
+
+
+# ═══════════════════════════════════════════════════════════
+# OTP & WELCOME EMAILS — للموردين (Waitlist Approval)
+# ═══════════════════════════════════════════════════════════
+
+def send_otp_email(email: str, code: str) -> bool:
+    """يرسل رمز OTP للمورد عبر الإيميل (3 لغات)."""
+    subject = 'MYBRIDGE — رمز الدخول | Login Code | Kod Log Masuk'
+
+    body_html = f'''
+        <h2 style="color:#1A1A2E;margin:0 0 16px;font-size:20px;">رمز الدخول الخاص بك</h2>
+        <p style="color:#444;font-size:14px;line-height:1.7;margin:0 0 20px;">
+          استخدم الرمز التالي لتسجيل الدخول إلى لوحة المورد:
+        </p>
+
+        <div style="text-align:center;margin:28px 0;padding:24px;background:#f9fafb;border-radius:12px;border:2px dashed #FF6B35;">
+          <p style="margin:0 0 8px;font-size:12px;color:#888;letter-spacing:1px;">YOUR LOGIN CODE</p>
+          <p style="margin:0;font-size:36px;font-weight:bold;color:#FF6B35;letter-spacing:8px;font-family:monospace;">
+            {code}
+          </p>
+        </div>
+
+        <p style="color:#666;font-size:13px;line-height:1.6;margin:0 0 12px;">
+          ⏱️ صالح لمدة <strong>10 دقائق</strong> فقط
+        </p>
+        <p style="color:#666;font-size:13px;line-height:1.6;margin:0 0 20px;">
+          🔒 لا تشارك هذا الرمز مع أي شخص. فريق MYBRIDGE لن يطلبه منك أبداً.
+        </p>
+
+        <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
+
+        <h3 style="color:#1A1A2E;margin:0 0 8px;font-size:15px;">English:</h3>
+        <p style="color:#666;font-size:13px;line-height:1.5;margin:0 0 12px;">
+          Use the code above to log in to your supplier portal. Valid for 10 minutes. Never share this code.
+        </p>
+
+        <h3 style="color:#1A1A2E;margin:0 0 8px;font-size:15px;">Bahasa Malaysia:</h3>
+        <p style="color:#666;font-size:13px;line-height:1.5;margin:0 0 12px;">
+          Gunakan kod di atas untuk log masuk ke portal pembekal anda. Sah selama 10 minit.
+        </p>
+    '''
+
+    html = _render_email_template(
+        title='رمز الدخول | Login Code',
+        preheader=f'رمز دخولك: {code}',
+        body_html=body_html,
+    )
+
+    text = (
+        f'رمز الدخول الخاص بك: {code}\n'
+        f'صالح لمدة 10 دقائق.\n\n'
+        f'Your login code: {code}\n'
+        f'Valid for 10 minutes.\n'
+    )
+    return _send_html_email(email, subject, html, text)
+
+
+def send_supplier_welcome_email(user, hotel_or_service) -> bool:
+    """
+    إيميل ترحيب للمورد بعد موافقة الأدمن — يحوي:
+    - تأكيد الموافقة
+    - رابط بوّابة المورد /supplier
+    - شرح الدخول عبر OTP
+    """
+    site_url = getattr(settings, 'WAITLIST_SITE_URL', 'https://www.mybridge.my')
+    portal_url = f'{site_url}/supplier'
+
+    entity_name = getattr(hotel_or_service, 'name', '')
+    entity_label = 'فندقك' if hasattr(hotel_or_service, 'stars') else 'خدمتك'
+
+    subject = 'MYBRIDGE — تمت الموافقة على طلبك | Application Approved'
+
+    body_html = f'''
+        <h2 style="color:#1A1A2E;margin:0 0 16px;font-size:22px;">🎉 مرحباً بك في MYBRIDGE!</h2>
+        <p style="color:#444;font-size:15px;line-height:1.7;margin:0 0 16px;">
+          نسعد بإبلاغك أنه <strong style="color:#10b981;">تمت الموافقة</strong> على طلب تسجيل {entity_label}:
+        </p>
+        <p style="color:#1A1A2E;font-size:18px;font-weight:bold;margin:0 0 24px;background:#fff7f0;padding:14px;border-radius:8px;border-right:3px solid #FF6B35;">
+          {entity_name}
+        </p>
+
+        <h3 style="color:#1A1A2E;margin:24px 0 12px;font-size:17px;">📋 الخطوات التالية:</h3>
+        <ol style="color:#444;font-size:14px;line-height:1.8;padding-right:20px;margin:0 0 24px;">
+          <li>اضغط زر "دخول لوحة المورد" أدناه</li>
+          <li>أدخل بريدك الإلكتروني (نفس الذي سجّلت به: <strong>{user.email}</strong>)</li>
+          <li>سيصلك رمز دخول من 6 أرقام إلى بريدك</li>
+          <li>أدخل الرمز للدخول إلى لوحتك</li>
+        </ol>
+
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:24px auto;">
+          <tr>
+            <td style="background:#FF6B35;border-radius:8px;">
+              <a href="{portal_url}" target="_blank"
+                 style="display:inline-block;padding:14px 32px;font-family:Arial,sans-serif;
+                        font-size:14px;font-weight:bold;color:#ffffff;text-decoration:none;">
+                دخول لوحة المورد ←
+              </a>
+            </td>
+          </tr>
+        </table>
+
+        <p style="color:#888;font-size:12px;text-align:center;margin:0 0 20px;">
+          أو انسخ الرابط: <a href="{portal_url}" style="color:#FF6B35;">{portal_url}</a>
+        </p>
+
+        <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
+        <p style="color:#666;font-size:13px;line-height:1.6;margin:0;">
+          🔒 <strong>لا حاجة لكلمة سر</strong> — في كل مرة ترغب بالدخول، سيُرسَل رمز جديد لإيميلك.
+        </p>
+    '''
+
+    html = _render_email_template(
+        title='تمت الموافقة على طلبك',
+        preheader='تم اعتماد تسجيلك في MYBRIDGE — ادخل لوحتك الآن',
+        body_html=body_html,
+        cta_text='',
+        cta_url='',
+    )
+
+    text = (
+        f'تمت الموافقة على طلب {entity_name}.\n'
+        f'لتسجيل الدخول، زُر: {portal_url}\n'
+        f'أدخل إيميلك ({user.email}) واتبع التعليمات.\n'
+    )
+    return _send_html_email(user.email, subject, html, text)

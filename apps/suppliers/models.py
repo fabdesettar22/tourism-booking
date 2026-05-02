@@ -194,6 +194,26 @@ class Supplier(models.Model):
     created_at          = models.DateTimeField(auto_now_add=True)
     updated_at          = models.DateTimeField(auto_now=True)
 
+    # 🆕 ربط بـ Waitlist والكيان المُنشأ تلقائياً عند الموافقة
+    waitlist_id         = models.UUIDField(
+        null=True, blank=True, db_index=True,
+        verbose_name="معرّف طلب Waitlist الأصلي"
+    )
+    created_hotel       = models.OneToOneField(
+        'hotels.Hotel',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='waitlist_supplier',
+        verbose_name="الفندق المُنشأ"
+    )
+    created_service     = models.OneToOneField(
+        'services.Service',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='waitlist_supplier',
+        verbose_name="الخدمة المُنشأة"
+    )
+
     class Meta:
         db_table = "supplier"
         ordering = ['-created_at']

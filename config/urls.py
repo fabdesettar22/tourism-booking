@@ -3,6 +3,9 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
+from apps.hotels.urls import public_urlpatterns as public_hotel_urls
+from apps.services.urls import public_urlpatterns as public_service_urls
+
 urlpatterns = [
     path('admin/', admin.site.urls),
 
@@ -22,6 +25,11 @@ urlpatterns = [
     path('api/v1/waitlist-agency/',   include('apps.waitlist_agency.urls')),
     path('api/v1/hero-hotels/',       include('apps.hero_hotels.urls', namespace='hero_hotels')),
     path('api/v1/advertising/',      include('apps.advertising.urls')),
+    path('api/v1/blog/',              include('apps.blog.urls')),
+
+    # ─── Public API (للسائح — AllowAny) ───────────────────
+    path('api/v1/public/hotels/',    include(public_hotel_urls)),
+    path('api/v1/public/services/',  include(public_service_urls)),
 ]
 
 if settings.DEBUG:

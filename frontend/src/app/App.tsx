@@ -25,10 +25,25 @@ import { ExtranetManagement }     from '../features/hotels/ExtranetManagement';
 import { AnalyticsReports }       from '../features/analytics/AnalyticsReports';
 import { SettingsPage }           from '../pages/admin/SettingsPage';
 import { AdsManagement } from '../features/advertising/AdsManagement';
+import { HomepageManagement } from '../features/homepage/HomepageManagement';
+import { HeroHotelsManagement } from '../features/heroHotels/HeroHotelsManagement';
+import { DestinationsAdminPage } from '../features/destinationsAdmin/DestinationsAdminPage';
+import { BlogModule }            from '../features/blog/BlogModule';
+import { CategoryManagement as BlogCategoryManagement } from '../features/blog/CategoryManagement';
+import { TagManagement as BlogTagManagement }           from '../features/blog/TagManagement';
+import { BlogListPage }          from '../pages/public/blog/BlogListPage';
+import { BlogDetailPage }        from '../pages/public/blog/BlogDetailPage';
 import { getStoredUser, clearAuth } from '../services/authService';
 import type { AuthUser }          from '../services/authService';
 import { useLanguage }            from '../hooks/useLanguage';
 import { ComingSoonPage }         from '../pages/public/ComingSoonPage';
+import { HotelDetailPage }        from '../pages/public/HotelDetailPage';
+import { HotelsListPage }         from '../pages/public/HotelsListPage';
+import { ServiceDetailPage }      from '../pages/public/ServiceDetailPage';
+import { SupplierOtpLogin }       from '../features/auth/SupplierOtpLogin';
+import { ServiceSupplierDashboard } from '../features/supplier/dashboard/ServiceSupplierDashboard';
+import { fetchSupplierMe }        from '../services/supplierProfileApi';
+import type { SupplierMeResponse } from '../services/supplierProfileApi';
 
 // ═══════════════════════════════════════════════════════════
 // LOGIN ROUTE — صفحة Login المستقلة
@@ -80,26 +95,55 @@ function LoginRoute() {
 function SupplierPortal() {
   const navigate        = useNavigate();
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [profile, setProfile] = useState<SupplierMeResponse | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(false);
 
   useEffect(() => {
     const stored = getStoredUser();
     const token  = localStorage.getItem('access_token');
-    if (stored && token && stored.role === 'supplier') setUser(stored);
+    if (stored && token && stored.role === 'supplier') {
+      setUser(stored);
+      setLoadingProfile(true);
+      fetchSupplierMe()
+        .then(setProfile)
+        .catch(() => setProfile(null))
+        .finally(() => setLoadingProfile(false));
+    }
   }, []);
 
-  if (user?.role === 'supplier') {
-    return <HotelOnboardingWizard onLogout={() => { clearAuth(); setUser(null); navigate('/supplier'); }}/>;
+  const handleLogout = () => {
+    clearAuth();
+    setUser(null);
+    setProfile(null);
+    navigate('/supplier');
+  };
+
+  // غير مسجَّل دخولاً → شاشة OTP
+  if (!user) {
+    return <SupplierOtpLogin onSuccess={() => { window.location.reload(); }} />;
   }
 
-  return (
-    <LoginPage
-      onSuccess={(u: AuthUser) => {
-        if (u.role === 'supplier') { setUser(u); }
-        else { clearAuth(); navigate('/'); }
-      }}
-      supplierMode
-    />
-  );
+  // جارٍ تحميل البروفايل
+  if (loadingProfile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-[#FF6B35] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // مورد فندق → HotelOnboardingWizard
+  if (profile?.linked?.kind === 'hotel') {
+    return <HotelOnboardingWizard onLogout={handleLogout}/>;
+  }
+
+  // مورد خدمة → ServiceSupplierDashboard
+  if (profile?.linked?.kind === 'service') {
+    return <ServiceSupplierDashboard onLogout={handleLogout} />;
+  }
+
+  // قديم/Legacy: مورد بدون كيان مرتبط (HotelOnboardingWizard من الصفر)
+  return <HotelOnboardingWizard onLogout={handleLogout}/>;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -191,6 +235,12 @@ function AdminApp() {
       case 'agencies':     return isAdmin ? <AgenciesManagement /> : null;
       case 'analytics':    return isAdmin ? <AnalyticsReports /> : null;
       case 'advertising':  return isAdmin ? <AdsManagement /> : null;
+      case 'homepage':     return isAdmin ? <HomepageManagement /> : null;
+      case 'hero_hotels':  return isAdmin ? <HeroHotelsManagement /> : null;
+      case 'home_destinations': return isAdmin ? <DestinationsAdminPage /> : null;
+      case 'blog':         return isAdmin ? <BlogModule /> : null;
+      case 'blog_categories': return isAdmin ? <BlogCategoryManagement /> : null;
+      case 'blog_tags':    return isAdmin ? <BlogTagManagement /> : null;
       default:             return isAdmin ? <DashboardContent /> : <AgencyDashboard user={user} />;
     }
   };
@@ -249,12 +299,17 @@ export default function App() {
         <Route path="/dashboard"                 element={<AdminApp />} />
         <Route path="/dashboard/*"               element={<AdminApp />} />
 
+        {/* ── Public Detail Pages ─────────────────── */}
+        <Route path="/hotels/:id"   element={<HotelDetailPage />} />
+        <Route path="/services/:id" element={<ServiceDetailPage />} />
+
         {/* ── Public Pages ────────────────────────── */}
         <Route path="/tours"        element={<ComingSoonPage pageName="Tours" />} />
         <Route path="/destinations" element={<ComingSoonPage pageName="Destinations" />} />
         <Route path="/activities"   element={<ComingSoonPage pageName="Activities" />} />
-        <Route path="/hotels"       element={<ComingSoonPage pageName="Hotels" />} />
-        <Route path="/blog"         element={<ComingSoonPage pageName="Blog" />} />
+        <Route path="/hotels"       element={<HotelsListPage />} />
+        <Route path="/blog"         element={<BlogListPage />} />
+        <Route path="/blog/:slug"   element={<BlogDetailPage />} />
 
         {/* ── Fallback ────────────────────────────── */}
         <Route path="*"                          element={<Navigate to="/" replace />} />

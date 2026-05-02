@@ -67,7 +67,7 @@ class AdCreativePublicSerializer(serializers.ModelSerializer):
     
     # Display config
     priority = serializers.IntegerField(read_only=True)
-    
+
     class Meta:
         model = AdCreative
         fields = (

@@ -31,17 +31,40 @@ interface AgencyPending {
   created_at:          string;
 }
 
+interface WaitlistPhotoItem {
+  id:         number;
+  url:        string | null;
+  is_primary: boolean;
+  order:      number;
+  caption:    string;
+}
+
 interface SupplierPending {
-  id:            string;
-  company_name:  string;
-  supplier_type: string;
-  email:         string;
-  phone:         string;
-  country:       string;
-  city:          string;
-  status:        string;
-  created_at:    string;
-  user_email?:   string;
+  id:               string;
+  ref_number?:      string;
+  company_name:     string;
+  full_name?:       string;
+  supplier_type:    string;
+  email:            string;
+  phone:            string;
+  country:          string;
+  country_code?:    string;
+  country_ref_name?: string;
+  city:             string;
+  city_ref_name?:   string;
+  region?:          string;
+  description?:     string;
+  status:           string;
+  created_at:       string;
+  user_email?:      string;
+  currency?:        string;
+  sync_mode?:       string;
+  channel_name?:    string;
+  worked_before?:   boolean;
+  how_did_you_hear?: string;
+  type_specific?:   Record<string, unknown>;
+  documents?:       Record<string, string>;
+  photos?:          WaitlistPhotoItem[];
 }
 
 type TabKey = 'agencies' | 'suppliers';
@@ -846,15 +869,126 @@ function DetailModal({ item, type, formatDaysAgo, onClose, onApprove, onReject }
           <DetailSection title={t('regRequests.detail.contactInfo')} icon={User}>
             <DetailRow icon={Mail}  label={t('regRequests.detail.email')} value={isAgency ? agency!.email : supplier!.email} copyable />
             <DetailRow icon={Phone} label={t('regRequests.detail.phone')} value={item.phone} copyable />
+            {!isAgency && supplier!.full_name && (
+              <DetailRow icon={User} label={lang === 'ar' ? 'الاسم الكامل' : lang === 'ms' ? 'Nama Penuh' : 'Full Name'} value={supplier!.full_name} />
+            )}
             {isAgency && (
               <DetailRow icon={User} label={t('regRequests.detail.contactPerson')} value={agency!.contact_person_name} />
             )}
           </DetailSection>
 
           <DetailSection title={t('regRequests.detail.location')} icon={MapPin}>
-            <DetailRow icon={Globe}  label={t('regRequests.detail.country')} value={item.country} />
-            <DetailRow icon={MapPin} label={t('regRequests.detail.city')}    value={item.city} />
+            <DetailRow icon={Globe}  label={t('regRequests.detail.country')} value={(supplier?.country_ref_name) || item.country} />
+            <DetailRow icon={MapPin} label={t('regRequests.detail.city')}    value={(supplier?.city_ref_name) || item.city} />
+            {!isAgency && supplier!.region && (
+              <DetailRow icon={MapPin} label={lang === 'ar' ? 'المنطقة' : lang === 'ms' ? 'Kawasan' : 'Region'} value={supplier!.region} />
+            )}
           </DetailSection>
+
+          {/* 🆕 وصف الخدمة */}
+          {!isAgency && supplier!.description && (
+            <DetailSection title={lang === 'ar' ? 'وصف الخدمة' : lang === 'ms' ? 'Penerangan' : 'Description'} icon={FileText}>
+              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+                {supplier!.description}
+              </p>
+            </DetailSection>
+          )}
+
+          {/* 🆕 الصور المرفوعة */}
+          {!isAgency && supplier!.photos && supplier!.photos.length > 0 && (
+            <DetailSection
+              title={lang === 'ar' ? `الصور (${supplier!.photos.length})` : lang === 'ms' ? `Gambar (${supplier!.photos.length})` : `Photos (${supplier!.photos.length})`}
+              icon={Eye}
+            >
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {supplier!.photos.map(photo => (
+                  <a
+                    key={photo.id}
+                    href={photo.url || '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="relative aspect-square rounded-lg overflow-hidden border-2 border-gray-100 hover:border-[#FF6B35] transition group"
+                  >
+                    {photo.url && (
+                      <img src={photo.url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition" />
+                    )}
+                    {photo.is_primary && (
+                      <span className="absolute top-1 left-1 bg-[#FF6B35] text-white text-[10px] px-1.5 py-0.5 rounded font-bold">
+                        ★
+                      </span>
+                    )}
+                  </a>
+                ))}
+              </div>
+            </DetailSection>
+          )}
+
+          {/* 🆕 حقول خاصة بنوع الخدمة (الأسعار + التفاصيل) */}
+          {!isAgency && supplier!.type_specific && Object.keys(supplier!.type_specific).length > 0 && (
+            <DetailSection
+              title={lang === 'ar' ? 'تفاصيل الخدمة والأسعار' : lang === 'ms' ? 'Butiran Perkhidmatan & Harga' : 'Service Details & Prices'}
+              icon={FileText}
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {Object.entries(supplier!.type_specific).map(([key, value]) => {
+                  if (value === null || value === undefined || value === '' ||
+                      (Array.isArray(value) && value.length === 0)) return null;
+                  const displayValue = typeof value === 'boolean'
+                    ? (value ? '✓' : '✗')
+                    : Array.isArray(value)
+                      ? value.join(', ')
+                      : String(value);
+                  const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                  const isPrice = key.startsWith('price_') || key === 'base_price';
+                  return (
+                    <div key={key} className="flex justify-between gap-3 text-xs py-1">
+                      <span className="text-gray-500">{label}:</span>
+                      <span className={`font-semibold ${isPrice ? 'text-[#FF6B35]' : 'text-gray-800'}`}>
+                        {displayValue}{isPrice ? ` ${supplier!.currency || 'MYR'}` : ''}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </DetailSection>
+          )}
+
+          {/* 🆕 الوثائق */}
+          {!isAgency && supplier!.documents && Object.keys(supplier!.documents).length > 0 && (
+            <DetailSection
+              title={lang === 'ar' ? 'الوثائق المرفقة' : lang === 'ms' ? 'Dokumen' : 'Documents'}
+              icon={FileText}
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {Object.entries(supplier!.documents).map(([key, url]) => (
+                  <DocumentTile key={key} label={key.replace(/_/g, ' ')} url={url} />
+                ))}
+              </div>
+            </DetailSection>
+          )}
+
+          {/* 🆕 معلومات إضافية */}
+          {!isAgency && (supplier!.sync_mode || supplier!.how_did_you_hear) && (
+            <DetailSection
+              title={lang === 'ar' ? 'معلومات إضافية' : lang === 'ms' ? 'Maklumat Tambahan' : 'Additional Info'}
+              icon={FileText}
+            >
+              {supplier!.sync_mode && (
+                <DetailRow
+                  icon={Hash}
+                  label={lang === 'ar' ? 'نمط التزامن' : lang === 'ms' ? 'Mod Penyegerakan' : 'Sync Mode'}
+                  value={supplier!.sync_mode === 'MANUAL' ? (lang === 'ar' ? 'يدوي' : 'Manual') : (supplier!.channel_name || 'Channel Manager')}
+                />
+              )}
+              {supplier!.how_did_you_hear && (
+                <DetailRow
+                  icon={Hash}
+                  label={lang === 'ar' ? 'كيف عرف عنا' : lang === 'ms' ? 'Cara mengetahui' : 'How did you hear'}
+                  value={supplier!.how_did_you_hear}
+                />
+              )}
+            </DetailSection>
+          )}
 
           {isAgency && (
             <DetailSection title={t('regRequests.detail.legalReg')} icon={FileText}>

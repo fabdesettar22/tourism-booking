@@ -16,6 +16,9 @@ from apps.accounts.views.auth_views import (
     SupplierApproveView,
     SupplierRejectView,
     SupplierAllListView,
+    OtpRequestView,
+    OtpVerifyView,
+    SupplierMeView,
 )
 
 from apps.accounts.views.agency_views import (
@@ -36,6 +39,11 @@ urlpatterns = [
     path('logout/',        LogoutView.as_view(),       name='logout'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
     path('me/',            MeView.as_view(),           name='me'),
+
+    # ── OTP Auth (للموردين — بدون كلمة سر) ────
+    path('otp/request/',   OtpRequestView.as_view(),   name='otp-request'),
+    path('otp/verify/',    OtpVerifyView.as_view(),    name='otp-verify'),
+    path('supplier/me/',   SupplierMeView.as_view(),   name='supplier-me'),
 
     # ── Supplier Onboarding ───────────────────
     path('supplier/register/step1/', SupplierRegisterStep1View.as_view(), name='supplier-register-step1'),

@@ -26,6 +26,11 @@ class WaitlistBaseSerializer(serializers.ModelSerializer):
             'supplier_type': {'required': False},  # View تضبطها قبل الـ serializer
         }
 
+    def validate_description(self, value):
+        if not value or not value.strip():
+            raise serializers.ValidationError('الوصف مطلوب.')
+        return value.strip()
+
     def validate_email(self, value):
         return value.lower().strip()
 
@@ -46,6 +51,7 @@ class PropertyWaitlistSerializer(WaitlistBaseSerializer):
             'id', 'ref_number', 'supplier_type',
             # مشتركة
             'full_name', 'email', 'phone', 'company_name', 'country', 'country_code', 'city', 'region',
+            'description',
             'sync_mode', 'channel_name',
             'worked_before', 'how_did_you_hear', 'how_did_you_hear_other',
             'utm_source', 'utm_medium', 'utm_campaign',
@@ -94,6 +100,7 @@ class TransportWaitlistSerializer(WaitlistBaseSerializer):
         fields = [
             'id', 'ref_number', 'supplier_type',
             'full_name', 'email', 'phone', 'company_name', 'country', 'country_code', 'city', 'region',
+            'description',
             'sync_mode', 'channel_name',
             'worked_before', 'how_did_you_hear', 'how_did_you_hear_other',
             'utm_source', 'utm_medium', 'utm_campaign',
@@ -130,6 +137,7 @@ class RestaurantWaitlistSerializer(WaitlistBaseSerializer):
         fields = [
             'id', 'ref_number', 'supplier_type',
             'full_name', 'email', 'phone', 'company_name', 'country', 'country_code', 'city', 'region',
+            'description',
             'sync_mode', 'channel_name',
             'worked_before', 'how_did_you_hear', 'how_did_you_hear_other',
             'utm_source', 'utm_medium', 'utm_campaign',
@@ -165,6 +173,7 @@ class GuideWaitlistSerializer(WaitlistBaseSerializer):
         fields = [
             'id', 'ref_number', 'supplier_type',
             'full_name', 'email', 'phone', 'company_name', 'country', 'country_code', 'city', 'region',
+            'description',
             'sync_mode', 'channel_name',
             'worked_before', 'how_did_you_hear', 'how_did_you_hear_other',
             'utm_source', 'utm_medium', 'utm_campaign',
@@ -210,6 +219,7 @@ class ActivityWaitlistSerializer(WaitlistBaseSerializer):
         fields = [
             'id', 'ref_number', 'supplier_type',
             'full_name', 'email', 'phone', 'company_name', 'country', 'country_code', 'city', 'region',
+            'description',
             'sync_mode', 'channel_name',
             'worked_before', 'how_did_you_hear', 'how_did_you_hear_other',
             'utm_source', 'utm_medium', 'utm_campaign',
@@ -250,6 +260,7 @@ class WellnessWaitlistSerializer(WaitlistBaseSerializer):
         fields = [
             'id', 'ref_number', 'supplier_type',
             'full_name', 'email', 'phone', 'company_name', 'country', 'country_code', 'city', 'region',
+            'description',
             'sync_mode', 'channel_name',
             'worked_before', 'how_did_you_hear', 'how_did_you_hear_other',
             'utm_source', 'utm_medium', 'utm_campaign',
@@ -290,6 +301,7 @@ class OtherServiceWaitlistSerializer(WaitlistBaseSerializer):
         fields = [
             'id', 'ref_number', 'supplier_type',
             'full_name', 'email', 'phone', 'company_name', 'country', 'country_code', 'city', 'region',
+            'description',
             'sync_mode', 'channel_name',
             'worked_before', 'how_did_you_hear', 'how_did_you_hear_other',
             'utm_source', 'utm_medium', 'utm_campaign',

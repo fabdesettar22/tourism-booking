@@ -1,10 +1,16 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, generics
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.pagination import LimitOffsetPagination
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from apps.accounts.permissions import IsAdminUser, IsAgencyOrAdmin
 from .models import ServiceCategory, Service
-from .serializers import ServiceCategorySerializer, ServiceSerializer
+from .serializers import (
+    ServiceCategorySerializer,
+    ServiceSerializer,
+    PublicServiceListSerializer,
+    PublicServiceDetailSerializer,
+)
 
 
 class ServiceCategoryViewSet(viewsets.ModelViewSet):
@@ -83,3 +89,64 @@ class ServiceViewSet(viewsets.ModelViewSet):
             'message': 'تم إخفاء الخدمة',
             'service': ServiceSerializer(service).data,
         })
+
+
+# ═══════════════════════════════════════════════════════════
+# Public Views — للعرض العام للسائح (AllowAny)
+# ═══════════════════════════════════════════════════════════
+
+class PublicServiceListView(generics.ListAPIView):
+    """
+    GET /api/v1/public/services/
+
+    قائمة الخدمات المُفعَّلة للعرض على الصفحة الرئيسية.
+    Filters: ?service_type=, ?country_code=, ?city_id=
+    Pagination: ?limit=&offset=
+    """
+    serializer_class = PublicServiceListSerializer
+    permission_classes = [AllowAny]
+    pagination_class = LimitOffsetPagination
+
+    def get_queryset(self):
+        qs = (
+            Service.objects
+            .filter(is_active=True)
+            .select_related('category', 'city__country')
+            .prefetch_related('photos')
+            .order_by('service_type', 'name')
+        )
+
+        service_type = self.request.query_params.get('service_type')
+        country_code = self.request.query_params.get('country_code')
+        city_id      = self.request.query_params.get('city_id')
+        city_name    = self.request.query_params.get('city_name')
+
+        if service_type:
+            qs = qs.filter(service_type=service_type)
+        if country_code:
+            qs = qs.filter(city__country__iso2=country_code.upper())
+        if city_id:
+            qs = qs.filter(city_id=city_id)
+        if city_name:
+            qs = qs.filter(city__name__icontains=city_name)
+
+        return qs
+
+
+class PublicServiceDetailView(generics.RetrieveAPIView):
+    """
+    GET /api/v1/public/services/<id>/
+
+    تفاصيل خدمة مُفعَّلة + كل صورها (للسائح).
+    """
+    serializer_class = PublicServiceDetailSerializer
+    permission_classes = [AllowAny]
+    lookup_field = 'id'
+
+    def get_queryset(self):
+        return (
+            Service.objects
+            .filter(is_active=True)
+            .select_related('category', 'city__country')
+            .prefetch_related('photos')
+        )

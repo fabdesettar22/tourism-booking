@@ -2,7 +2,7 @@
 import {
   LayoutDashboard, Calendar, Building2, Users, Package,
   MapPin, Hotel, Briefcase, DollarSign, BarChart3, Settings,
-  Globe, ChevronRight, Menu, X, UserPlus, Megaphone
+  Globe, ChevronRight, Menu, X, UserPlus, Megaphone, Home, Sparkles, Map, FileText, Tag
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '../../services/apiFetch';
@@ -32,6 +32,12 @@ const ADMIN_MENU = [
   { id: 'financial',     labelKey: 'financial',     icon: DollarSign },
   { id: 'analytics',     labelKey: 'analytics',     icon: BarChart3 },
   { id: 'advertising',   labelKey: 'advertising',   icon: Megaphone },
+  { id: 'homepage',      labelKey: 'homepage',      icon: Home },
+  { id: 'hero_hotels',   labelKey: 'hero_hotels',   icon: Sparkles },
+  { id: 'home_destinations', labelKey: 'home_destinations', icon: Map },
+  { id: 'blog',          labelKey: 'blog',          icon: FileText },
+  { id: 'blog_categories', labelKey: 'blog_categories', icon: Tag },
+  { id: 'blog_tags',     labelKey: 'blog_tags',     icon: Tag },
   { id: 'settings',      labelKey: 'settings',      icon: Settings },
 ];
 

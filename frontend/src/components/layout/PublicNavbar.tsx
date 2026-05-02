@@ -64,8 +64,6 @@ export function PublicNavbar({
     ? 'bg-white shadow-md border-b border-gray-100'
     : (scrolled ? 'bg-white shadow-md' : 'bg-transparent');
 
-  const brandName = useLightBg ? 'text-gray-900' : 'text-white';
-
   const linkCls = isSolid
     ? 'text-gray-700 hover:text-[#FF6B35] hover:bg-orange-50'
     : (scrolled
@@ -89,20 +87,15 @@ export function PublicNavbar({
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${navBg}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="grid grid-cols-[auto_1fr_auto] lg:grid-cols-3 items-center h-16 gap-4">
 
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-            <img src="/logo.svg" alt="MYBRIDGE" className="h-9 w-auto" />
-            <div>
-              <span className={`font-bold text-lg leading-none block ${brandName}`}>
-                MYBRIDGE
-              </span>
-            </div>
+          {/* Logo (col 1) */}
+          <Link to="/" className="flex items-center flex-shrink-0 justify-self-start">
+            <img src="/IMG_7936.PNG" alt="MYBRIDGE" className="h-10 w-auto" />
           </Link>
 
-          {/* Desktop Links */}
-          <div className="hidden lg:flex items-center gap-1">
+          {/* Desktop Links (col 2 — centered) */}
+          <div className="hidden lg:flex items-center gap-1 justify-self-center">
             {navLinks.map((link) => (
               <a
                 key={link.key}
@@ -115,8 +108,8 @@ export function PublicNavbar({
             ))}
           </div>
 
-          {/* Right Side */}
-          <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+          {/* Right Side (col 3) */}
+          <div className={`flex items-center gap-2 justify-self-end ${isRTL ? 'flex-row-reverse' : ''}`}>
 
             {/* Language */}
             <div className="relative">

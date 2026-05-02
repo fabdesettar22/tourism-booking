@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'apps.providers',
     'apps.suppliers',
     'apps.waitlist',
+    'apps.blog',
      'apps.hero_hotels',
     'apps.advertising',
     'apps.waitlist_agency',

@@ -13,6 +13,13 @@ from django.dispatch import receiver
 from django.core.exceptions import ValidationError
 
 from .models import PropertyWaitlist
+from .supplier_provisioning import provision_supplier_account
+
+
+# ═══════════════════════════════════════════════════════════
+# الحد الأدنى للصور قبل قبول الموافقة
+# ═══════════════════════════════════════════════════════════
+MIN_WAITLIST_PHOTOS = 5
 
 
 # ═══════════════════════════════════════════════════════════
@@ -72,6 +79,9 @@ def create_hotel_on_approval(sender, instance, created, **kwargs):
             'يجب تحديد المدينة من القائمة (city_ref) قبل الموافقة.'
         )
 
+    # ─── التحقق: 5 صور كحد أدنى + صورة رئيسية ───
+    _validate_min_photos(instance)
+
     # ─── إنشاء الفندق ───
     from apps.hotels.models import Hotel
 
@@ -79,7 +89,7 @@ def create_hotel_on_approval(sender, instance, created, **kwargs):
         hotel = Hotel.objects.create(
             city=instance.city_ref,
             name=instance.company_name or instance.full_name,
-            description=getattr(instance, 'description', '') or '',
+            description=instance.description or '',
             email=instance.email or '',
             phone=instance.phone or '',
             stars=instance.star_rating or 3,
@@ -95,6 +105,9 @@ def create_hotel_on_approval(sender, instance, created, **kwargs):
             created_hotel=hotel
         )
         instance.created_hotel = hotel  # تحديث المثيل الحالي للـ caller
+
+    # 🆕 إنشاء حساب المورد + إرسال إيميل ترحيب
+    provision_supplier_account(instance, hotel)
 
 # ═══════════════════════════════════════════════════════════
 # Signals لإنشاء Service تلقائياً عند الموافقة
@@ -194,6 +207,31 @@ def _validate_city_ref(instance):
         )
 
 
+def _validate_min_photos(instance):
+    """
+    يرفع ValidationError إن كان عدد الصور أقل من MIN_WAITLIST_PHOTOS
+    أو لا توجد صورة رئيسية محددة.
+    """
+    from apps.waitlist.models import WaitlistPhoto
+    from django.contrib.contenttypes.models import ContentType
+
+    ct = ContentType.objects.get_for_model(instance)
+    photos = WaitlistPhoto.objects.filter(content_type=ct, object_id=instance.pk)
+    count = photos.count()
+
+    if count < MIN_WAITLIST_PHOTOS:
+        raise ValidationError(
+            f'لا يمكن الموافقة على الطلب {instance.ref_number}: '
+            f'يجب رفع {MIN_WAITLIST_PHOTOS} صور على الأقل (الموجود: {count}).'
+        )
+
+    if not photos.filter(is_primary=True).exists():
+        raise ValidationError(
+            f'لا يمكن الموافقة على الطلب {instance.ref_number}: '
+            'يجب تحديد صورة رئيسية واحدة من الصور المرفوعة.'
+        )
+
+
 def _get_category(slug):
     """يجلب الفئة الافتراضية حسب slug."""
     from apps.services.models import ServiceCategory
@@ -222,6 +260,7 @@ def transport_create_service_on_approval(sender, instance, created, **kwargs):
     if not _should_create_service(instance, created):
         return
     _validate_city_ref(instance)
+    _validate_min_photos(instance)
 
     from apps.services.models import Service
     base = _get_first_price(
@@ -236,7 +275,7 @@ def transport_create_service_on_approval(sender, instance, created, **kwargs):
             category=_get_category('transport'),
             city=instance.city_ref,
             name=instance.company_name or instance.full_name,
-            description='',
+            description=instance.description or '',
             service_type='transport',
             base_price=base,
             currency=instance.currency or 'MYR',
@@ -259,6 +298,9 @@ def transport_create_service_on_approval(sender, instance, created, **kwargs):
         TransportWaitlist.objects.filter(pk=instance.pk).update(created_service=service)
         instance.created_service = service
 
+    # 🆕 إنشاء حساب المورد + إرسال إيميل ترحيب
+    provision_supplier_account(instance, service)
+
 
 # ───────────── Restaurant ─────────────
 
@@ -272,6 +314,7 @@ def restaurant_create_service_on_approval(sender, instance, created, **kwargs):
     if not _should_create_service(instance, created):
         return
     _validate_city_ref(instance)
+    _validate_min_photos(instance)
 
     from apps.services.models import Service
     base = _get_first_price(instance.price_per_person, instance.price_set_menu)
@@ -281,7 +324,7 @@ def restaurant_create_service_on_approval(sender, instance, created, **kwargs):
             category=_get_category('restaurant'),
             city=instance.city_ref,
             name=instance.company_name or instance.full_name,
-            description='',
+            description=instance.description or '',
             service_type='meal',
             base_price=base,
             currency=instance.currency or 'MYR',
@@ -302,6 +345,9 @@ def restaurant_create_service_on_approval(sender, instance, created, **kwargs):
         RestaurantWaitlist.objects.filter(pk=instance.pk).update(created_service=service)
         instance.created_service = service
 
+    # 🆕 إنشاء حساب المورد + إرسال إيميل ترحيب
+    provision_supplier_account(instance, service)
+
 
 # ───────────── Guide ─────────────
 
@@ -315,6 +361,7 @@ def guide_create_service_on_approval(sender, instance, created, **kwargs):
     if not _should_create_service(instance, created):
         return
     _validate_city_ref(instance)
+    _validate_min_photos(instance)
 
     from apps.services.models import Service
     base = _get_first_price(instance.price_full_day, instance.price_half_day, instance.price_hourly)
@@ -324,7 +371,7 @@ def guide_create_service_on_approval(sender, instance, created, **kwargs):
             category=_get_category('guide'),
             city=instance.city_ref,
             name=instance.full_name,
-            description='',
+            description=instance.description or '',
             service_type='tour',
             base_price=base,
             currency=instance.currency or 'MYR',
@@ -348,6 +395,9 @@ def guide_create_service_on_approval(sender, instance, created, **kwargs):
         GuideWaitlist.objects.filter(pk=instance.pk).update(created_service=service)
         instance.created_service = service
 
+    # 🆕 إنشاء حساب المورد + إرسال إيميل ترحيب
+    provision_supplier_account(instance, service)
+
 
 # ───────────── Activity ─────────────
 
@@ -361,6 +411,7 @@ def activity_create_service_on_approval(sender, instance, created, **kwargs):
     if not _should_create_service(instance, created):
         return
     _validate_city_ref(instance)
+    _validate_min_photos(instance)
 
     from apps.services.models import Service
     base = _get_first_price(instance.price_per_person, instance.price_per_group)
@@ -370,7 +421,7 @@ def activity_create_service_on_approval(sender, instance, created, **kwargs):
             category=_get_category('activity'),
             city=instance.city_ref,
             name=instance.company_name or instance.full_name,
-            description='',
+            description=instance.description or '',
             service_type='activity',
             base_price=base,
             currency=instance.currency or 'MYR',
@@ -393,6 +444,9 @@ def activity_create_service_on_approval(sender, instance, created, **kwargs):
         ActivityWaitlist.objects.filter(pk=instance.pk).update(created_service=service)
         instance.created_service = service
 
+    # 🆕 إنشاء حساب المورد + إرسال إيميل ترحيب
+    provision_supplier_account(instance, service)
+
 
 # ───────────── Wellness ─────────────
 
@@ -406,6 +460,7 @@ def wellness_create_service_on_approval(sender, instance, created, **kwargs):
     if not _should_create_service(instance, created):
         return
     _validate_city_ref(instance)
+    _validate_min_photos(instance)
 
     from apps.services.models import Service
     base = _get_first_price(instance.price_per_session, instance.price_package)
@@ -415,7 +470,7 @@ def wellness_create_service_on_approval(sender, instance, created, **kwargs):
             category=_get_category('wellness'),
             city=instance.city_ref,
             name=instance.company_name or instance.full_name,
-            description='',
+            description=instance.description or '',
             service_type='other',
             base_price=base,
             currency=instance.currency or 'MYR',
@@ -438,6 +493,9 @@ def wellness_create_service_on_approval(sender, instance, created, **kwargs):
         WellnessWaitlist.objects.filter(pk=instance.pk).update(created_service=service)
         instance.created_service = service
 
+    # 🆕 إنشاء حساب المورد + إرسال إيميل ترحيب
+    provision_supplier_account(instance, service)
+
 
 # ───────────── Other Service ─────────────
 
@@ -451,6 +509,7 @@ def other_create_service_on_approval(sender, instance, created, **kwargs):
     if not _should_create_service(instance, created):
         return
     _validate_city_ref(instance)
+    _validate_min_photos(instance)
 
     from apps.services.models import Service
 
@@ -459,7 +518,7 @@ def other_create_service_on_approval(sender, instance, created, **kwargs):
             category=_get_category('other'),
             city=instance.city_ref,
             name=instance.company_name or instance.full_name,
-            description=instance.service_description or '',
+            description=instance.description or instance.service_description or '',
             service_type='other',
             base_price=instance.base_price,
             currency=instance.currency or 'MYR',
@@ -479,3 +538,6 @@ def other_create_service_on_approval(sender, instance, created, **kwargs):
 
         OtherServiceWaitlist.objects.filter(pk=instance.pk).update(created_service=service)
         instance.created_service = service
+
+    # 🆕 إنشاء حساب المورد + إرسال إيميل ترحيب
+    provision_supplier_account(instance, service)

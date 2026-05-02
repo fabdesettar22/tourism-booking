@@ -127,6 +127,7 @@ class WaitlistBaseView(APIView):
 
         return Response({
             'success':    True,
+            'id':         str(instance.id),  # 🆕 مطلوب لربط الصور بعد الإرسال
             'ref_number': instance.ref_number,
             'email_sent': email_sent,
             'message': {
@@ -241,33 +242,194 @@ _WAITLIST_MODELS = {
 
 
 def _serialize_waitlist_item(obj, supplier_type_key, request):
-    """تحويل أي waitlist model إلى dict موحَّد للـ Frontend."""
-    def safe(field):
-        return getattr(obj, field, None) or ''
-    
+    """تحويل أي waitlist model إلى dict شامل للـ Frontend.
+
+    يرجع كل البيانات: حقول أساسية + حقول خاصة بالنوع + صور + وثائق.
+    """
+    def safe(field, default=''):
+        return getattr(obj, field, None) if getattr(obj, field, None) is not None else default
+
     def file_url(field):
         f = getattr(obj, field, None)
-        if f and hasattr(f, 'url'):
+        if f and hasattr(f, 'url') and f.name:
             try:
                 return request.build_absolute_uri(f.url)
             except Exception:
                 return None
         return None
 
-    return {
-        'id':                   str(obj.id),
-        'ref_number':           getattr(obj, 'ref_number', ''),
-        'company_name':         safe('name') or safe('business_name'),
-        'supplier_type':        supplier_type_key,
-        'email':                safe('email'),
-        'phone':                safe('phone'),
-        'country':              safe('country'),
-        'city':                 safe('city'),
-        'address':              safe('address'),
-        'contact_person_name':  safe('contact_person_name') or safe('owner_name'),
-        'created_at':           obj.created_at.isoformat() if hasattr(obj, 'created_at') else '',
-        'status':               getattr(obj, 'status', 'PENDING'),
+    def decimal_str(field):
+        v = getattr(obj, field, None)
+        return str(v) if v is not None else None
+
+    # ── الحقول الأساسية المشتركة ──
+    data = {
+        'id':              str(obj.id),
+        'ref_number':      getattr(obj, 'ref_number', ''),
+        'supplier_type':   supplier_type_key,
+        'status':          getattr(obj, 'status', 'PENDING'),
+        'created_at':      obj.created_at.isoformat() if hasattr(obj, 'created_at') else '',
+
+        'full_name':       safe('full_name'),
+        'company_name':    safe('company_name'),
+        'email':           safe('email'),
+        'phone':           safe('phone'),
+        'description':     safe('description'),
+
+        'country':         safe('country'),
+        'country_code':    safe('country_code'),
+        'city':            safe('city'),
+        'region':          safe('region'),
+
+        'sync_mode':       safe('sync_mode', 'MANUAL'),
+        'channel_name':    safe('channel_name'),
+        'worked_before':   bool(getattr(obj, 'worked_before', False)),
+        'how_did_you_hear': safe('how_did_you_hear'),
+
+        'currency':        safe('currency', 'MYR'),
     }
+
+    # ── أسماء الدولة/المدينة (من الـ FK) ──
+    if getattr(obj, 'city_ref_id', None):
+        try:
+            data['city_ref_name']    = obj.city_ref.name
+            data['country_ref_name'] = obj.city_ref.country.name if obj.city_ref.country_id else ''
+        except Exception:
+            data['city_ref_name']    = ''
+            data['country_ref_name'] = ''
+    else:
+        data['city_ref_name']    = ''
+        data['country_ref_name'] = ''
+
+    # ── الحقول الخاصة بكل نوع ──
+    type_specific = {}
+
+    if supplier_type_key == 'property':
+        type_specific = {
+            'property_type':  safe('property_type'),
+            'rooms_count':    getattr(obj, 'rooms_count', None),
+            'star_rating':    getattr(obj, 'star_rating', None),
+            'listed_online':  bool(getattr(obj, 'listed_online', False)),
+        }
+        documents = {
+            'property_photo': file_url('property_photo'),
+            'license_doc':    file_url('license_doc'),
+        }
+    elif supplier_type_key == 'transport':
+        type_specific = {
+            'transport_type':         safe('transport_type'),
+            'vehicles_count':         getattr(obj, 'vehicles_count', None),
+            'has_license':            bool(getattr(obj, 'has_license', False)),
+            'price_airport_transfer': decimal_str('price_airport_transfer'),
+            'price_hourly':           decimal_str('price_hourly'),
+            'price_intercity':        decimal_str('price_intercity'),
+            'price_full_day':         decimal_str('price_full_day'),
+        }
+        documents = {
+            'vehicle_license': file_url('vehicle_license'),
+            'tourism_license': file_url('tourism_license'),
+        }
+    elif supplier_type_key == 'restaurant':
+        type_specific = {
+            'restaurant_type':  safe('restaurant_type'),
+            'capacity':         getattr(obj, 'capacity', None),
+            'is_halal':         bool(getattr(obj, 'is_halal', False)),
+            'price_per_person': decimal_str('price_per_person'),
+            'price_set_menu':   decimal_str('price_set_menu'),
+        }
+        documents = {
+            'restaurant_license': file_url('restaurant_license'),
+            'halal_certificate':  file_url('halal_certificate'),
+        }
+    elif supplier_type_key == 'guide':
+        type_specific = {
+            'specialties':      list(getattr(obj, 'specialties', []) or []),
+            'languages':        list(getattr(obj, 'languages', []) or []),
+            'experience_years': getattr(obj, 'experience_years', None),
+            'has_license':      bool(getattr(obj, 'has_license', False)),
+            'accepts_groups':   bool(getattr(obj, 'accepts_groups', False)),
+            'price_half_day':   decimal_str('price_half_day'),
+            'price_full_day':   decimal_str('price_full_day'),
+            'price_hourly':     decimal_str('price_hourly'),
+        }
+        documents = {
+            'id_document':   file_url('id_document'),
+            'guide_license': file_url('guide_license'),
+        }
+    elif supplier_type_key == 'activity':
+        type_specific = {
+            'activity_types':   list(getattr(obj, 'activity_types', []) or []),
+            'capacity':         getattr(obj, 'capacity', None),
+            'suitable_kids':    bool(getattr(obj, 'suitable_kids', False)),
+            'has_insurance':    bool(getattr(obj, 'has_insurance', False)),
+            'has_license':      bool(getattr(obj, 'has_license', False)),
+            'price_per_person': decimal_str('price_per_person'),
+            'price_per_group':  decimal_str('price_per_group'),
+            'min_group_size':   getattr(obj, 'min_group_size', None),
+        }
+        documents = {
+            'activity_license': file_url('activity_license'),
+            'insurance_doc':    file_url('insurance_doc'),
+        }
+    elif supplier_type_key == 'wellness':
+        type_specific = {
+            'wellness_types':       list(getattr(obj, 'wellness_types', []) or []),
+            'capacity':             getattr(obj, 'capacity', None),
+            'gender_policy':        safe('gender_policy'),
+            'is_halal_certified':   bool(getattr(obj, 'is_halal_certified', False)),
+            'has_license':          bool(getattr(obj, 'has_license', False)),
+            'price_per_session':    decimal_str('price_per_session'),
+            'session_duration_min': getattr(obj, 'session_duration_min', None),
+            'price_package':        decimal_str('price_package'),
+        }
+        documents = {
+            'wellness_license':   file_url('wellness_license'),
+            'staff_certificates': file_url('staff_certificates'),
+        }
+    elif supplier_type_key == 'other':
+        type_specific = {
+            'service_types':       list(getattr(obj, 'service_types', []) or []),
+            'service_description': safe('service_description'),
+            'target_audience':     safe('target_audience'),
+            'has_license':         bool(getattr(obj, 'has_license', False)),
+            'base_price':          decimal_str('base_price'),
+            'price_unit':          safe('price_unit'),
+            'pricing_notes':       safe('pricing_notes'),
+        }
+        documents = {
+            'id_document':  file_url('id_document'),
+            'service_proof': file_url('service_proof'),
+        }
+    else:
+        documents = {}
+
+    data['type_specific'] = type_specific
+    data['documents']     = {k: v for k, v in documents.items() if v}
+
+    # ── الصور المرفوعة (من WaitlistPhoto) ──
+    try:
+        from apps.waitlist.models import WaitlistPhoto
+        from django.contrib.contenttypes.models import ContentType
+        ct = ContentType.objects.get_for_model(obj)
+        photos_qs = WaitlistPhoto.objects.filter(
+            content_type=ct, object_id=obj.pk
+        ).order_by('-is_primary', 'order', 'uploaded_at')
+
+        data['photos'] = [
+            {
+                'id':         p.id,
+                'url':        request.build_absolute_uri(p.image.url) if p.image else None,
+                'is_primary': p.is_primary,
+                'order':      p.order,
+                'caption':    p.caption,
+            }
+            for p in photos_qs
+        ]
+    except Exception as e:
+        logger.error(f'Error fetching photos: {e}')
+        data['photos'] = []
+
+    return data
 
 
 class SupplierWaitlistPendingListView(APIView):

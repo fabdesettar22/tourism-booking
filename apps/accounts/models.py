@@ -253,3 +253,48 @@ class AgencyActivationToken(models.Model):
     class Meta:
         verbose_name        = "رمز تفعيل وكالة"
         verbose_name_plural = "رموز تفعيل الوكالات"
+
+
+# ═══════════════════════════════════════════════════════════
+# EmailOTP — رمز دخول لمرة واحدة عبر الإيميل (للموردين)
+# ═══════════════════════════════════════════════════════════
+
+class EmailOTP(models.Model):
+    """
+    رمز دخول لمرة واحدة يُرسَل إلى إيميل المورد.
+    صالح 10 دقائق، يُستخدَم مرة واحدة فقط.
+    """
+    email      = models.EmailField(db_index=True, verbose_name="البريد الإلكتروني")
+    code       = models.CharField(max_length=6, verbose_name="الرمز")
+    expires_at = models.DateTimeField(db_index=True, verbose_name="تاريخ الانتهاء")
+    used       = models.BooleanField(default=False, verbose_name="مُستخدم")
+    used_at    = models.DateTimeField(null=True, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    def save(self, *args, **kwargs):
+        if not self.code:
+            self.code = get_random_string(6, allowed_chars='0123456789')
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timezone.timedelta(minutes=10)
+        super().save(*args, **kwargs)
+
+    @property
+    def is_valid(self) -> bool:
+        return (not self.used) and (timezone.now() < self.expires_at)
+
+    def mark_used(self):
+        self.used = True
+        self.used_at = timezone.now()
+        self.save(update_fields=['used', 'used_at'])
+
+    def __str__(self):
+        return f"OTP for {self.email} ({'used' if self.used else 'valid'})"
+
+    class Meta:
+        verbose_name        = "رمز دخول OTP"
+        verbose_name_plural = "رموز الدخول OTP"
+        ordering            = ['-created_at']
+        indexes = [
+            models.Index(fields=['email', '-created_at']),
+        ]

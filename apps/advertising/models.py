@@ -50,7 +50,6 @@ class AdType(models.TextChoices):
     HERO_BANNER    = 'HERO_BANNER',    'بنر رئيسي عريض'
     POPUP          = 'POPUP',          'نافذة منبثقة'
     FEATURED_CARD  = 'FEATURED_CARD',  'بطاقة مميزة'
-    CAROUSEL_ITEM  = 'CAROUSEL_ITEM',  'عنصر سلايدر'
 
 
 class Placement(models.TextChoices):

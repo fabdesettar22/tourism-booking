@@ -140,6 +140,7 @@ class WaitlistBase(models.Model):
     country_code    = models.CharField(max_length=2, blank=True, db_index=True, verbose_name='ISO دولة')
     city            = models.CharField(max_length=100)
     region          = models.CharField(max_length=100, blank=True)
+    description     = models.TextField(blank=True, verbose_name='الوصف')
     worked_before   = models.BooleanField(default=False, verbose_name='سبق العمل مع منصات أخرى؟')
 
     # ── مصدر التسجيل ──────────────────────────────────────
