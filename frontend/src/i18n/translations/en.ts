@@ -25,6 +25,8 @@ export const en = {
     subtitle:    'Welcome to a platform where two continents, two cultures, and two markets finally become one soul.',
     exploreTours: 'Explore Tours',
     learnMore:   'Learn More',
+    cta_supplier: 'Register as Supplier',
+    cta_agency:   'Register as Agency',
   },
 
   // ── Stats ────────────────────────────────────────────

@@ -320,8 +320,11 @@ class OtherServiceWaitlistSerializer(WaitlistBaseSerializer):
         read_only_fields = WaitlistBaseSerializer.Meta.read_only_fields + ('created_service',)
 
     def validate_service_types(self, value):
-        if not value or len(value) == 0:
-            raise serializers.ValidationError('يجب اختيار نوع خدمة واحد على الأقل.')
+        # يُسمح بقائمة فارغة إن قدّم المورد proposed_category_name (فئة مخصصة)
+        if (not value or len(value) == 0) and not self.initial_data.get('proposed_category_name'):
+            raise serializers.ValidationError(
+                'يجب اختيار نوع خدمة واحد على الأقل أو تقديم اسم فئة مقترحة.'
+            )
         return value
 
     def validate(self, attrs):

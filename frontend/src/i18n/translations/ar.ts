@@ -25,6 +25,8 @@ export const ar: TranslationKeys = {
     subtitle:     'مرحباً بك في منصة تتلاقى فيها قارّتان وثقافتان وسوقان لتصبح أخيراً روحاً واحدة.',
     exploreTours: 'استكشف الجولات',
     learnMore:    'اعرف المزيد',
+    cta_supplier: 'سجّل كمورد',
+    cta_agency:   'سجّل كوكالة',
   },
 
   stats: {

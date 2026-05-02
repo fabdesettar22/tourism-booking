@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faGlobe, faBars, faXmark, faChevronRight, faChevronLeft, faLocationDot,
-  faArrowRight, faStar, faUsers, faShield,
-  faHeadset, faTag, faMapMarkedAlt, faHotel, faBuilding,
+  faArrowRight, faArrowLeft, faStar, faUsers, faShield,
+  faHeadset, faTag, faMapMarkedAlt, faHotel, faBuilding, faBriefcase,
   faCheckCircle, faPhone, faEnvelope, faBell, faUserTie,
   faChevronDown,
 } from "@fortawesome/free-solid-svg-icons";
@@ -297,6 +297,26 @@ const HeroSection = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) => {
             <p className="text-white/70 text-lg mb-8 leading-relaxed max-w-lg">
               {t("hero.subtitle")}
             </p>
+
+            {/* 🆕 CTA buttons — Supplier + Agency */}
+            <div className={`flex flex-col sm:flex-row gap-3 ${isRTL ? 'sm:flex-row-reverse' : ''}`}>
+              <a
+                href="/register/supplier"
+                className="group inline-flex items-center justify-center gap-2.5 px-7 py-3.5 bg-[#FF6B35] hover:bg-[#e07a38] text-white font-semibold text-sm rounded-xl shadow-xl shadow-[#FF6B35]/20 transition-all hover:shadow-2xl hover:shadow-[#FF6B35]/30 hover:-translate-y-0.5"
+              >
+                <FontAwesomeIcon icon={faBuilding} className="text-white/90" />
+                {t("hero.cta_supplier")}
+                <FontAwesomeIcon icon={isRTL ? faArrowLeft : faArrowRight} className="text-xs opacity-80 group-hover:translate-x-0.5 transition-transform" />
+              </a>
+              <a
+                href="/register/agency"
+                className="group inline-flex items-center justify-center gap-2.5 px-7 py-3.5 bg-white/5 hover:bg-white/15 text-white border-2 border-[#C9A961]/60 hover:border-[#C9A961] font-semibold text-sm rounded-xl backdrop-blur-sm transition-all hover:-translate-y-0.5"
+              >
+                <FontAwesomeIcon icon={faBriefcase} className="text-[#C9A961]" />
+                {t("hero.cta_agency")}
+                <FontAwesomeIcon icon={isRTL ? faArrowLeft : faArrowRight} className="text-xs opacity-80 group-hover:translate-x-0.5 transition-transform" />
+              </a>
+            </div>
           </div>
 
           <div className="relative">

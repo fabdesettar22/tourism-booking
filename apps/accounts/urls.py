@@ -4,7 +4,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from apps.accounts.views.crud_views import AgencyViewSet, UserViewSet
+from apps.accounts.views.crud_views import AgencyViewSet, UserViewSet, ChangePasswordView
 
 from apps.accounts.views.auth_views import (
     SupplierRegisterStep1View,
@@ -42,6 +42,7 @@ urlpatterns = [
     path('logout/',        LogoutView.as_view(),       name='logout'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
     path('me/',            MeView.as_view(),           name='me'),
+    path('change-password/', ChangePasswordView.as_view(), name='change-password'),
 
     # ── OTP Auth (للموردين — بدون كلمة سر) ────
     path('otp/request/',   OtpRequestView.as_view(),   name='otp-request'),

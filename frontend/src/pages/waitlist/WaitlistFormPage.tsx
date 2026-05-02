@@ -5,7 +5,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faArrowLeft, faArrowRight, faCheckCircle,
   faUser, faEnvelope, faPhone, faBuilding, faLocationDot,
-  faTriangleExclamation, faUpload, faSpinner,
+  faTriangleExclamation, faUpload, faSpinner, faXmark,
 } from '@fortawesome/free-solid-svg-icons';
 import { useLanguage } from '../../hooks/useLanguage';
 import { PublicNavbar } from '../../components/layout/PublicNavbar';
@@ -239,9 +239,10 @@ export function WaitlistFormPage() {
   });
   const [files, setFiles] = useState<Record<string, File | null>>({});
 
-  // 🆕 خاص بـ "other" — فئة مقترحة + حقول مخصصة
+  // 🆕 خاص بـ "other" — فئة مقترحة + حقول مخصصة + modal
   const [proposedCategoryName, setProposedCategoryName] = useState('');
   const [customFields, setCustomFields] = useState<Array<{ name: string; type: string; value: string }>>([]);
+  const [showCustomCategoryModal, setShowCustomCategoryModal] = useState(false);
   const addCustomField = () => setCustomFields(arr => [...arr, { name: '', type: 'text', value: '' }]);
   const updateCustomField = (i: number, k: 'name' | 'type' | 'value', v: string) =>
     setCustomFields(arr => arr.map((f, idx) => idx === i ? { ...f, [k]: v } : f));
@@ -282,9 +283,11 @@ export function WaitlistFormPage() {
   const lc = `block text-xs font-semibold text-gray-600 mb-1.5 ${isRTL ? 'text-right' : ''}`;
 
   // Step validation
-  const canProceedStep1 = isMulti
+  // 🆕 يقبل subtype عادي أو فئة مقترحة (لـ "other" فقط)
+  const hasCustomCategory = type === 'other' && proposedCategoryName.trim().length > 0;
+  const canProceedStep1 = hasCustomCategory || (isMulti
     ? (form.subtype as string[]).length > 0
-    : !!form.subtype;
+    : !!form.subtype);
 
   const canProceedStep2 = !!(
     form.full_name && form.email && form.phone && form.company_name && form.city
@@ -573,6 +576,38 @@ export function WaitlistFormPage() {
                     </button>
                   );
                 })}
+                {/* 🆕 الخلية الثامنة: زر إضافة فئة جديدة (لـ "other" فقط) */}
+                {type === 'other' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // مسح أي subtype مختار + تفعيل وضع "فئة مخصصة"
+                      setField('subtype', isMulti ? [] : '');
+                      // ضع علامة سريعة لتمكين canProceedStep1
+                      if (!proposedCategoryName.trim()) setProposedCategoryName(' ');
+                      setStep(2);
+                      // قفز إلى قسم الفئة المخصصة في الخطوة 2
+                      setTimeout(() => {
+                        const el = document.getElementById('custom-fields-section');
+                        if (el) {
+                          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          // إفراغ الـ placeholder ووضع focus
+                          setProposedCategoryName('');
+                          const input = el.querySelector('input') as HTMLInputElement | null;
+                          if (input) input.focus();
+                        }
+                      }, 250);
+                    }}
+                    className="p-3 rounded-xl border-2 border-dashed border-[#FF6B35]/50 hover:border-[#FF6B35] bg-orange-50/30 hover:bg-orange-50 text-[#FF6B35] font-semibold text-sm transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <span className="text-base">+</span>
+                    <span>
+                      {lang === 'ar' ? 'أخرى جديدة'
+                        : lang === 'ms' ? 'Tambah baru'
+                        : 'Add new'}
+                    </span>
+                  </button>
+                )}
               </div>
 
               <button
@@ -699,7 +734,7 @@ export function WaitlistFormPage() {
 
                 {/* 🆕 خاص بـ "other" — Proposed category + custom fields builder */}
                 {type === 'other' && (
-                  <div className="bg-orange-50/50 border border-orange-100 rounded-2xl p-4 space-y-4">
+                  <div id="custom-fields-section" className="bg-orange-50/50 border-2 border-[#FF6B35]/30 rounded-2xl p-4 space-y-4">
                     <div>
                       <label className={lc}>
                         {lang === 'ar' ? 'اسم الفئة المقترحة (إن لم تجد فئة مناسبة)'
@@ -1212,6 +1247,139 @@ export function WaitlistFormPage() {
 
         </div>
       </div>
+
+      {/* Modal removed — '+ أخرى جديدة' الآن يأخذ المورد مباشرة لقسم الفئة المخصصة في step 2 */}
+      {false && showCustomCategoryModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto"
+             onClick={() => setShowCustomCategoryModal(false)}>
+          <div className="bg-white rounded-3xl max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 my-8"
+               onClick={e => e.stopPropagation()}
+               dir={isRTL ? 'rtl' : 'ltr'}>
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-bold text-gray-900">
+                {lang === 'ar' ? 'إضافة فئة خدمة جديدة'
+                  : lang === 'ms' ? 'Tambah kategori baharu'
+                  : 'Add a new service category'}
+              </h3>
+              <button onClick={() => setShowCustomCategoryModal(false)}
+                      className="p-2 text-gray-400 hover:text-gray-700 rounded-lg">
+                <FontAwesomeIcon icon={faXmark} />
+              </button>
+            </div>
+
+            {/* اسم الفئة المقترحة */}
+            <div className="mb-4">
+              <label className={lc}>
+                {lang === 'ar' ? 'اسم الفئة *' : lang === 'ms' ? 'Nama kategori *' : 'Category name *'}
+              </label>
+              <input
+                className={ic}
+                value={proposedCategoryName}
+                onChange={e => setProposedCategoryName(e.target.value)}
+                placeholder={lang === 'ar' ? 'مثلاً: تأجير اليخوت' : lang === 'ms' ? 'cth: Sewa Yacht' : 'e.g. Yacht Rental'}
+              />
+            </div>
+
+            {/* قائمة الحقول المخصصة */}
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <label className={lc + ' mb-0'}>
+                  {lang === 'ar' ? 'حقول الخدمة (اختياري)'
+                    : lang === 'ms' ? 'Medan perkhidmatan (pilihan)'
+                    : 'Service fields (optional)'}
+                </label>
+                <button
+                  type="button"
+                  onClick={addCustomField}
+                  className="text-xs font-semibold text-[#FF6B35] hover:text-[#e07a38] px-3 py-1 rounded-lg border border-[#FF6B35]/30 hover:bg-orange-50"
+                >
+                  + {lang === 'ar' ? 'إضافة حقل' : lang === 'ms' ? 'Tambah' : 'Add field'}
+                </button>
+              </div>
+              {customFields.length === 0 ? (
+                <p className="text-xs text-gray-500 italic">
+                  {lang === 'ar' ? 'مثال: المدة، السعة، اللغة... — أضف حقولاً تصف خدمتك'
+                    : lang === 'ms' ? 'Contoh: Tempoh, Kapasiti...'
+                    : 'e.g. Duration, Capacity, Language... — describe your service'}
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {customFields.map((f, i) => (
+                    <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                      <select
+                        className="col-span-3 h-10 px-2 border border-gray-200 rounded-lg text-xs bg-white"
+                        value={f.type}
+                        onChange={e => updateCustomField(i, 'type', e.target.value)}
+                      >
+                        <option value="text">{lang === 'ar' ? 'نص' : 'Text'}</option>
+                        <option value="number">{lang === 'ar' ? 'رقم' : 'Number'}</option>
+                        <option value="date">{lang === 'ar' ? 'تاريخ' : 'Date'}</option>
+                        <option value="boolean">{lang === 'ar' ? 'نعم/لا' : 'Yes/No'}</option>
+                        <option value="select">{lang === 'ar' ? 'قائمة' : 'List'}</option>
+                      </select>
+                      <input
+                        className="col-span-4 h-10 px-3 border border-gray-200 rounded-lg text-sm"
+                        placeholder={lang === 'ar' ? 'اسم الحقل' : 'Field name'}
+                        value={f.name}
+                        onChange={e => updateCustomField(i, 'name', e.target.value)}
+                      />
+                      {f.type === 'boolean' ? (
+                        <select
+                          className="col-span-4 h-10 px-3 border border-gray-200 rounded-lg text-sm bg-white"
+                          value={f.value}
+                          onChange={e => updateCustomField(i, 'value', e.target.value)}
+                        >
+                          <option value="">--</option>
+                          <option value="true">{lang === 'ar' ? 'نعم' : 'Yes'}</option>
+                          <option value="false">{lang === 'ar' ? 'لا' : 'No'}</option>
+                        </select>
+                      ) : (
+                        <input
+                          className="col-span-4 h-10 px-3 border border-gray-200 rounded-lg text-sm"
+                          type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text'}
+                          placeholder={lang === 'ar' ? 'القيمة' : 'Value'}
+                          value={f.value}
+                          onChange={e => updateCustomField(i, 'value', e.target.value)}
+                        />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeCustomField(i)}
+                        className="col-span-1 h-10 text-rose-500 hover:bg-rose-50 rounded-lg text-sm"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* الأزرار */}
+            <div className="flex gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setProposedCategoryName('');
+                  setCustomFields([]);
+                  setShowCustomCategoryModal(false);
+                }}
+                className="flex-1 py-2.5 border-2 border-gray-200 rounded-xl font-medium text-sm hover:bg-gray-50"
+              >
+                {lang === 'ar' ? 'إلغاء' : lang === 'ms' ? 'Batal' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                disabled={!proposedCategoryName.trim()}
+                onClick={() => setShowCustomCategoryModal(false)}
+                className="flex-1 py-2.5 bg-[#FF6B35] hover:bg-[#e07a38] text-white rounded-xl font-bold text-sm disabled:opacity-40"
+              >
+                {lang === 'ar' ? 'حفظ الفئة' : lang === 'ms' ? 'Simpan kategori' : 'Save category'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

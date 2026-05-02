@@ -25,6 +25,8 @@ export const ms: TranslationKeys = {
     subtitle:     'Selamat datang ke platform yang menyatukan dua benua, dua budaya, dan dua pasaran menjadi satu jiwa.',
     exploreTours: 'Jelajah Pelancongan',
     learnMore:    'Ketahui Lebih Lanjut',
+    cta_supplier: 'Daftar sebagai Pembekal',
+    cta_agency:   'Daftar sebagai Agensi',
   },
 
   stats: {
