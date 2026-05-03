@@ -127,13 +127,9 @@ class AgencyRegisterSerializer(serializers.Serializer):
     # ═══════════════════════════════════════════════════
 
     def validate_email(self, value: str) -> str:
-        """تتحقق من أن الإيميل غير مستخدم بوكالة أخرى."""
-        value = value.lower().strip()
-        if Agency.objects.filter(email__iexact=value).exists():
-            raise serializers.ValidationError(
-                "هذا البريد الإلكتروني مسجّل بالفعل لوكالة أخرى."
-            )
-        return value
+        """الإيميل يجب أن يكون فريداً عبر النظام كله (User + Agency)."""
+        from apps.accounts.email_validation import assert_email_unique
+        return assert_email_unique(value)
 
     def validate_registration_number(self, value: str) -> str:
         """رقم السجل التجاري فريد."""

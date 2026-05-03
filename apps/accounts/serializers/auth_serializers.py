@@ -30,9 +30,8 @@ class SupplierStep1Serializer(serializers.Serializer):
     city             = serializers.CharField(max_length=100)
 
     def validate_email(self, value):
-        if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("هذا البريد الإلكتروني مسجل مسبقاً.")
-        return value.lower()
+        from apps.accounts.email_validation import assert_email_unique
+        return assert_email_unique(value)
 
     def validate_username(self, value):
         if User.objects.filter(username=value).exists():

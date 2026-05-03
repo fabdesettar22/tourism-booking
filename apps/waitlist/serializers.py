@@ -32,7 +32,8 @@ class WaitlistBaseSerializer(serializers.ModelSerializer):
         return value.strip()
 
     def validate_email(self, value):
-        return value.lower().strip()
+        from apps.accounts.email_validation import assert_email_unique
+        return assert_email_unique(value)
 
     def validate_phone(self, value):
         phone = value.strip().replace(' ', '')

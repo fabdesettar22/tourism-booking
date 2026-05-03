@@ -38,7 +38,11 @@ class Agency(models.Model):
     # ── الحقول الأصلية (لا تُلمس) ─────────────────────────
     name             = models.CharField(max_length=200, verbose_name="اسم الوكالة")
     phone            = models.CharField(max_length=20, blank=True, verbose_name="الهاتف")
-    email            = models.EmailField(blank=True, verbose_name="البريد الإلكتروني")
+    email            = models.EmailField(
+        blank=True, null=True, unique=True,
+        verbose_name="البريد الإلكتروني",
+        error_messages={'unique': 'هذا البريد الإلكتروني مسجَّل بالفعل لوكالة.'},
+    )
     address          = models.TextField(blank=True, verbose_name="العنوان")
     logo             = models.ImageField(
         upload_to='agencies/logos/', blank=True, null=True,
