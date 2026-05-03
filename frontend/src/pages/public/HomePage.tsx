@@ -735,17 +735,17 @@ const Footer = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) => (
           </div>
         </div>
         {[
-          { title:t("footer.support"),  items:[t("footer.helpCenter"),t("footer.liveChat"),t("footer.security")] },
-          { title:t("footer.company2"), items:[t("footer.aboutUs"),t("footer.careers"),t("footer.contact")] },
-          { title:t("footer.services"), items:[t("footer.hotels"),t("footer.guide"),t("footer.transport")] },
-          { title:t("footer.legal"),    items:[t("footer.terms"),t("footer.privacy"),t("footer.cookies")] },
+          { title:t("footer.support"),  items:[{label:t("footer.helpCenter"),href:"#"},{label:t("footer.liveChat"),href:"#"},{label:t("footer.security")  ,href:"#"}] },
+          { title:t("footer.company2"), items:[{label:t("footer.aboutUs"),   href:"#"},{label:t("footer.careers"), href:"#"},{label:t("footer.contact")   ,href:"#"}] },
+          { title:t("footer.services"), items:[{label:t("footer.hotels"),    href:"/hotels"},{label:t("footer.guide"),href:"#"},{label:t("footer.transport"),href:"#"}] },
+          { title:t("footer.legal"),    items:[{label:t("footer.terms"),     href:"/terms"}, {label:t("footer.privacy"),href:"/privacy"},{label:t("footer.cookies"),href:"/cookies"}] },
         ].map(col=>(
           <div key={col.title} className={isRTL?"text-right":""}>
             <h4 className="text-white font-bold text-sm mb-4">{col.title}</h4>
             <ul className="space-y-2.5">
               {col.items.map(item=>(
-                <li key={item}>
-                  <a href="#" className="text-sm hover:text-orange-400 transition-colors">{item}</a>
+                <li key={item.label}>
+                  <a href={item.href} className="text-sm hover:text-orange-400 transition-colors">{item.label}</a>
                 </li>
               ))}
             </ul>
@@ -767,8 +767,12 @@ const Footer = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) => (
           ))}
         </div>
         <div className={`flex items-center gap-4 ${isRTL?"flex-row-reverse":""}`}>
-          {[t("footer.terms"),t("footer.privacy"),t("footer.cookies")].map(item=>(
-            <a key={item} href="#" className="text-xs hover:text-orange-400 transition-colors">{item}</a>
+          {[
+            {label:t("footer.terms"),  href:"/terms"},
+            {label:t("footer.privacy"),href:"/privacy"},
+            {label:t("footer.cookies"),href:"/cookies"},
+          ].map(item=>(
+            <a key={item.label} href={item.href} className="text-xs hover:text-orange-400 transition-colors">{item.label}</a>
           ))}
         </div>
       </div>

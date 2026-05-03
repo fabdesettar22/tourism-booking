@@ -40,6 +40,9 @@ import { ComingSoonPage }         from '../pages/public/ComingSoonPage';
 import { HotelDetailPage }        from '../pages/public/HotelDetailPage';
 import { HotelsListPage }         from '../pages/public/HotelsListPage';
 import { ServiceDetailPage }      from '../pages/public/ServiceDetailPage';
+import { TermsPage }              from '../pages/public/legal/TermsPage';
+import { PrivacyPage }            from '../pages/public/legal/PrivacyPage';
+import { CookiesPage }            from '../pages/public/legal/CookiesPage';
 import { SupplierOtpLogin }       from '../features/auth/SupplierOtpLogin';
 import { ServiceSupplierDashboard } from '../features/supplier/dashboard/ServiceSupplierDashboard';
 import { fetchSupplierMe }        from '../services/supplierProfileApi';
@@ -310,6 +313,11 @@ export default function App() {
         <Route path="/hotels"       element={<HotelsListPage />} />
         <Route path="/blog"         element={<BlogListPage />} />
         <Route path="/blog/:slug"   element={<BlogDetailPage />} />
+
+        {/* Legal */}
+        <Route path="/terms"     element={<TermsPage />} />
+        <Route path="/privacy"   element={<PrivacyPage />} />
+        <Route path="/cookies"   element={<CookiesPage />} />
 
         {/* ── Fallback ────────────────────────────── */}
         <Route path="*"                          element={<Navigate to="/" replace />} />
