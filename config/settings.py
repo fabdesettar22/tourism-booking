@@ -195,18 +195,24 @@ REST_FRAMEWORK = {
     },
 }
 
-# ─── JWT ──────────────────────────────────────────────────
+# ─── JWT (Redis-backed refresh rotation; access stateless) ─
+# Refresh JTIs are stored in Redis under  refresh:<user_id>:<jti>  with 7-day TTL.
+# Logout = DEL key. Refresh = DEL old + SET new. Blacklist app NOT used (Redis is the truth).
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME'   : timedelta(hours=12),
-    'REFRESH_TOKEN_LIFETIME'  : timedelta(days=30),
-    'ROTATE_REFRESH_TOKENS'   : True,
-    'BLACKLIST_AFTER_ROTATION': True,
-    'UPDATE_LAST_LOGIN'       : True,       # يحدّث last_login عند كل refresh
+    'ACCESS_TOKEN_LIFETIME'   : timedelta(minutes=15),
+    'REFRESH_TOKEN_LIFETIME'  : timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS'   : False,  # we rotate manually via Redis
+    'BLACKLIST_AFTER_ROTATION': False,
+    'UPDATE_LAST_LOGIN'       : True,
     'AUTH_HEADER_TYPES'       : ('Bearer',),
     'USER_ID_FIELD'           : 'id',
     'USER_ID_CLAIM'           : 'user_id',
-    'TOKEN_OBTAIN_PAIR_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenObtainPairSerializer',
+    'TOKEN_OBTAIN_PAIR_SERIALIZER': 'apps.accounts.serializers.auth_serializers.CustomTokenObtainPairSerializer',
 }
+
+# Refresh-token Redis key prefix and TTL (mirrors SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'])
+JWT_REFRESH_REDIS_PREFIX = 'refresh'
+JWT_REFRESH_TTL_SECONDS  = 7 * 24 * 60 * 60
 
 
 # ─── Cache (Redis if available, else LocMemCache) ─────────

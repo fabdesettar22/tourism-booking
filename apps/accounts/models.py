@@ -167,6 +167,12 @@ class User(AbstractUser):
         error_messages={'unique': 'هذا البريد الإلكتروني مسجَّل بالفعل.'},
     )
 
+    # معرّف فريد UUID — يُستخدم في JWT claims (لا يكسر الـ PK الموجود)
+    uid = models.UUIDField(
+        default=uuid.uuid4, editable=False, unique=True,
+        verbose_name='UUID المستخدم',
+    )
+
     role   = models.CharField(
         max_length=20, choices=ROLE_CHOICES,
         default='tourist', verbose_name="الدور"
@@ -308,3 +314,48 @@ class EmailOTP(models.Model):
         indexes = [
             models.Index(fields=['email', '-created_at']),
         ]
+
+# ═══════════════════════════════════════════════════════════
+# AUTH AUDIT LOG — يسجّل كل أحداث المصادقة
+# ═══════════════════════════════════════════════════════════
+
+class AuthAuditLog(models.Model):
+    """سجل تدقيق لأحداث المصادقة. يُكتب من apps.accounts.services.auth_service."""
+
+    ACTION_CHOICES = [
+        ('LOGIN_SUCCESS' , 'دخول ناجح'),
+        ('LOGIN_FAIL'    , 'دخول فاشل'),
+        ('LOGOUT'        , 'خروج'),
+        ('TOKEN_REFRESH' , 'تحديث توكن'),
+        ('LOCKOUT'       , 'إيقاف الحساب'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        'accounts.User', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='auth_events',
+        verbose_name='المستخدم',
+    )
+    tenant = models.ForeignKey(
+        'accounts.Agency', on_delete=models.PROTECT,
+        null=True, blank=True, related_name='auth_events',
+        verbose_name='الوكالة (tenant)',
+    )
+    action     = models.CharField(max_length=20, choices=ACTION_CHOICES, db_index=True)
+    ip_address = models.CharField(max_length=45, blank=True, default='')
+    user_agent = models.CharField(max_length=1024, blank=True, default='')
+    timestamp  = models.DateTimeField(auto_now_add=True, db_index=True)
+    metadata   = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table            = 'auth_audit_log'
+        verbose_name        = 'حدث مصادقة'
+        verbose_name_plural = 'سجل المصادقة'
+        ordering            = ['-timestamp']
+        indexes = [
+            models.Index(fields=['user', '-timestamp']),
+            models.Index(fields=['action', '-timestamp']),
+        ]
+
+    def __str__(self):
+        return f'{self.action} · {self.user_id or "anon"} · {self.timestamp:%Y-%m-%d %H:%M}'

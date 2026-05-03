@@ -2,8 +2,8 @@
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from rest_framework_simplejwt.views import TokenRefreshView
 
+from apps.accounts.views.auth_views import TokenRefreshView
 from apps.accounts.views.crud_views import AgencyViewSet, UserViewSet, ChangePasswordView
 
 from apps.accounts.views.auth_views import (

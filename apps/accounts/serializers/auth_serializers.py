@@ -5,7 +5,22 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.db.models import Q
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
+from apps.accounts.tokens import CustomRefreshToken, _build_claims
 from apps.suppliers.models import Supplier, HotelSupplier, SupplierType
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """يصدر Access + Refresh مع الـ claims المخصصة (user_id, tenant_id, tenant_type, role, email)."""
+
+    @classmethod
+    def get_token(cls, user):
+        token = CustomRefreshToken.for_user(user)
+        # SimpleJWT يضيف user_id من USER_ID_CLAIM تلقائياً، لكننا نضمن البقية:
+        for k, v in _build_claims(user).items():
+            token[k] = v
+        return token
 
 User = get_user_model()
 

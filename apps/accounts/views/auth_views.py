@@ -229,20 +229,26 @@ class SupplierRegisterStep4View(APIView):
 # ─────────────────────────────────────────────
 
 class LoginView(APIView):
+    """POST /api/v1/accounts/login/ — thin: يفوّض للـ service."""
     permission_classes = [AllowAny]
 
     def post(self, request):
-        serializer = LoginSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        from apps.accounts.services import auth_service
+        identifier = request.data.get('username') or request.data.get('email') or ''
+        password   = request.data.get('password') or ''
 
-        user   = serializer.validated_data['user']
-        tokens = get_tokens_for_user(user)
+        if not identifier or not password:
+            return Response({'detail': 'البريد/اسم المستخدم وكلمة المرور مطلوبة.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        try:
+            result = auth_service.login(identifier=identifier, password=password, request=request)
+        except ValueError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_401_UNAUTHORIZED)
 
         return Response({
-            'access' : tokens['access'],
-            'refresh': tokens['refresh'],
-            'user'   : UserMeSerializer(user).data,
+            'access' : result['access'],
+            'refresh': result['refresh'],
+            'user'   : UserMeSerializer(result['user']).data,
         })
 
 
@@ -251,24 +257,37 @@ class LoginView(APIView):
 # ─────────────────────────────────────────────
 
 class LogoutView(APIView):
+    """POST /api/v1/accounts/logout/ — يحذف refresh-jti من Redis."""
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        refresh_token = request.data.get('refresh')
-        if not refresh_token:
-            return Response(
-                {'error': 'refresh token مطلوب.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        from apps.accounts.services import auth_service
+        refresh = request.data.get('refresh')
+        if not refresh:
+            return Response({'detail': 'refresh token مطلوب.'},
+                            status=status.HTTP_400_BAD_REQUEST)
         try:
-            token = RefreshToken(refresh_token)
-            token.blacklist()
-        except TokenError:
-            return Response(
-                {'error': 'token غير صالح.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        return Response({'message': 'تم تسجيل الخروج بنجاح.'})
+            auth_service.logout(refresh_token=refresh, request=request)
+        except ValueError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'detail': 'تم تسجيل الخروج بنجاح.'})
+
+
+class TokenRefreshView(APIView):
+    """POST /api/v1/accounts/token/refresh/ — تدوير عبر Redis."""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        from apps.accounts.services import auth_service
+        refresh = request.data.get('refresh')
+        if not refresh:
+            return Response({'detail': 'refresh token مطلوب.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        try:
+            result = auth_service.refresh_token(refresh_token=refresh, request=request)
+        except ValueError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response(result)
 
 
 # ─────────────────────────────────────────────
