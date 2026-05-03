@@ -6,16 +6,14 @@ from django.contrib.auth import get_user_model
 
 from apps.bookings.models import Booking
 from apps.accounts.models import Agency
+
 from .models import Notification
+from .translations import nt
 
 User = get_user_model()
 
 
 def _should_notify(recipient, type: str, reference_id: int) -> bool:
-    """
-    يمنع إنشاء إشعار جديد إذا كان يوجد إشعار مشابه
-    بنفس النوع والمصدر — سواء مقروء أو غير مقروء.
-    """
     return not Notification.objects.filter(
         recipient    = recipient,
         type         = type,
@@ -23,86 +21,94 @@ def _should_notify(recipient, type: str, reference_id: int) -> bool:
     ).exists()
 
 
-def notify_admins(type: str, title: str, message: str, reference_id: int, link: str = ''):
+def _user_lang(user) -> str:
+    return getattr(user, 'language', None) or 'ar'
+
+
+def notify_admins(*, type: str, title_key: str, message_key: str,
+                  reference_id: int, link: str = '', **params):
+    """ينشئ إشعاراً لكل أدمن مع الترجمة بلغته المفضلة."""
     admins = User.objects.filter(role__in=['super_admin', 'admin'], is_active=True)
-    notifications = [
-        Notification(
+    notifications = []
+    for admin in admins:
+        if not _should_notify(admin, type, reference_id):
+            continue
+        lang = _user_lang(admin)
+        notifications.append(Notification(
             recipient    = admin,
             type         = type,
-            title        = title,
-            message      = message,
+            title        = nt(title_key,   lang, **params),
+            message      = nt(message_key, lang, **params),
             link         = link,
             reference_id = reference_id,
-        )
-        for admin in admins
-        if _should_notify(admin, type, reference_id)
-    ]
+        ))
     if notifications:
         Notification.objects.bulk_create(notifications)
 
 
-def notify_user(user, type: str, title: str, message: str, reference_id: int, link: str = ''):
-    if _should_notify(user, type, reference_id):
-        Notification.objects.create(
-            recipient    = user,
-            type         = type,
-            title        = title,
-            message      = message,
-            link         = link,
-            reference_id = reference_id,
-        )
+def notify_user(*, user, type: str, title_key: str, message_key: str,
+                reference_id: int, link: str = '', **params):
+    if not _should_notify(user, type, reference_id):
+        return
+    lang = _user_lang(user)
+    Notification.objects.create(
+        recipient    = user,
+        type         = type,
+        title        = nt(title_key,   lang, **params),
+        message      = nt(message_key, lang, **params),
+        link         = link,
+        reference_id = reference_id,
+    )
 
 
 # ── حجز جديد ─────────────────────────────────────────────
 @receiver(post_save, sender=Booking)
 def on_booking_saved(sender, instance, created, **kwargs):
-    if created:
-        notify_admins(
-            type         = 'new_booking',
-            title        = 'حجز جديد',
-            message      = f'حجز جديد من {instance.client_name} — {instance.adults + instance.children} فرد',
-            reference_id = instance.id,
-            link         = '/bookings',
-        )
-        if instance.agency:
-            agency_users = User.objects.filter(agency=instance.agency, is_active=True)
-            for user in agency_users:
-                notify_user(
-                    user         = user,
-                    type         = 'new_booking',
-                    title        = 'تم استلام حجزك',
-                    message      = f'تم استلام حجز {instance.client_name} بنجاح وهو قيد المراجعة',
-                    reference_id = instance.id,
-                    link         = '/bookings',
-                )
+    if not created:
+        return
+    n = (instance.adults or 0) + (instance.children or 0)
+    notify_admins(
+        type         = 'new_booking',
+        title_key    = 'new_booking.title',
+        message_key  = 'new_booking.message_admin',
+        reference_id = instance.id,
+        link         = '/bookings',
+        name         = instance.client_name,
+        n            = n,
+    )
+    if instance.agency:
+        for user in User.objects.filter(agency=instance.agency, is_active=True):
+            notify_user(
+                user         = user,
+                type         = 'new_booking',
+                title_key    = 'new_booking.title_agency',
+                message_key  = 'new_booking.message_agency',
+                reference_id = instance.id,
+                link         = '/bookings',
+                name         = instance.client_name,
+            )
 
 
 # ── تغيير حالة الحجز ─────────────────────────────────────
 def notify_booking_status_change(booking: Booking, new_status: str, changed_by):
-    STATUS_LABELS = {
-        'confirmed': 'مؤكد',
-        'cancelled': 'ملغي',
-        'completed': 'مكتمل',
-        'pending':   'معلق',
-    }
-    label = STATUS_LABELS.get(new_status, new_status)
+    STATUS_INDEX = {'confirmed': 0, 'cancelled': 1, 'completed': 2, 'pending': 3}
+    idx = STATUS_INDEX.get(new_status, 9)
+    reference_id = booking.id * 100 + idx
 
-    # reference_id فريد = booking.id * 100 + status_index
-    # لضمان إشعار منفصل لكل تغيير حالة
-    status_index = list(STATUS_LABELS.keys()).index(new_status) if new_status in STATUS_LABELS else 9
-    reference_id = booking.id * 100 + status_index
-
-    if booking.agency:
-        agency_users = User.objects.filter(agency=booking.agency, is_active=True)
-        for user in agency_users:
-            notify_user(
-                user         = user,
-                type         = 'booking_status',
-                title        = 'تم تحديث حالة الحجز',
-                message      = f'حجز {booking.client_name} أصبح {label}',
-                reference_id = reference_id,
-                link         = '/bookings',
-            )
+    if not booking.agency:
+        return
+    for user in User.objects.filter(agency=booking.agency, is_active=True):
+        status_label = nt(f'status.{new_status}', _user_lang(user))
+        notify_user(
+            user         = user,
+            type         = 'booking_status',
+            title_key    = 'booking_status.title',
+            message_key  = 'booking_status.message',
+            reference_id = reference_id,
+            link         = '/bookings',
+            name         = booking.client_name,
+            status       = status_label,
+        )
 
 
 # ── وكالة جديدة ───────────────────────────────────────────
@@ -111,31 +117,34 @@ def on_agency_saved(sender, instance, created, **kwargs):
     if created:
         notify_admins(
             type         = 'new_agency',
-            title        = 'طلب انضمام وكالة جديدة',
-            message      = f'وكالة "{instance.name}" تطلب الانضمام للمنصة',
+            title_key    = 'new_agency.title',
+            message_key  = 'new_agency.message',
             reference_id = instance.id,
             link         = '/agencies',
+            name         = instance.name,
         )
-    else:
-        if instance.status == 'active' and instance.approved_at:
-            agency_users = User.objects.filter(agency=instance, is_active=True)
-            for user in agency_users:
-                notify_user(
-                    user         = user,
-                    type         = 'agency_approved',
-                    title        = '🎉 تمت الموافقة على وكالتك',
-                    message      = f'تهانينا! تمت الموافقة على وكالة "{instance.name}"، يمكنك الآن البدء',
-                    reference_id = instance.id,
-                    link         = '/dashboard',
-                )
-        elif instance.status == 'rejected':
-            agency_users = User.objects.filter(agency=instance)
-            for user in agency_users:
-                notify_user(
-                    user         = user,
-                    type         = 'agency_rejected',
-                    title        = 'تم رفض طلب وكالتك',
-                    message      = f'نأسف، تم رفض طلب وكالة "{instance.name}". {instance.rejection_reason or ""}',
-                    reference_id = instance.id,
-                    link         = '/',
-                )
+        return
+
+    if instance.status == 'active' and instance.approved_at:
+        for user in User.objects.filter(agency=instance, is_active=True):
+            notify_user(
+                user         = user,
+                type         = 'agency_approved',
+                title_key    = 'agency_approved.title',
+                message_key  = 'agency_approved.message',
+                reference_id = instance.id,
+                link         = '/dashboard',
+                name         = instance.name,
+            )
+    elif instance.status == 'rejected':
+        for user in User.objects.filter(agency=instance):
+            notify_user(
+                user         = user,
+                type         = 'agency_rejected',
+                title_key    = 'agency_rejected.title',
+                message_key  = 'agency_rejected.message',
+                reference_id = instance.id,
+                link         = '/',
+                name         = instance.name,
+                reason       = instance.rejection_reason or '',
+            )

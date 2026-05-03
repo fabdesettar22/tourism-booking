@@ -184,6 +184,15 @@ class User(AbstractUser):
         verbose_name="الوكالة الشريكة"
     )
     phone  = models.CharField(max_length=20, blank=True, verbose_name="الهاتف")
+    LANGUAGE_CHOICES = [
+        ('ar', 'العربية'),
+        ('en', 'English'),
+        ('ms', 'Bahasa Melayu'),
+    ]
+    language = models.CharField(
+        max_length=2, choices=LANGUAGE_CHOICES, default='ar',
+        verbose_name="اللغة المفضلة",
+    )
     avatar = models.ImageField(
         upload_to='avatars/', blank=True, null=True,
         verbose_name="الصورة الشخصية"

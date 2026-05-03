@@ -23,6 +23,19 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const changeLang = useCallback((newLang: Language) => {
     setStoredLang(newLang);
     setLang(newLang);
+    // مزامنة مع الـ backend ليتلقى المستخدم الإشعارات بلغته الجديدة
+    try {
+      const token = localStorage.getItem('access');
+      if (token) {
+        const fd = new FormData();
+        fd.append('language', newLang);
+        fetch('/api/v1/accounts/me/', {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${token}` },
+          body: fd,
+        }).catch(() => {/* silent */});
+      }
+    } catch {/* localStorage unavailable */}
   }, []);
 
   const t = useCallback(

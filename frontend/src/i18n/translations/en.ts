@@ -101,7 +101,7 @@ export const en = {
   },
 
   // ── Destinations ──────────────────────────────────────
-  destinations: {
+  destinationsAdmin: {
     label:     'Explore',
     title:     'Popular Destinations',
     browseAll: 'Browse All',
@@ -923,10 +923,7 @@ export const en = {
       mandatory: 'Mandatory',
       addCity: 'Add City to Package',
     },
-    table: {
-      headers: ['Package','Cities','Nights','Price','Status','Actions'],
-      headersAgency: ['Package','Cities','Nights','Price','Commission','Action'],
-    },
+
     modal: {
       titleEdit: 'Edit Package',
       titleNewCustom: 'Add Custom Package',

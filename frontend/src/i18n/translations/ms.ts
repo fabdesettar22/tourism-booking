@@ -96,7 +96,7 @@ export const ms: TranslationKeys = {
     },
   },
 
-  destinations: {
+  destinationsAdmin: {
     label:     'Jelajah',
     title:     'Destinasi Popular',
     browseAll: 'Lihat Semua',
@@ -911,10 +911,7 @@ export const ms: TranslationKeys = {
       mandatory: 'Wajib',
       addCity: 'Tambah Bandar ke Pakej',
     },
-    table: {
-      headers: ['Pakej','Bandar','Malam','Harga','Status','Tindakan'],
-      headersAgency: ['Pakej','Bandar','Malam','Harga','Komisen','Tindakan'],
-    },
+
     modal: {
       titleEdit: 'Edit Pakej',
       titleNewCustom: 'Tambah Pakej Tersuai',

@@ -303,7 +303,7 @@ class MeView(APIView):
 
     def patch(self, request):
         user = request.user
-        for f in ('first_name', 'last_name', 'email', 'phone'):
+        for f in ('first_name', 'last_name', 'email', 'phone', 'language'):
             if f in request.data:
                 setattr(user, f, request.data.get(f))
         if 'avatar' in request.FILES:

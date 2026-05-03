@@ -242,7 +242,7 @@ class UserMeSerializer(serializers.ModelSerializer):
         model  = User
         fields = [
             'id', 'email', 'username', 'role',
-            'first_name', 'last_name', 'phone',
+            'first_name', 'last_name', 'phone', 'language',
             'is_active',
             'supplier_status', 'supplier_type',
             'agency', 'agency_name', 'agency_logo', 'agency_currency',

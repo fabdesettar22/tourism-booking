@@ -96,7 +96,7 @@ export const ar: TranslationKeys = {
     },
   },
 
-  destinations: {
+  destinationsAdmin: {
     label:     'استكشف',
     title:     'الوجهات الشهيرة',
     browseAll: 'تصفح الكل',
@@ -911,10 +911,7 @@ export const ar: TranslationKeys = {
       mandatory: 'إلزامي',
       addCity: 'إضافة مدينة للباقة',
     },
-    table: {
-      headers: ['الباقة','المدن','الليالي','السعر','الحالة','إجراءات'],
-      headersAgency: ['الباقة','المدن','الليالي','السعر','عمولتك','إجراء'],
-    },
+
     modal: {
       titleEdit: 'تعديل الباقة',
       titleNewCustom: 'إضافة باقة مخصصة',
