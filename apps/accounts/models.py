@@ -157,6 +157,12 @@ class User(AbstractUser):
         ('tourist',     'سائح'),
     ]
 
+    email = models.EmailField(
+        unique=True,
+        verbose_name="البريد الإلكتروني",
+        error_messages={'unique': 'هذا البريد الإلكتروني مسجَّل بالفعل.'},
+    )
+
     role   = models.CharField(
         max_length=20, choices=ROLE_CHOICES,
         default='tourist', verbose_name="الدور"
