@@ -129,6 +129,28 @@ export function Header({ user, onLogout, onNavigate }: Props) {
     setUnreadCount(0);
   };
 
+  const tabFromLink = (link: string): string | null => {
+    if (!link) return null;
+    try {
+      const u = new URL(link, window.location.origin);
+      const tabParam = u.searchParams.get('tab');
+      if (tabParam) return tabParam;
+      const seg = u.pathname.replace(/^\/+|\/+$/g, '').split('/')[0];
+      return seg || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const onNotifClick = (n: Notification) => {
+    if (!n.is_read) markRead(n.id);
+    const tab = tabFromLink(n.link);
+    if (tab && onNavigate) {
+      onNavigate(tab);
+      setShowNotif(false);
+    }
+  };
+
   const currentLangObj = LANGUAGES.find(l => l.code === lang);
   // Side classes depending on RTL
   const dropdownSide  = isRTL ? 'left-0' : 'right-0';
@@ -252,7 +274,7 @@ export function Header({ user, onLogout, onNavigate }: Props) {
                     notifications.map(n => (
                       <div
                         key={n.id}
-                        onClick={(e) => { e.stopPropagation(); if (!n.is_read) markRead(n.id); }}
+                        onClick={(e) => { e.stopPropagation(); onNotifClick(n); }}
                         className={`flex items-start gap-3 px-4 py-3 border-b last:border-0 cursor-pointer transition-colors
                           ${n.is_read ? 'bg-white hover:bg-gray-50' : 'bg-blue-50 hover:bg-blue-100'}`}
                       >

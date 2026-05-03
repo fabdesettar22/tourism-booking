@@ -1,49 +1,13 @@
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-.Python
-*.egg-info/
-dist/
-build/
-
-# Virtual Environment
 venv/
-env/
+__pycache__/
+*.pyc
 .env
-.env.*
-
-# Django
 *.sqlite3
-staticfiles/
 media/
-logs/
-*.log
-
-# OS
-.DS_Store
-Thumbs.db
-
-# IDE
-.vscode/
-.idea/
-frontend/node_modules/
+staticfiles/
+node_modules/
 frontend/dist/
-
-# Secrets / Credentials — NEVER commit these
-NEW_ADMIN_CREDENTIALS.txt
-*_CREDENTIALS.txt
-*_credentials.txt
-
-# Added for deployment
-frontend/.env.local
-frontend/.env.production.local
-*.backup
-*.backup_*
-~/mybridge_backups/
-runtime_stale*
-
-# Claude worktrees (embedded repo)
-.claude/
-project_dump.sh
+frontend/node_modules/
+.DS_Store
+*.log
+local_settings.py

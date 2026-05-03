@@ -53,14 +53,14 @@ _T: dict[str, dict[str, str]] = {
 
     # ── Agency lifecycle ──────────────────────────────
     'new_agency.title': {
-        'ar': 'طلب انضمام وكالة جديدة',
-        'en': 'New agency application',
-        'ms': 'Permohonan agensi baru',
+        'ar': 'وكالة جديدة',
+        'en': 'New agency',
+        'ms': 'Agensi baru',
     },
     'new_agency.message': {
-        'ar': 'وكالة "{name}" تطلب الانضمام للمنصة',
-        'en': 'Agency "{name}" is requesting to join the platform',
-        'ms': 'Agensi "{name}" memohon untuk menyertai platform',
+        'ar': '{name} من {country} طلبت الانضمام. رقم المرجع: {ref}',
+        'en': '{name} from {country} applied to join. Ref: {ref}',
+        'ms': '{name} dari {country} memohon menyertai. Ruj: {ref}',
     },
     'agency_approved.title': {
         'ar': '🎉 تمت الموافقة على وكالتك',
@@ -90,10 +90,19 @@ _T: dict[str, dict[str, str]] = {
         'ms': 'Pembekal baru',
     },
     'new_supplier.message': {
-        'ar': 'مورّد "{name}" طلب الانضمام',
-        'en': 'Supplier "{name}" applied to join',
-        'ms': 'Pembekal "{name}" memohon untuk menyertai',
+        'ar': '{type} من {country}. رقم المرجع: {ref}',
+        'en': '{type} from {country}. Ref: {ref}',
+        'ms': '{type} dari {country}. Ruj: {ref}',
     },
+
+    # ── Supplier types (used in new_supplier.message) ──
+    'supplier_type.PROPERTY':   {'ar': 'إقامة',  'en': 'Property',   'ms': 'Penginapan'},
+    'supplier_type.TRANSPORT':  {'ar': 'نقل',    'en': 'Transport',  'ms': 'Pengangkutan'},
+    'supplier_type.RESTAURANT': {'ar': 'مطعم',   'en': 'Restaurant', 'ms': 'Restoran'},
+    'supplier_type.GUIDE':      {'ar': 'مرشد',   'en': 'Guide',      'ms': 'Pemandu'},
+    'supplier_type.ACTIVITY':   {'ar': 'نشاط',   'en': 'Activity',   'ms': 'Aktiviti'},
+    'supplier_type.WELLNESS':   {'ar': 'صحة',    'en': 'Wellness',   'ms': 'Kesihatan'},
+    'supplier_type.OTHER':      {'ar': 'خدمة',   'en': 'Service',    'ms': 'Perkhidmatan'},
     'supplier_approved.title': {
         'ar': '🎉 تمت الموافقة على حسابك',
         'en': '🎉 Your supplier account was approved',

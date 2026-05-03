@@ -4,27 +4,10 @@ import { MapPin, ArrowLeft, ArrowRight, X, ChevronLeft, ChevronRight, Loader2, C
 import { useLanguage } from '../../hooks/useLanguage';
 import { fetchPublicServiceById, type PublicServiceDetail } from '../../services/publicApi';
 
-const SERVICE_LABELS: Record<string, { ar: string; en: string; ms: string }> = {
-  transport: { ar: 'نقل',     en: 'Transport',  ms: 'Pengangkutan' },
-  meal:      { ar: 'مطعم',    en: 'Restaurant', ms: 'Restoran' },
-  tour:      { ar: 'جولة',    en: 'Tour',       ms: 'Lawatan' },
-  activity:  { ar: 'نشاط',    en: 'Activity',   ms: 'Aktiviti' },
-  visa:      { ar: 'تأشيرة',  en: 'Visa',       ms: 'Visa' },
-  insurance: { ar: 'تأمين',   en: 'Insurance',  ms: 'Insurans' },
-  flight:    { ar: 'طيران',   en: 'Flight',     ms: 'Penerbangan' },
-  other:     { ar: 'خدمة',    en: 'Service',    ms: 'Perkhidmatan' },
-};
-
-const PRICE_PER: Record<string, { ar: string; en: string; ms: string }> = {
-  person: { ar: 'للشخص',    en: '/ person', ms: '/ orang' },
-  group:  { ar: 'للمجموعة', en: '/ group',  ms: '/ kumpulan' },
-  unit:   { ar: 'للوحدة',   en: '/ unit',   ms: '/ unit' },
-};
-
 export function ServiceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { lang, isRTL } = useLanguage();
+  const { lang, isRTL, t } = useLanguage();
 
   const [service, setService] = useState<PublicServiceDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -59,19 +42,19 @@ export function ServiceDetailPage() {
   if (error || !service) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-8 text-center" dir={isRTL ? 'rtl' : 'ltr'}>
       <h1 className="text-2xl font-bold text-gray-800 mb-2">
-        {lang === 'ar' ? 'الخدمة غير موجودة' : lang === 'ms' ? 'Perkhidmatan tidak dijumpai' : 'Service not found'}
+        {t('serviceDetail.notFound')}
       </h1>
       <button
         onClick={() => navigate('/')}
         className="px-6 py-2.5 bg-[#FF6B35] text-white rounded-xl mt-6 hover:bg-[#e07a38] transition-colors"
       >
-        {lang === 'ar' ? 'العودة للرئيسية' : 'Back to Home'}
+        {t('serviceDetail.backHome')}
       </button>
     </div>
   );
 
-  const typeLabel = SERVICE_LABELS[service.service_type]?.[lang] || service.service_type;
-  const priceUnit = PRICE_PER[service.price_per]?.[lang] || '';
+  const typeLabel = t(`serviceDetail.types.${service.service_type}`) || service.service_type;
+  const priceUnit = service.price_per ? t(`serviceDetail.pricePer.${service.price_per}`) : '';
 
   return (
     <div className="min-h-screen bg-gray-50" dir={isRTL ? 'rtl' : 'ltr'}>
@@ -82,7 +65,7 @@ export function ServiceDetailPage() {
           className="flex items-center gap-2 text-gray-600 hover:text-[#FF6B35] transition-colors text-sm"
         >
           {isRTL ? <ArrowRight className="w-4 h-4" /> : <ArrowLeft className="w-4 h-4" />}
-          {lang === 'ar' ? 'رجوع' : lang === 'ms' ? 'Kembali' : 'Back'}
+          {t('serviceDetail.back')}
         </button>
       </div>
 
@@ -134,7 +117,7 @@ export function ServiceDetailPage() {
           {service.description && (
             <div className="border-t border-gray-100 pt-6 mt-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-3">
-                {lang === 'ar' ? 'عن الخدمة' : lang === 'ms' ? 'Mengenai Perkhidmatan' : 'About this service'}
+                {t('serviceDetail.about')}
               </h2>
               <p className="text-gray-700 leading-relaxed whitespace-pre-line">{service.description}</p>
             </div>
@@ -146,9 +129,9 @@ export function ServiceDetailPage() {
               <div className="flex items-center gap-2">
                 <Clock className="w-5 h-5 text-[#FF6B35]" />
                 <div>
-                  <p className="text-xs text-gray-500">{lang === 'ar' ? 'المدة' : lang === 'ms' ? 'Tempoh' : 'Duration'}</p>
+                  <p className="text-xs text-gray-500">{t('serviceDetail.duration')}</p>
                   <p className="font-semibold text-gray-900">
-                    {service.duration_hours} {lang === 'ar' ? 'ساعة' : lang === 'ms' ? 'jam' : 'h'}
+                    {service.duration_hours} {t('serviceDetail.hour')}
                   </p>
                 </div>
               </div>
@@ -157,7 +140,7 @@ export function ServiceDetailPage() {
               <div className="flex items-center gap-2">
                 <Users className="w-5 h-5 text-[#FF6B35]" />
                 <div>
-                  <p className="text-xs text-gray-500">{lang === 'ar' ? 'أقصى عدد' : lang === 'ms' ? 'Maksimum' : 'Max'}</p>
+                  <p className="text-xs text-gray-500">{t('serviceDetail.max')}</p>
                   <p className="font-semibold text-gray-900">{service.max_participants}</p>
                 </div>
               </div>
@@ -166,7 +149,7 @@ export function ServiceDetailPage() {
               <div className="flex items-center gap-2">
                 <Car className="w-5 h-5 text-[#FF6B35]" />
                 <div>
-                  <p className="text-xs text-gray-500">{lang === 'ar' ? 'المركبة' : lang === 'ms' ? 'Kenderaan' : 'Vehicle'}</p>
+                  <p className="text-xs text-gray-500">{t('serviceDetail.vehicle')}</p>
                   <p className="font-semibold text-gray-900">{service.vehicle_type}</p>
                 </div>
               </div>
@@ -178,19 +161,19 @@ export function ServiceDetailPage() {
             <div className="border-t border-gray-100 pt-6 mt-6 space-y-3">
               {service.pickup_location && (
                 <div>
-                  <p className="text-xs text-gray-500">{lang === 'ar' ? 'نقطة الانطلاق' : lang === 'ms' ? 'Lokasi Pengambilan' : 'Pickup'}</p>
+                  <p className="text-xs text-gray-500">{t('serviceDetail.pickup')}</p>
                   <p className="font-medium text-gray-800">{service.pickup_location}</p>
                 </div>
               )}
               {service.dropoff_location && (
                 <div>
-                  <p className="text-xs text-gray-500">{lang === 'ar' ? 'نقطة الوصول' : lang === 'ms' ? 'Destinasi' : 'Dropoff'}</p>
+                  <p className="text-xs text-gray-500">{t('serviceDetail.dropoff')}</p>
                   <p className="font-medium text-gray-800">{service.dropoff_location}</p>
                 </div>
               )}
               {service.meeting_point && (
                 <div>
-                  <p className="text-xs text-gray-500">{lang === 'ar' ? 'نقطة التجمع' : lang === 'ms' ? 'Tempat Pertemuan' : 'Meeting point'}</p>
+                  <p className="text-xs text-gray-500">{t('serviceDetail.meetingPoint')}</p>
                   <p className="font-medium text-gray-800">{service.meeting_point}</p>
                 </div>
               )}
@@ -203,7 +186,7 @@ export function ServiceDetailPage() {
           {service.final_price !== null && (
             <>
               <p className="text-xs text-gray-500 mb-1">
-                {lang === 'ar' ? 'السعر' : lang === 'ms' ? 'Harga' : 'Price'}
+                {t('serviceDetail.price')}
               </p>
               <div className="flex items-baseline gap-2 mb-1">
                 <span className="text-4xl font-bold text-[#FF6B35]">
@@ -217,12 +200,12 @@ export function ServiceDetailPage() {
           <button
             disabled
             className="w-full py-3 bg-[#FF6B35] text-white rounded-xl font-semibold opacity-50 cursor-not-allowed"
-            title={lang === 'ar' ? 'الحجز قريباً' : 'Booking coming soon'}
+            title={t('serviceDetail.bookingSoon')}
           >
-            {lang === 'ar' ? 'احجز الآن (قريباً)' : lang === 'ms' ? 'Tempah Sekarang (Akan Datang)' : 'Book Now (Coming Soon)'}
+            {t('serviceDetail.bookNow')}
           </button>
           <p className="text-xs text-gray-400 mt-3 text-center">
-            {lang === 'ar' ? 'نظام الحجز قيد التطوير' : lang === 'ms' ? 'Sistem tempahan dalam pembangunan' : 'Booking system in development'}
+            {t('serviceDetail.bookingDev')}
           </p>
         </aside>
       </div>

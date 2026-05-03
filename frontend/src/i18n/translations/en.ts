@@ -1990,6 +1990,39 @@ export const en = {
       empty:    'No services in this category yet.',
     },
   },
+
+  serviceDetail: {
+    notFound:     'Service not found',
+    backHome:     'Back to Home',
+    back:         'Back',
+    about:        'About this service',
+    duration:     'Duration',
+    hour:         'h',
+    max:          'Max',
+    vehicle:      'Vehicle',
+    pickup:       'Pickup',
+    dropoff:      'Dropoff',
+    meetingPoint: 'Meeting point',
+    price:        'Price',
+    bookNow:      'Book Now (Coming Soon)',
+    bookingSoon:  'Booking coming soon',
+    bookingDev:   'Booking system in development',
+    types: {
+      transport: 'Transport',
+      meal:      'Restaurant',
+      tour:      'Tour',
+      activity:  'Activity',
+      visa:      'Visa',
+      insurance: 'Insurance',
+      flight:    'Flight',
+      other:     'Service',
+    },
+    pricePer: {
+      person: '/ person',
+      group:  '/ group',
+      unit:   '/ unit',
+    },
+  },
 } as const;
 
 export type TranslationKeys = typeof en;

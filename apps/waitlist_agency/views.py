@@ -96,20 +96,30 @@ class AgencyWaitlistRegisterView(APIView):
         # إشعار in-app للأدمن (بدل إيميل)
         # ═══════════════════════════════════════════
         try:
+            from apps.notifications.translations import nt
+
             admins = User.objects.filter(
                 role__in=['super_admin', 'admin'],
                 is_active=True,
             )
-            Notification.objects.bulk_create([
-                Notification(
+            notifs = []
+            for a in admins:
+                lang = getattr(a, 'language', None) or 'ar'
+                title = nt('new_agency.title', lang) + f': {instance.name}'
+                message = nt(
+                    'new_agency.message', lang,
+                    name=instance.name,
+                    country=instance.country or '—',
+                    ref=instance.ref_number,
+                )
+                notifs.append(Notification(
                     recipient=a,
                     type='new_agency',
-                    title=f'وكالة جديدة: {instance.name}',
-                    message=f'{instance.name} من {instance.country} طلبت الانضمام. رقم المرجع: {instance.ref_number}',
+                    title=title,
+                    message=message,
                     link='/dashboard?tab=registrations',
-                )
-                for a in admins
-            ])
+                ))
+            Notification.objects.bulk_create(notifs)
             logger.info(f'🔔 {admins.count()} in-app notifications for new agency: {instance.name}')
         except Exception as e:
             logger.error(f'Failed to create notifications: {e}')

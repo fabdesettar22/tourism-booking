@@ -103,23 +103,36 @@ class WaitlistBaseView(APIView):
         # إشعار in-app للأدمن
         # ═══════════════════════════════════════════
         try:
-            supplier_label = dict(instance._meta.get_field('supplier_type').choices).get(
-                self.supplier_type, self.supplier_type
-            ) if hasattr(instance._meta.get_field('supplier_type'), 'choices') else self.supplier_type
+            from apps.notifications.translations import nt
+
+            display_name = (
+                getattr(instance, 'company_name', '')
+                or getattr(instance, 'full_name', '')
+                or '—'
+            )
+            country_name = getattr(instance, 'country', '') or '—'
+
             admins = User.objects.filter(
                 role__in=['super_admin', 'admin'],
                 is_active=True,
             )
-            Notification.objects.bulk_create([
-                Notification(
+            notifs = []
+            for a in admins:
+                lang = getattr(a, 'language', None) or 'ar'
+                supplier_label = nt(f'supplier_type.{self.supplier_type}', lang)
+                title = nt('new_supplier.title', lang) + f': {display_name}'
+                message = nt(
+                    'new_supplier.message', lang,
+                    type=supplier_label, country=country_name, ref=instance.ref_number,
+                )
+                notifs.append(Notification(
                     recipient=a,
                     type='new_supplier',
-                    title=f'مورّد جديد: {getattr(instance, "name", getattr(instance, "business_name", ""))}',
-                    message=f'{self.supplier_type} من {getattr(instance, "country", "—")}. رقم المرجع: {instance.ref_number}',
+                    title=title,
+                    message=message,
                     link='/dashboard?tab=registrations',
-                )
-                for a in admins
-            ])
+                ))
+            Notification.objects.bulk_create(notifs)
             logger.info(f'🔔 {admins.count()} notifications created for new supplier')
         except Exception as e:
             logger.error(f'Failed to create supplier notifications: {e}')
