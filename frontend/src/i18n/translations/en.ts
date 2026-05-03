@@ -88,7 +88,7 @@ export const en = {
     title:    'The Heart of',
     titleSpan:'Southeast Asia',
     desc:     'A land of diverse culture, stunning nature, and world-class hospitality. Malaysia offers an unforgettable experience for every traveler.',
-    destinations: {
+    destinationsAdmin: {
       kl:      'Kuala Lumpur',
       klDesc:  'The vibrant capital',
       lk:      'Langkawi',
@@ -101,7 +101,7 @@ export const en = {
   },
 
   // ── Destinations ──────────────────────────────────────
-  destinationsAdmin: {
+  destinations: {
     label:     'Explore',
     title:     'Popular Destinations',
     browseAll: 'Browse All',
@@ -704,7 +704,7 @@ export const en = {
     tableHeaders: ['INVOICE','TYPE','BOOKING','STATUS','PRICE','CUSTOMER','DATE'],
   },
 
-  destinations: {
+  destinationsAdmin: {
     title: 'Destinations Management',
     subtitle: 'Manage countries and cities',
     addCountry: 'Add Country',
@@ -1975,6 +1975,20 @@ export const en = {
   popularDestinations: {
     title:    'Popular Destinations',
     thisMonth: 'This month',
+  },
+
+  home: {
+    featuredHotels: {
+      title:    'Featured Hotels',
+      subtitle: 'Best verified hotels on our platform',
+      seeAll:   'See all →',
+    },
+    services: {
+      title:    'Tourism Services',
+      subtitle: 'Transport, tours, activities & restaurants — everything you need for your trip',
+      seeAll:   'See all →',
+      empty:    'No services in this category yet.',
+    },
   },
 } as const;
 

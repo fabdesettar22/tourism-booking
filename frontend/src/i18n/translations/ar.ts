@@ -84,7 +84,7 @@ export const ar: TranslationKeys = {
     title:    'قلب',
     titleSpan:'جنوب شرق آسيا',
     desc:     'أرض الثقافة المتنوعة والطبيعة الخلابة والضيافة عالمية المستوى. ماليزيا تقدم تجربة لا تُنسى لكل مسافر.',
-    destinations: {
+    destinationsAdmin: {
       kl:      'كوالالمبور',
       klDesc:  'العاصمة النابضة',
       lk:      'لنكاوي',
@@ -96,7 +96,7 @@ export const ar: TranslationKeys = {
     },
   },
 
-  destinationsAdmin: {
+  destinations: {
     label:     'استكشف',
     title:     'الوجهات الشهيرة',
     browseAll: 'تصفح الكل',
@@ -692,7 +692,7 @@ export const ar: TranslationKeys = {
     tableHeaders: ['الفاتورة','النوع','الحجز','الحالة','السعر','العميل','التاريخ'],
   },
 
-  destinations: {
+  destinationsAdmin: {
     title: 'إدارة الوجهات',
     subtitle: 'إدارة الدول والمدن السياحية',
     addCountry: 'إضافة دولة',
@@ -1963,5 +1963,19 @@ export const ar: TranslationKeys = {
   popularDestinations: {
     title:    'الوجهات الأكثر شعبية',
     thisMonth: 'هذا الشهر',
+  },
+
+  home: {
+    featuredHotels: {
+      title:    'فنادق مختارة',
+      subtitle: 'أفضل الفنادق المُعتمَدة على منصتنا',
+      seeAll:   'عرض الكل ←',
+    },
+    services: {
+      title:    'خدمات سياحية',
+      subtitle: 'نقل، جولات، أنشطة، ومطاعم — كل ما تحتاجه لرحلتك',
+      seeAll:   'عرض الكل ←',
+      empty:    'لا توجد خدمات في هذه الفئة بعد.',
+    },
   },
 };

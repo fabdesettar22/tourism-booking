@@ -84,7 +84,7 @@ export const ms: TranslationKeys = {
     title:    'Jantung',
     titleSpan:'Asia Tenggara',
     desc:     'Tanah budaya pelbagai, alam semula jadi yang menakjubkan, dan keramahan bertaraf dunia. Malaysia menawarkan pengalaman yang tidak dapat dilupakan untuk setiap pelancong.',
-    destinations: {
+    destinationsAdmin: {
       kl:      'Kuala Lumpur',
       klDesc:  'Ibu kota yang rancak',
       lk:      'Langkawi',
@@ -96,7 +96,7 @@ export const ms: TranslationKeys = {
     },
   },
 
-  destinationsAdmin: {
+  destinations: {
     label:     'Jelajah',
     title:     'Destinasi Popular',
     browseAll: 'Lihat Semua',
@@ -692,7 +692,7 @@ export const ms: TranslationKeys = {
     tableHeaders: ['INVOIS','JENIS','TEMPAHAN','STATUS','HARGA','PELANGGAN','TARIKH'],
   },
 
-  destinations: {
+  destinationsAdmin: {
     title: 'Pengurusan Destinasi',
     subtitle: 'Urus negara dan bandar pelancongan',
     addCountry: 'Tambah Negara',
@@ -1963,5 +1963,19 @@ export const ms: TranslationKeys = {
   popularDestinations: {
     title:    'Destinasi Popular',
     thisMonth: 'Bulan ini',
+  },
+
+  home: {
+    featuredHotels: {
+      title:    'Hotel Pilihan',
+      subtitle: 'Hotel terbaik yang disahkan di platform kami',
+      seeAll:   'Lihat Semua ←',
+    },
+    services: {
+      title:    'Perkhidmatan Pelancongan',
+      subtitle: 'Pengangkutan, lawatan, aktiviti & restoran — semua untuk perjalanan anda',
+      seeAll:   'Lihat Semua ←',
+      empty:    'Tiada perkhidmatan dalam kategori ini lagi.',
+    },
   },
 };

@@ -780,7 +780,7 @@ const Footer = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) => (
 // ═══════════════════════════════════════════════════════════
 // FeaturedHotelsSection — الفنادق المُفعَّلة من Hotel.is_active=True
 // ═══════════════════════════════════════════════════════════
-const FeaturedHotelsSection = ({ lang, isRTL, hidden }: { lang: Language; isRTL: boolean; hidden?: boolean }) => {
+const FeaturedHotelsSection = ({ lang, isRTL, hidden, t }: { lang: Language; isRTL: boolean; hidden?: boolean; t: (k: string) => string }) => {
   const [hotels, setHotels] = useState<PublicHotelListItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -794,13 +794,9 @@ const FeaturedHotelsSection = ({ lang, isRTL, hidden }: { lang: Language; isRTL:
   if (!loading && hotels.length === 0) return null;
   if (hidden) return null;
 
-  const title = lang === 'ar' ? 'فنادق مختارة' : lang === 'ms' ? 'Hotel Pilihan' : 'Featured Hotels';
-  const subtitle = lang === 'ar'
-    ? 'أفضل الفنادق المُعتمَدة على منصتنا'
-    : lang === 'ms'
-    ? 'Hotel terbaik yang disahkan di platform kami'
-    : 'Best verified hotels on our platform';
-  const seeAll = lang === 'ar' ? 'عرض الكل ←' : lang === 'ms' ? 'Lihat Semua ←' : 'See all →';
+  const title    = t('home.featuredHotels.title');
+  const subtitle = t('home.featuredHotels.subtitle');
+  const seeAll   = t('home.featuredHotels.seeAll');
 
   return (
     <section className="bg-white py-14" dir={isRTL ? 'rtl' : 'ltr'}>
@@ -836,11 +832,12 @@ const FeaturedHotelsSection = ({ lang, isRTL, hidden }: { lang: Language; isRTL:
 // ═══════════════════════════════════════════════════════════
 // FeaturedServicesSection — الخدمات المُفعَّلة من Service.is_active=True
 // ═══════════════════════════════════════════════════════════
-const FeaturedServicesSection = ({ lang, isRTL, externalFilter, hidden }: {
+const FeaturedServicesSection = ({ lang, isRTL, externalFilter, hidden, t }: {
   lang: Language;
   isRTL: boolean;
   externalFilter?: string;  // فلتر من CategoryPills
   hidden?: boolean;
+  t: (k: string) => string;
 }) => {
   const [services, setServices] = useState<PublicServiceListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -857,14 +854,9 @@ const FeaturedServicesSection = ({ lang, isRTL, externalFilter, hidden }: {
   if (!loading && services.length === 0 && !filter) return null;
   if (hidden) return null;
 
-  const title = lang === 'ar' ? 'خدمات سياحية' : lang === 'ms' ? 'Perkhidmatan Pelancongan' : 'Tourism Services';
-  const subtitle = lang === 'ar'
-    ? 'نقل، جولات، أنشطة، ومطاعم — كل ما تحتاجه لرحلتك'
-    : lang === 'ms'
-    ? 'Pengangkutan, lawatan, aktiviti & restoran'
-    : 'Transport, tours, activities & restaurants';
-
-  const seeAll = lang === 'ar' ? 'عرض الكل ←' : lang === 'ms' ? 'Lihat Semua ←' : 'See all →';
+  const title    = t('home.services.title');
+  const subtitle = t('home.services.subtitle');
+  const seeAll   = t('home.services.seeAll');
 
   return (
     <section className="bg-gray-50 py-14" dir={isRTL ? 'rtl' : 'ltr'}>
@@ -887,7 +879,7 @@ const FeaturedServicesSection = ({ lang, isRTL, externalFilter, hidden }: {
           </div>
         ) : services.length === 0 ? (
           <div className="text-center py-12 text-gray-400">
-            {lang === 'ar' ? 'لا توجد خدمات في هذه الفئة بعد.' : lang === 'ms' ? 'Tiada perkhidmatan dalam kategori ini lagi.' : 'No services in this category yet.'}
+            {t('home.services.empty')}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -975,12 +967,12 @@ export function HomePage({ onLogin }: { onLogin?: () => void }) {
 
       {/* 5. Featured Hotels */}
       {cfgGet('show_hotels') && (
-        <FeaturedHotelsSection lang={lang} isRTL={isRTL} />
+        <FeaturedHotelsSection lang={lang} isRTL={isRTL} t={t} />
       )}
 
       {/* 6. Featured Services */}
       {cfgGet('show_services') && (
-        <FeaturedServicesSection lang={lang} isRTL={isRTL} />
+        <FeaturedServicesSection lang={lang} isRTL={isRTL} t={t} />
       )}
 
       {/* 8. Trust Section */}
