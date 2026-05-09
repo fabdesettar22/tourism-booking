@@ -3,6 +3,7 @@ import { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { PublicNavbar } from '../../components/layout/PublicNavbar';
 import { CountryCityPicker } from '../../components/forms/CountryCityPicker';
+import { TurnstileWidget } from '../../components/security/TurnstileWidget';
 import { useLanguage } from '../../hooks/useLanguage';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -50,6 +51,7 @@ export function RegisterAgencyPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError]     = useState('');
+  const [cfToken, setCfToken] = useState<string | null>(null);
 
   const [form, setForm] = useState<TextForm>({
     name: '',
@@ -119,6 +121,7 @@ export function RegisterAgencyPage() {
     setError('');
     const err = validateStep3();
     if (err) { setError(err); return; }
+    if (!cfToken) { setError(t('registerAgency.errBotVerification') || 'Bot verification required. Please wait for the check to complete and try again.'); return; }
 
     setLoading(true);
     try {
@@ -134,6 +137,7 @@ export function RegisterAgencyPage() {
       if (files.trade_license)     fd.append('trade_license',     files.trade_license);
       if (files.owner_id_document) fd.append('owner_id_document', files.owner_id_document);
       if (files.logo)              fd.append('logo',              files.logo);
+      if (cfToken) fd.append('cf_turnstile_token', cfToken);
 
       const res = await fetch(`${BASE}/api/v1/waitlist-agency/register/`, {
         method: 'POST',
@@ -475,6 +479,7 @@ export function RegisterAgencyPage() {
                   </p>
                 </div>
 
+                <TurnstileWidget onToken={setCfToken} className="mt-2" />
                 <div className="flex gap-3 mt-2">
                   <button
                     onClick={() => { setError(''); setStep(2); }}
@@ -485,7 +490,7 @@ export function RegisterAgencyPage() {
                   </button>
                   <button
                     onClick={handleSubmit}
-                    disabled={loading}
+                    disabled={loading || !cfToken}
                     className="flex-1 bg-[#FF6B35] hover:bg-[#e07a38] text-white font-bold py-3.5 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {loading

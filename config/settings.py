@@ -55,6 +55,13 @@ INSTALLED_APPS = [
      'apps.hero_hotels',
     'apps.advertising',
     'apps.waitlist_agency',
+    'apps.airport_transfers',
+    'apps.tours_excursions',
+    'apps.gifts',
+    'apps.hotel_rates',
+    'apps.reviews',
+    'apps.loyalty',
+    'apps.security',
 ]
 
 MIDDLEWARE = [
@@ -66,6 +73,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'apps.core.middleware.TenantMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -143,11 +151,30 @@ if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
     DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
     print("[settings] ✅ Cloudinary storage enabled")
 else:
-    print("[settings] ⚠️ Cloudinary credentials missing — using local MEDIA_ROOT")
+    pass  # Local MEDIA_ROOT (intentional)
 
 # ═══════════════════════════════════════════════════════════
 # PRODUCTION SECURITY (only when DEBUG=False)
 # ═══════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════
+# SENTRY (error monitoring) — only enabled when DSN is set
+# ═══════════════════════════════════════════════════════════
+SENTRY_DSN = os.getenv('SENTRY_DSN', '')
+if SENTRY_DSN:
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.django import DjangoIntegration
+        sentry_sdk.init(
+            dsn=SENTRY_DSN,
+            integrations=[DjangoIntegration()],
+            traces_sample_rate=float(os.getenv('SENTRY_TRACES_RATE', '0.1')),
+            send_default_pii=False,
+            environment=os.getenv('SENTRY_ENV', 'production' if not DEBUG else 'development'),
+        )
+        print("[settings] ✅ Sentry monitoring enabled")
+    except ImportError:
+        pass
+
 if not DEBUG:
     # Behind Render's HTTPS proxy
     SECURE_PROXY_SSL_HEADER     = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -169,6 +196,8 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:3000',
     'http://127.0.0.1:5173',
+    'https://mybridge.my',
+    'https://www.mybridge.my',
 ] + _csrf_extra
 
 # ─── DRF ──────────────────────────────────────────────────
@@ -183,6 +212,9 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework.renderers.JSONRenderer',
     ),
+    # ── Pagination ────────────────────────────────────────
+    'DEFAULT_PAGINATION_CLASS': 'apps.core.pagination.OptInPageNumberPagination',
+    'PAGE_SIZE': 20,
     # ── Throttling (Rate Limiting) ────────────────────────
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
@@ -205,7 +237,7 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': False,
     'UPDATE_LAST_LOGIN'       : True,
     'AUTH_HEADER_TYPES'       : ('Bearer',),
-    'USER_ID_FIELD'           : 'id',
+    'USER_ID_FIELD'           : 'uid',
     'USER_ID_CLAIM'           : 'user_id',
     'TOKEN_OBTAIN_PAIR_SERIALIZER': 'apps.accounts.serializers.auth_serializers.CustomTokenObtainPairSerializer',
 }
@@ -280,6 +312,8 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:3001',
     'http://127.0.0.1:3000',
     'http://127.0.0.1:5173',
+    'https://mybridge.my',
+    'https://www.mybridge.my',
 ] + _extra_cors
 
 CORS_ALLOW_CREDENTIALS = True  # ضروري لإرسال Authorization header
@@ -368,3 +402,7 @@ SENDGRID_FROM_NAME   = os.getenv('SENDGRID_FROM_NAME', 'MYBRIDGE')
 # ─── Waitlist ─────────────────────────────────────────────
 WAITLIST_SITE_NAME   = 'MYBRIDGE'
 WAITLIST_SITE_URL    = os.getenv('WAITLIST_SITE_URL', 'https://www.mybridge.my')
+
+# ─── Cloudflare Turnstile (anti-bot) ──────────────────────
+TURNSTILE_SITE_KEY   = os.getenv('TURNSTILE_SITE_KEY', '')
+TURNSTILE_SECRET_KEY = os.getenv('TURNSTILE_SECRET_KEY', '')
