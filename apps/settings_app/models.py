@@ -12,6 +12,14 @@ class SiteSettings(models.Model):
     site_email   = models.EmailField(blank=True, verbose_name="البريد الإلكتروني")
     site_phone   = models.CharField(max_length=20, blank=True, verbose_name="الهاتف")
     site_address = models.TextField(blank=True, verbose_name="العنوان")
+    default_hq_commission_pct = models.DecimalField(
+        max_digits=5, decimal_places=2, default=10.00,
+        verbose_name="عمولة HQ الافتراضية %"
+    )
+    default_currency = models.CharField(
+        max_length=3, default='MYR',
+        verbose_name="العملة الافتراضية"
+    )
     updated_at   = models.DateTimeField(auto_now=True)
 
     class Meta:

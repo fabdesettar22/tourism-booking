@@ -1,5 +1,22 @@
+from django.conf import settings
 from rest_framework import serializers
 from .models import BlogPost, BlogCategory, BlogTag, BlogRelatedHotel, BlogRelatedService, BlogRevision
+
+
+class ImageUrlOrFileField(serializers.ImageField):
+    """Accepts either an uploaded file or a string URL/path pointing to an
+    already-uploaded file under MEDIA_URL (returned by /admin/upload-image/)."""
+
+    def to_internal_value(self, data):
+        if isinstance(data, str):
+            if not data:
+                return None
+            media_url = settings.MEDIA_URL or '/media/'
+            idx = data.find(media_url)
+            if idx != -1:
+                return data[idx + len(media_url):]
+            return data.lstrip('/')
+        return super().to_internal_value(data)
 
 
 class BlogCategorySerializer(serializers.ModelSerializer):
@@ -108,6 +125,8 @@ class BlogPostWriteSerializer(serializers.ModelSerializer):
     tag_ids = serializers.PrimaryKeyRelatedField(
         many=True, queryset=BlogTag.objects.all(), source='tags', required=False,
     )
+    cover_image = ImageUrlOrFileField(required=False, allow_null=True)
+    og_image = ImageUrlOrFileField(required=False, allow_null=True)
 
     class Meta:
         model = BlogPost

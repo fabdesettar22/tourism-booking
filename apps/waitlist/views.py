@@ -6,6 +6,7 @@ from rest_framework.response  import Response
 from rest_framework           import status
 from rest_framework.parsers   import MultiPartParser, FormParser, JSONParser
 from rest_framework.permissions import AllowAny
+from apps.accounts.turnstile import TurnstileRequired
 
 from .models import (
     PropertyWaitlist, TransportWaitlist, RestaurantWaitlist,
@@ -63,7 +64,7 @@ class WaitlistBaseView(APIView):
     """
     Base View مشترك لكل أنواع الـ Waitlist
     """
-    permission_classes = [AllowAny]
+    permission_classes = [AllowAny, TurnstileRequired]
     parser_classes     = [MultiPartParser, FormParser, JSONParser]
     serializer_class   = None
     supplier_type      = None
@@ -116,6 +117,12 @@ class WaitlistBaseView(APIView):
                 role__in=['super_admin', 'admin'],
                 is_active=True,
             )
+            params = {
+                "type":         {"i18n": f"supplier_type.{self.supplier_type}"},
+                "country":      country_name,
+                "ref":          instance.ref_number,
+                "display_name": display_name,
+            }
             notifs = []
             for a in admins:
                 lang = getattr(a, 'language', None) or 'ar'
@@ -130,6 +137,9 @@ class WaitlistBaseView(APIView):
                     type='new_supplier',
                     title=title,
                     message=message,
+                    title_key='new_supplier.title',
+                    message_key='new_supplier.message',
+                    params=params,
                     link='/dashboard?tab=registrations',
                 ))
             Notification.objects.bulk_create(notifs)

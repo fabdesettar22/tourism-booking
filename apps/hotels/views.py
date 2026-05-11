@@ -4,9 +4,10 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from apps.accounts.permissions import IsAdminUser, IsAgencyOrAdmin
-from .models import Hotel
+from .models import Hotel, HotelPhoto
 from .serializers.serializers import (
     HotelSerializer,
+    HotelPhotoPublicSerializer,
     PublicHotelListSerializer,
     PublicHotelDetailSerializer,
 )
@@ -29,7 +30,7 @@ class HotelViewSet(viewsets.ModelViewSet):
     def activate(self, request, pk=None):
         """
         تفعيل الفندق ليُعرَض للسائح.
-        الشروط: image + description + commission_percentage يجب أن تكون موجودة.
+        الشروط: image + description فقط (العمولة اختيارية).
         """
         hotel = self.get_object()
 
@@ -37,7 +38,7 @@ class HotelViewSet(viewsets.ModelViewSet):
             return Response({
                 'error': 'لا يمكن تفعيل الفندق — ينقصه:',
                 'missing': hotel.missing_for_activation,
-                'hint': 'يجب إضافة صورة + وصف + نسبة عمولة قبل التفعيل.',
+                'hint': 'يجب إضافة صورة ووصف قبل التفعيل.',
             }, status=status.HTTP_400_BAD_REQUEST)
 
         hotel.is_active = True
@@ -64,6 +65,58 @@ class HotelViewSet(viewsets.ModelViewSet):
             'message': 'تم إخفاء الفندق',
             'hotel': HotelSerializer(hotel).data,
         })
+
+    # ═══════════════════════════════════════════════════════
+    # GET /api/v1/hotels/{id}/photos/         — list
+    # POST /api/v1/hotels/{id}/photos/        — upload (multipart: image, is_primary, caption)
+    # DELETE /api/v1/hotels/{id}/photos/{pid}/ — delete one
+    # POST /api/v1/hotels/{id}/photos/{pid}/set-primary/  — mark as primary
+    # ═══════════════════════════════════════════════════════
+    @action(detail=True, methods=['get', 'post'], url_path='photos', permission_classes=[IsAdminUser])
+    def photos(self, request, pk=None):
+        hotel = self.get_object()
+        if request.method == 'GET':
+            photos_qs = hotel.photos.all().order_by('-is_primary', 'order')
+            return Response(HotelPhotoPublicSerializer(photos_qs, many=True, context={'request': request}).data)
+
+        # POST — upload
+        image = request.FILES.get('image')
+        if not image:
+            return Response({'detail': 'يجب إرفاق ملف image'}, status=status.HTTP_400_BAD_REQUEST)
+
+        is_primary = str(request.data.get('is_primary', 'false')).lower() in ('true', '1', 'yes')
+        caption    = request.data.get('caption', '')
+        order      = int(request.data.get('order', 0) or 0)
+
+        photo = HotelPhoto.objects.create(
+            hotel=hotel, image=image, is_primary=is_primary,
+            caption=caption, order=order,
+        )
+        return Response(
+            HotelPhotoPublicSerializer(photo, context={'request': request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=['delete'], url_path=r'photos/(?P<photo_id>\d+)', permission_classes=[IsAdminUser])
+    def delete_photo(self, request, pk=None, photo_id=None):
+        hotel = self.get_object()
+        try:
+            photo = hotel.photos.get(pk=photo_id)
+        except HotelPhoto.DoesNotExist:
+            return Response({'detail': 'not_found'}, status=status.HTTP_404_NOT_FOUND)
+        photo.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['post'], url_path=r'photos/(?P<photo_id>\d+)/set-primary', permission_classes=[IsAdminUser])
+    def set_primary_photo(self, request, pk=None, photo_id=None):
+        hotel = self.get_object()
+        try:
+            photo = hotel.photos.get(pk=photo_id)
+        except HotelPhoto.DoesNotExist:
+            return Response({'detail': 'not_found'}, status=status.HTTP_404_NOT_FOUND)
+        photo.is_primary = True
+        photo.save()  # save() ensures only one primary
+        return Response(HotelPhotoPublicSerializer(photo, context={'request': request}).data)
 
 
 # ═══════════════════════════════════════════════════════════

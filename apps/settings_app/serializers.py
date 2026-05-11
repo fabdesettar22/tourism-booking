@@ -9,7 +9,8 @@ class SiteSettingsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model  = SiteSettings
-        fields = ['id', 'site_name', 'site_logo', 'site_logo_url', 'site_email', 'site_phone', 'site_address']
+        fields = ['id', 'site_name', 'site_logo', 'site_logo_url', 'site_email', 'site_phone', 'site_address',
+                  'default_hq_commission_pct', 'default_currency']
 
     def get_site_logo_url(self, obj) -> str | None:
         if obj.site_logo:

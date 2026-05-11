@@ -37,6 +37,9 @@ const tryRefreshToken = async (): Promise<string | null> => {
     });
 
     if (!res.ok) {
+      // أفرغ القائمة كي لا تبقى promises معلّقة
+      refreshQueue.forEach(cb => cb(''));
+      refreshQueue = [];
       clearSession();
       return null;
     }
@@ -57,6 +60,8 @@ const tryRefreshToken = async (): Promise<string | null> => {
 
     return newAccessToken;
   } catch {
+    refreshQueue.forEach(cb => cb(''));
+    refreshQueue = [];
     clearSession();
     return null;
   } finally {
@@ -94,7 +99,8 @@ export const apiFetch = async (
   if (res.status === 401) {
     const newToken = await tryRefreshToken();
 
-    if (!newToken) return res; // clearSession() استدعاها tryRefreshToken
+    // إن لم نحصل على token جديد (refresh فشل أو غير موجود) فلا نعيد المحاولة
+    if (!newToken) return res; // clearSession() استدعاها tryRefreshToken عند الفشل
 
     res = await fetch(`${BASE}${endpoint}`, {
       ...options,

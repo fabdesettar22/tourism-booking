@@ -187,31 +187,6 @@ export default function ActivationCard({
         </div>
       )}
 
-      {/* حقل العمولة */}
-      <div className="flex justify-between items-center gap-2">
-        <span className="text-gray-600 whitespace-nowrap">{t.commission}:</span>
-        <div className="flex items-center gap-1 flex-1 max-w-[140px]">
-          <input
-            type="number"
-            min="0"
-            max="100"
-            step="0.01"
-            value={commission}
-            onChange={e => setCommission(e.target.value)}
-            placeholder={t.notSet}
-            className="w-full px-2 py-1 text-sm border border-gray-200 rounded-lg focus:border-blue-400 focus:outline-none"
-          />
-          <span className="text-gray-500">%</span>
-          <button
-            onClick={saveCommission}
-            disabled={savingCommission || !commission || commission === String(commissionPercentage)}
-            className="px-2 py-1 text-xs bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-30 disabled:cursor-not-allowed transition"
-          >
-            {savingCommission ? <Loader2 className="w-3 h-3 animate-spin" /> : t.save}
-          </button>
-        </div>
-      </div>
-
       {/* السعر النهائي */}
       {finalPrice !== null && (
         <div className="flex justify-between items-center pt-1 border-t border-gray-200">

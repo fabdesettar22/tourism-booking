@@ -103,6 +103,20 @@ export function Header({ user, onLogout, onNavigate }: Props) {
     return () => clearInterval(interval);
   }, [user]);
 
+  // Refetch notifications when UI language changes so titles/messages re-translate
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      try {
+        const res = await apiFetch('/api/v1/notifications/');
+        if (res.ok) {
+          const data = await res.json();
+          setNotifications(Array.isArray(data) ? data : (data.results ?? []));
+        }
+      } catch {}
+    })();
+  }, [lang, user]);
+
   const openNotifications = async () => {
     setShowNotif(!showNotif);
     setShowMenu(false);

@@ -10,6 +10,7 @@ import {
 import { useLanguage } from '../../hooks/useLanguage';
 import { PublicNavbar } from '../../components/layout/PublicNavbar';
 import { CountryCityPicker } from '../../components/forms/CountryCityPicker';
+import { TurnstileWidget } from '../../components/security/TurnstileWidget';
 
 const BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
@@ -221,6 +222,7 @@ export function WaitlistFormPage() {
   const [success, setSuccess] = useState(false);
   const [refNum, setRefNum] = useState('');
   const [error, setError] = useState('');
+  const [cfToken, setCfToken] = useState<string | null>(null);
 
   // 🆕 الصور تُحفظ محلياً قبل الإرسال (File[] + primary index)
   type StagedPhoto = { id: string; file: File; preview: string; isPrimary: boolean };
@@ -398,6 +400,7 @@ export function WaitlistFormPage() {
         if (val) fd.append(u, val);
       });
 
+      if (cfToken) fd.append('cf_turnstile_token', cfToken);
       const endpoint = ENDPOINT_MAP[type!] || 'other';
       const res = await fetch(`${BASE}/api/v1/waitlist/${endpoint}/`, {
         method: 'POST',
@@ -1216,6 +1219,7 @@ export function WaitlistFormPage() {
                 </div>
               </div>
 
+              <TurnstileWidget onToken={setCfToken} className="mb-3" />
               <div className="flex gap-3">
                 <button
                   onClick={() => setStep(3)}

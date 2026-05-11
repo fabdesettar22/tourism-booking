@@ -5,7 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.db.models import Sum
+from django.db.models import Sum, F
 from django.utils import timezone
 from datetime import timedelta
 import logging
@@ -180,10 +180,14 @@ class AgencyDashboardStatsView(APIView):
                 'count': count,
             })
 
-        recent = qs.select_related('package')[:5].values(
-            'id', 'reference_number', 'client_name', 'client_phone',
-            'status', 'booking_type', 'adults', 'children', 'infants',
-            'total_price', 'currency', 'created_at', 'package__name',
+        recent = list(
+            qs.select_related('package')[:5]
+            .annotate(package__name=F('package__title'))
+            .values(
+                'id', 'reference_number', 'client_name', 'client_phone',
+                'status', 'booking_type', 'adults', 'children', 'infants',
+                'total_price', 'currency', 'created_at', 'package__name',
+            )
         )
 
         return Response({

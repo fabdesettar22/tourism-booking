@@ -8,6 +8,7 @@ from rest_framework.response     import Response
 from rest_framework              import status, permissions
 from rest_framework.parsers      import MultiPartParser, FormParser, JSONParser
 from rest_framework.permissions  import AllowAny, IsAuthenticated
+from apps.accounts.turnstile     import TurnstileRequired
 
 from apps.notifications.models   import Notification
 from .models                     import AgencyWaitlist
@@ -59,7 +60,7 @@ class AgencyWaitlistRegisterView(APIView):
     عام (AllowAny) - أي زائر يستطيع التسجيل.
     يدعم multipart/form-data لرفع الوثائق.
     """
-    permission_classes = [AllowAny]
+    permission_classes = [AllowAny, TurnstileRequired]
     parser_classes     = [MultiPartParser, FormParser, JSONParser]
 
     def post(self, request):
@@ -102,6 +103,12 @@ class AgencyWaitlistRegisterView(APIView):
                 role__in=['super_admin', 'admin'],
                 is_active=True,
             )
+            params = {
+                "name":         instance.name,
+                "country":      instance.country or "—",
+                "ref":          instance.ref_number,
+                "display_name": instance.name,
+            }
             notifs = []
             for a in admins:
                 lang = getattr(a, 'language', None) or 'ar'
@@ -117,6 +124,9 @@ class AgencyWaitlistRegisterView(APIView):
                     type='new_agency',
                     title=title,
                     message=message,
+                    title_key='new_agency.title',
+                    message_key='new_agency.message',
+                    params=params,
                     link='/dashboard?tab=registrations',
                 ))
             Notification.objects.bulk_create(notifs)

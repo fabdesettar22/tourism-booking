@@ -39,6 +39,9 @@ def notify_admins(*, type: str, title_key: str, message_key: str,
             type         = type,
             title        = nt(title_key,   lang, **params),
             message      = nt(message_key, lang, **params),
+            title_key    = title_key,
+            message_key  = message_key,
+            params       = params,
             link         = link,
             reference_id = reference_id,
         ))
@@ -56,6 +59,9 @@ def notify_user(*, user, type: str, title_key: str, message_key: str,
         type         = type,
         title        = nt(title_key,   lang, **params),
         message      = nt(message_key, lang, **params),
+        title_key    = title_key,
+        message_key  = message_key,
+        params       = params,
         link         = link,
         reference_id = reference_id,
     )
@@ -98,7 +104,6 @@ def notify_booking_status_change(booking: Booking, new_status: str, changed_by):
     if not booking.agency:
         return
     for user in User.objects.filter(agency=booking.agency, is_active=True):
-        status_label = nt(f'status.{new_status}', _user_lang(user))
         notify_user(
             user         = user,
             type         = 'booking_status',
@@ -107,7 +112,7 @@ def notify_booking_status_change(booking: Booking, new_status: str, changed_by):
             reference_id = reference_id,
             link         = '/bookings',
             name         = booking.client_name,
-            status       = status_label,
+            status       = {"i18n": f"status.{new_status}"},
         )
 
 

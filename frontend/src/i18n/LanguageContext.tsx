@@ -20,22 +20,23 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     document.documentElement.setAttribute('lang', lang);
   }, [lang]);
 
-  const changeLang = useCallback((newLang: Language) => {
+  const changeLang = useCallback(async (newLang: Language) => {
     setStoredLang(newLang);
-    setLang(newLang);
-    // مزامنة مع الـ backend ليتلقى المستخدم الإشعارات بلغته الجديدة
+    // Sync DB FIRST so subsequent API responses use the new language,
+    // then update React state so dependent effects refetch.
     try {
       const token = localStorage.getItem('access');
       if (token) {
         const fd = new FormData();
         fd.append('language', newLang);
-        fetch('/api/v1/accounts/me/', {
+        await fetch('/api/v1/accounts/me/', {
           method: 'PATCH',
           headers: { Authorization: `Bearer ${token}` },
           body: fd,
         }).catch(() => {/* silent */});
       }
     } catch {/* localStorage unavailable */}
+    setLang(newLang);
   }, []);
 
   const t = useCallback(

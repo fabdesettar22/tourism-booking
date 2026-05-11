@@ -8,10 +8,25 @@ import {
   XCircle, AlertTriangle, X, Loader2, BedDouble, Coffee, CalendarDays
 } from 'lucide-react';
 import { CountryCityPicker } from '../../components/forms/CountryCityPicker';
+import { HotelRatesPanel } from './HotelRatesPanel';
+import { HotelSetupForm } from './HotelSetupForm';
+import { PriceCalculatorModal } from './PriceCalculatorModal';
+import { Calculator } from 'lucide-react';
 
 interface Country { id: number; name: string; }
 interface City { id: number; name: string; country: number; }
-interface Hotel { id: number; name: string; city: number; country?: string; address: string; stars: number; description?: string; image?: string; }
+interface Hotel {
+  id: number; name: string; city: number; country?: string;
+  address: string; stars: number;
+  description?: string; description_ar?: string; description_en?: string;
+  image?: string;
+  is_active?: boolean;
+  commission_percentage?: number | string | null;
+  hotel_chain?: string;
+  default_margin_pct?: string;
+  is_ready_for_activation?: boolean;
+  missing_for_activation?: string[];
+}
 interface RoomType { id?: number; hotel?: number; name: string; max_occupancy: number; description: string; breakfast_included: boolean; }
 interface RoomPrice { id?: number; season?: number; room_type?: number; room_type_name?: string; price_per_night: string; discount_percentage: string; breakfast_included: boolean; child_with_bed_price: string; child_without_bed_price: string; infant_with_bed_price: string; infant_without_bed_price: string; }
 interface Season { id?: number; hotel?: number; name: string; valid_from: string; valid_to: string; prices?: RoomPrice[]; }
@@ -188,6 +203,7 @@ function SeasonCard({ season, index, rooms, onChange, onRemove }: {
 
 export function HotelsManagement() {
   const { t, lang, isRTL } = useLanguage();
+  const [subView, setSubView] = useState<'hotels' | 'rates'>('hotels');
   const [countries, setCountries] = useState<Country[]>([]);
   const [cities, setCities] = useState<City[]>([]);
   const [hotels, setHotels] = useState<Hotel[]>([]);
@@ -211,6 +227,7 @@ export function HotelsManagement() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [rooms, setRooms] = useState<RoomType[]>([]);
   const [seasons, setSeasons] = useState<Season[]>([]);
+  const [calculatorOpen, setCalculatorOpen] = useState(false);
 
   const addToast = (type: ToastType, msg: string) => {
     const id = Date.now();
@@ -404,24 +421,82 @@ export function HotelsManagement() {
   const tableHeaders = TABLE_HEADERS[lang] || TABLE_HEADERS.en;
   const align = isRTL ? 'text-right' : 'text-left';
 
+  // ── Sub-tabs ──────────────────────────────────────────
+  const SubTabs = () => (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-1 inline-flex gap-1">
+      <button
+        onClick={() => setSubView('hotels')}
+        className={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
+          subView === 'hotels' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'
+        }`}>
+        <Building2 className="w-4 h-4" />
+        {lang === 'ar' ? 'الفنادق' : lang === 'en' ? 'Hotels' : 'Hotel'}
+      </button>
+      <button
+        onClick={() => setSubView('rates')}
+        className={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
+          subView === 'rates' ? 'bg-purple-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'
+        }`}>
+        <BedDouble className="w-4 h-4" />
+        {lang === 'ar' ? 'كتيب الأسعار' : lang === 'en' ? 'Rate Sheet' : 'Helaian Kadar'}
+      </button>
+    </div>
+  );
+
+  // ── Early return for Rate Sheet sub-view ──────────────
+  if (subView === 'rates') {
+    return (
+      <div className="max-w-7xl mx-auto space-y-4" dir={isRTL ? 'rtl' : 'ltr'}>
+        <SubTabs />
+        <HotelRatesPanel />
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto space-y-6" dir={isRTL ? 'rtl' : 'ltr'}>
       <ToastContainer toasts={toasts} remove={id => setToasts(p => p.filter(t => t.id !== id))} />
+
+      <SubTabs />
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{t('hotelsMgmt.title')}</h1>
           <p className="text-sm text-gray-500 mt-1">{t('hotelsMgmt.subtitle')}</p>
         </div>
-        <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm">
-          <Plus className="w-4 h-4" /> {t('hotelsMgmt.addHotel')}
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setCalculatorOpen(true)} className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl text-sm font-medium hover:shadow-lg transition shadow-md">
+            <Calculator className="w-4 h-4" /> {lang==='ar'?'الآلة الحاسبة':lang==='en'?'Calculator':'Kalkulator'}
+          </button>
+          <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm">
+            <Plus className="w-4 h-4" /> {t('hotelsMgmt.addHotel')}
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <StatCard icon={<Building2 className="w-6 h-6 text-blue-600"/>} label={t('hotelsMgmt.stats.total')}     value={hotels.length}             color="bg-blue-50"/>
-        <StatCard icon={<Star className="w-6 h-6 text-amber-500"/>}      label={t('hotelsMgmt.stats.avgStars')}  value={`${avgStars} ★`}           color="bg-amber-50"/>
-        <StatCard icon={<MapPin className="w-6 h-6 text-orange-600"/>}   label={t('hotelsMgmt.stats.filtered')}  value={filteredHotels.length}     color="bg-orange-50"/>
+      {/* Stats — 4 cards (Services-style) */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard icon={<Building2 className="w-6 h-6 text-blue-600"/>}  label={t('hotelsMgmt.stats.total')}     value={hotels.length}                                       color="bg-blue-50"/>
+        <StatCard icon={<Star className="w-6 h-6 text-amber-500"/>}      label={t('hotelsMgmt.stats.avgStars')}  value={`${avgStars} ★`}                                     color="bg-amber-50"/>
+        <StatCard icon={<CheckCircle2 className="w-6 h-6 text-emerald-600"/>} label={lang==='ar'?'النشطة':lang==='en'?'Active':'Aktif'} value={hotels.filter(h => (h as any).is_active).length} color="bg-emerald-50"/>
+        <StatCard icon={<MapPin className="w-6 h-6 text-purple-600"/>}   label={t('hotelsMgmt.stats.filtered')}  value={filteredHotels.length}                               color="bg-purple-50"/>
+      </div>
+
+      {/* Quick stars filter (Services-style chip row) */}
+      <div className="flex gap-2 flex-wrap">
+        <button onClick={()=>{setSelectedStarsFilter(null);setCurrentPage(1);}}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium border transition-colors
+            ${!selectedStarsFilter?'bg-blue-600 text-white border-blue-600':'bg-white border-gray-200 hover:bg-gray-50'}`}>
+          {t('hotelsMgmt.allStars') || 'كل النجوم'}
+        </button>
+        {[5,4,3,2,1].map(n=>(
+          <button key={n} onClick={()=>{setSelectedStarsFilter(n);setCurrentPage(1);}}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium border transition-colors
+              ${selectedStarsFilter===n?'bg-amber-50 text-amber-700 border-amber-200':'bg-white border-gray-200 hover:bg-gray-50'}`}>
+            <Star className={`w-4 h-4 ${selectedStarsFilter===n?'fill-amber-400 text-amber-400':''}`}/> {n} ★
+            <span className="text-xs opacity-60 mr-1">({hotels.filter(h => h.stars === n).length})</span>
+          </button>
+        ))}
       </div>
 
       <div className="bg-white border rounded-2xl p-4 flex flex-col md:flex-row gap-3 items-center shadow-sm">
@@ -460,33 +535,95 @@ export function HotelsManagement() {
               const city = cities.find(c => c.id === hotel.city);
               const country = countries.find(c => c.id === city?.country);
               const img = getImg(hotel.image);
+              const chain = (hotel as any).hotel_chain || '';
+              // Star-based theme color (matches Services card style)
+              const starTheme =
+                hotel.stars >= 5 ? { bg: 'bg-gradient-to-br from-amber-100 to-orange-100', color: 'text-amber-700' } :
+                hotel.stars === 4 ? { bg: 'bg-gradient-to-br from-blue-100 to-indigo-100',   color: 'text-blue-700' } :
+                hotel.stars === 3 ? { bg: 'bg-gradient-to-br from-emerald-100 to-cyan-100',  color: 'text-emerald-700' } :
+                                    { bg: 'bg-gradient-to-br from-gray-100 to-gray-200',     color: 'text-gray-600' };
               return (
-                <div key={hotel.id} className="group bg-white border rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                  <div className="h-44 bg-gradient-to-br from-gray-100 to-gray-200 relative overflow-hidden">
-                    {img ? <img src={img} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={hotel.name}/>
-                      : <div className="w-full h-full flex flex-col items-center justify-center text-gray-300"><Building2 className="w-12 h-12 mb-1"/><span className="text-xs">{t('hotelsMgmt.card.noImage')}</span></div>}
-                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                <div key={hotel.id} className="group bg-white border rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col">
+                  <div className={`h-28 ${starTheme.bg} flex items-center justify-center relative overflow-hidden`}>
+                    {img
+                      ? <img src={img} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={hotel.name}/>
+                      : <Building2 className={`w-14 h-14 ${starTheme.color} opacity-30`}/>
+                    }
+                    {/* Top-left badge: chain or stars */}
+                    <div className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'} flex flex-col gap-1`}>
+                      {chain ? (
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${starTheme.bg} ${starTheme.color} border border-current/20 backdrop-blur-sm`}>
+                          {chain}
+                        </span>
+                      ) : (
+                        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white/90 text-gray-700 backdrop-blur-sm flex items-center gap-1">
+                          <Building2 className="w-3 h-3"/>{lang==='ar'?'فندق':lang==='en'?'Hotel':'Hotel'}
+                        </span>
+                      )}
+                    </div>
+                    {/* Top-right badge: active/inactive */}
+                    <div className={`absolute top-3 ${isRTL ? 'left-3' : 'right-3'} flex flex-col gap-1`}>
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${(hotel as any).is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                        {(hotel as any).is_active ? (lang==='ar'?'نشط':lang==='en'?'Active':'Aktif') : (lang==='ar'?'غير نشط':lang==='en'?'Inactive':'Tidak Aktif')}
+                      </span>
+                    </div>
+                    {/* Hover actions */}
+                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
                       <button onClick={()=>openEdit(hotel)} className="bg-white text-blue-600 p-2.5 rounded-full hover:bg-blue-50 shadow-lg"><Edit className="w-4 h-4"/></button>
                       <button onClick={()=>setDeleteTarget(hotel)} className="bg-white text-red-500 p-2.5 rounded-full hover:bg-red-50 shadow-lg"><Trash2 className="w-4 h-4"/></button>
                     </div>
-                    <div className={`absolute top-3 ${isRTL ? 'left-3' : 'right-3'} bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-full shadow flex items-center gap-1`}>
-                      <Star className="w-3 h-3 text-amber-400 fill-amber-400"/><span className="text-xs font-bold text-gray-700">{hotel.stars}</span>
+                  </div>
+
+                  <div className="p-4 flex-1 flex flex-col">
+                    <h3 className="font-bold text-gray-900 text-base leading-snug mb-1">{hotel.name}</h3>
+
+                    {/* Stars row */}
+                    <div className="mb-2"><StarsDisplay count={hotel.stars}/></div>
+
+                    {hotel.description && <p className="text-xs text-gray-500 line-clamp-2 mb-3">{hotel.description}</p>}
+
+                    {/* Info pills (Services-style) */}
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                      {city && (
+                        <span className="flex items-center gap-1 bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-full">
+                          <MapPin className="w-3 h-3"/> {city.name}
+                        </span>
+                      )}
+                      {country && (
+                        <span className="flex items-center gap-1 bg-purple-50 text-purple-700 text-xs px-2 py-1 rounded-full">
+                          <Globe className="w-3 h-3"/> {country.name}
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1 bg-amber-50 text-amber-700 text-xs px-2 py-1 rounded-full">
+                        <Star className="w-3 h-3 fill-current"/> {hotel.stars} ★
+                      </span>
                     </div>
+
+                    {/* Footer: address + commission */}
+                    {(hotel.address || hotel.commission_percentage != null) && (
+                      <div className="flex items-center justify-between pt-3 border-t mt-auto">
+                        {hotel.address && (
+                          <span className="text-xs text-gray-500 truncate flex-1" title={hotel.address}>
+                            {hotel.address}
+                          </span>
+                        )}
+                        {hotel.commission_percentage != null && (
+                          <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-medium shrink-0 ms-2">
+                            {hotel.commission_percentage}%
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div className="p-4">
-                    <h3 className="font-bold text-gray-900 text-base">{hotel.name}</h3>
-                    <div className="flex items-center gap-1.5 mt-1 text-gray-500 text-xs"><MapPin className="w-3.5 h-3.5"/><span>{city?.name}{country ? ` · ${country.name}` : ''}</span></div>
-                    <div className="mt-2"><StarsDisplay count={hotel.stars}/></div>
-                    {hotel.description && <p className="text-xs text-gray-500 mt-2 line-clamp-2">{hotel.description}</p>}
-                  </div>
-                  {/* 🆕 ActivationCard */}
+
+                  {/* ActivationCard */}
                   <ActivationCard
                     itemId={hotel.id}
                     itemType="hotel"
-                    isActive={hotel.is_active ?? false}
+                    isActive={(hotel as any).is_active ?? false}
                     commissionPercentage={hotel.commission_percentage}
-                    isReadyForActivation={hotel.is_ready_for_activation ?? false}
-                    missingForActivation={hotel.missing_for_activation ?? []}
+                    isReadyForActivation={(hotel as any).is_ready_for_activation ?? false}
+                    missingForActivation={(hotel as any).missing_for_activation ?? []}
                     onUpdate={() => window.location.reload()}
                     lang={lang}
                   />
@@ -557,194 +694,28 @@ export function HotelsManagement() {
       {deleteTarget && <DeleteModal name={deleteTarget.name} loading={deletingId===deleteTarget.id} onConfirm={confirmDelete} onCancel={()=>setDeleteTarget(null)}/>}
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[92vh]">
+        <HotelSetupForm
+          hotel={editingHotel ? {
+            id: editingHotel.id,
+            name: editingHotel.name,
+            city: editingHotel.city,
+            address: editingHotel.address,
+            stars: editingHotel.stars,
+            description: editingHotel.description,
+            description_ar: (editingHotel as any).description_ar,
+            description_en: (editingHotel as any).description_en,
+            default_margin_pct: (editingHotel as any).default_margin_pct,
+          } : null}
+          onSaved={() => { setShowModal(false); fetchData(); addToast('success', t('hotelsMgmt.toasts.savedOk') || 'Saved'); }}
+          onCancel={() => setShowModal(false)}
+        />
+      )}
 
-            <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-lg font-bold">{editingHotel ? t('hotelsMgmt.modal.titleEdit') : t('hotelsMgmt.modal.titleNew')}</h2>
-              <button onClick={()=>setShowModal(false)} className="p-2 hover:bg-gray-100 rounded-xl"><X className="w-5 h-5"/></button>
-            </div>
-
-            <div className="flex border-b px-6 gap-1">
-              {([
-                { key:'info',    label: t('hotelsMgmt.modal.tabs.info'),    icon:<Building2 className="w-4 h-4"/>,   badge:0 },
-                { key:'rooms',   label: t('hotelsMgmt.modal.tabs.rooms'),   icon:<BedDouble className="w-4 h-4"/>,   badge:rooms.length },
-                { key:'seasons', label: t('hotelsMgmt.modal.tabs.seasons'), icon:<CalendarDays className="w-4 h-4"/>, badge:seasons.length },
-              ] as any[]).map(tab => (
-                <button key={tab.key} onClick={()=>setActiveTab(tab.key)}
-                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors -mb-px
-                    ${activeTab===tab.key ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-                  {tab.icon} {tab.label}
-                  {tab.badge > 0 && <span className="bg-blue-100 text-blue-600 text-xs font-bold px-1.5 py-0.5 rounded-full">{tab.badge}</span>}
-                </button>
-              ))}
-            </div>
-
-            <div className="overflow-y-auto flex-1 p-6">
-
-              {activeTab==='info' && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('hotelsMgmt.modal.info.hotelName')}</label>
-                    <input value={formData.name} onChange={e=>setFormData({...formData,name:e.target.value})} className="w-full border p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" placeholder={t('hotelsMgmt.modal.info.hotelNamePlaceholder')}/>
-                  </div>
-                  <div className="col-span-2">
-                    <CountryCityPicker
-                      isRTL={isRTL}
-                      required
-                      countryLabel={t('hotelsMgmt.modal.info.country')}
-                      cityLabel={t('hotelsMgmt.modal.info.city')}
-                      initialCountryId={formData.country || undefined}
-                      initialCityId={formData.city || undefined}
-                      onCountryChange={(_iso, country) => {
-                        setFormData({...formData, country: country ? String(country.id) : '', city: ''});
-                      }}
-                      onCityChange={(_name, city) => {
-                        setFormData({...formData, city: city ? String(city.id) : ''});
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('hotelsMgmt.modal.info.address')}</label>
-                    <input value={formData.address} onChange={e=>setFormData({...formData,address:e.target.value})} className="w-full border p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" placeholder={t('hotelsMgmt.modal.info.addressPlaceholder')}/>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">{t('hotelsMgmt.modal.info.starsLabel')}</label>
-                    <div className="flex gap-2">{[1,2,3,4,5].map(n=>(
-                      <button key={n} type="button" onClick={()=>setFormData({...formData,stars:n})}
-                        className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-medium transition-all ${formData.stars===n?'border-amber-400 bg-amber-50 text-amber-600':'border-gray-200 hover:border-amber-200'}`}>
-                        {n} ★
-                      </button>
-                    ))}</div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('hotelsMgmt.modal.info.description')}</label>
-                    <textarea value={formData.description} onChange={e=>setFormData({...formData,description:e.target.value})} className="w-full border p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none" rows={3} placeholder={t('hotelsMgmt.modal.info.descriptionPlaceholder')}/>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('hotelsMgmt.modal.info.image')}</label>
-                    <label className="block cursor-pointer">
-                      <input type="file" accept="image/*" className="hidden" onChange={e=>handleImg(e.target.files?.[0]||null)}/>
-                      {imagePreview
-                        ? <div className="relative rounded-xl overflow-hidden h-40 border-2 border-blue-300">
-                            <img src={imagePreview} className="w-full h-full object-cover" alt="preview"/>
-                            <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                              <span className="text-white text-sm font-medium bg-black/50 px-3 py-1.5 rounded-lg">{t('hotelsMgmt.modal.info.changeImage')}</span>
-                            </div>
-                          </div>
-                        : <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-blue-400 hover:bg-blue-50 transition-colors">
-                            <Upload className="w-8 h-8 text-gray-300 mx-auto mb-2"/>
-                            <p className="text-sm text-gray-500">{t('hotelsMgmt.modal.info.uploadHint')}</p>
-                          </div>
-                      }
-                    </label>
-                  </div>
-                </div>
-              )}
-
-              {activeTab==='rooms' && (
-                <div className="space-y-4">
-                  {rooms.length===0 && (
-                    <div className="text-center py-10 text-gray-400">
-                      <BedDouble className="w-12 h-12 mx-auto mb-3 text-gray-200"/>
-                      <p className="text-sm">{t('hotelsMgmt.modal.rooms.noRooms')}</p>
-                    </div>
-                  )}
-                  {rooms.map((room,i) => (
-                    <div key={i} className="border-2 border-dashed border-blue-200 rounded-2xl p-4 bg-blue-50/40 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">{i+1}</div>
-                          <span className="text-sm font-semibold text-blue-700">{t('hotelsMgmt.modal.rooms.roomTypeNum').replace('{n}', String(i+1))}</span>
-                        </div>
-                        <button onClick={()=>setRooms(p=>p.filter((_,idx)=>idx!==i))} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"><X className="w-4 h-4"/></button>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="col-span-2">
-                          <input value={room.name} placeholder={t('hotelsMgmt.modal.rooms.roomNamePlaceholder')}
-                            onChange={e=>setRooms(p=>p.map((r,idx)=>idx===i?{...r,name:e.target.value}:r))}
-                            className="w-full border p-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"/>
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-500 mb-1 block">{t('hotelsMgmt.modal.rooms.maxOccupancy')}</label>
-                          <input type="number" min={1} max={10} value={room.max_occupancy}
-                            onChange={e=>setRooms(p=>p.map((r,idx)=>idx===i?{...r,max_occupancy:Number(e.target.value)}:r))}
-                            className="w-full border p-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"/>
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-500 mb-1 block">{t('hotelsMgmt.modal.rooms.descLabel')}</label>
-                          <input value={room.description} placeholder={t('hotelsMgmt.modal.rooms.descPlaceholder')}
-                            onChange={e=>setRooms(p=>p.map((r,idx)=>idx===i?{...r,description:e.target.value}:r))}
-                            className="w-full border p-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"/>
-                        </div>
-                        <div className="col-span-2">
-                          <label className="text-xs text-gray-500 mb-1 block">{t('hotelsMgmt.modal.rooms.roomImage')}</label>
-                          <label className="block cursor-pointer">
-                            <input type="file" accept="image/*" className="hidden"
-                              onChange={e => {
-                                const file = e.target.files?.[0] || null;
-                                const reader = new FileReader();
-                                reader.onload = ev => setRooms(p => p.map((r,idx) => idx===i ? {...r, imageFile:file, imagePreview:ev.target?.result as string} as any : r));
-                                if (file) reader.readAsDataURL(file);
-                                else setRooms(p => p.map((r,idx) => idx===i ? {...r, imageFile:null, imagePreview:null} as any : r));
-                              }}/>
-                            {(room as any).imagePreview || (room as any).image
-                              ? <div className="relative rounded-xl overflow-hidden h-28 border-2 border-blue-300">
-                                  <img src={(room as any).imagePreview || getImg((room as any).image)} className="w-full h-full object-cover" alt="preview"/>
-                                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                                    <span className="text-white text-xs font-medium bg-black/50 px-2 py-1 rounded-lg">{t('hotelsMgmt.modal.rooms.changeImage')}</span>
-                                  </div>
-                                </div>
-                              : <div className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center hover:border-blue-400 hover:bg-blue-50 transition-colors">
-                                  <Upload className="w-6 h-6 text-gray-300 mx-auto mb-1"/>
-                                  <p className="text-xs text-gray-400">{t('hotelsMgmt.modal.rooms.uploadHint')}</p>
-                                </div>
-                            }
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  <button onClick={()=>setRooms(p=>[...p,emptyRoom()])}
-                    className="w-full py-3 border-2 border-dashed border-blue-300 rounded-2xl text-blue-600 text-sm font-medium hover:bg-blue-50 transition-colors flex items-center justify-center gap-2">
-                    <Plus className="w-4 h-4"/> {t('hotelsMgmt.modal.rooms.addRoomType')}
-                  </button>
-                </div>
-              )}
-
-              {activeTab==='seasons' && (
-                <div className="space-y-4">
-                  {rooms.length===0 && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center">
-                      <AlertTriangle className="w-6 h-6 text-amber-500 mx-auto mb-2"/>
-                      <p className="text-sm text-amber-700 font-medium">{t('hotelsMgmt.modal.seasons.addRoomsFirst')}</p>
-                      <button onClick={()=>setActiveTab('rooms')} className="mt-2 text-xs text-amber-600 underline">{t('hotelsMgmt.modal.seasons.goToRooms')}</button>
-                    </div>
-                  )}
-                  {seasons.map((season,i) => (
-                    <SeasonCard key={i} season={season} index={i} rooms={rooms}
-                      onChange={(idx,s) => setSeasons(p => p.map((se,si) => si===idx ? s : se))}
-                      onRemove={idx => setSeasons(p => p.filter((_,si) => si!==idx))}/>
-                  ))}
-                  <button onClick={()=>setSeasons(p=>[...p,emptySeason()])}
-                    className="w-full py-3 border-2 border-dashed border-purple-300 rounded-2xl text-purple-600 text-sm font-medium hover:bg-purple-50 transition-colors flex items-center justify-center gap-2">
-                    <Plus className="w-4 h-4"/> {t('hotelsMgmt.modal.seasons.addSeason')}
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <div className="flex gap-3 p-6 border-t">
-              <button onClick={()=>setShowModal(false)} className="flex-1 py-3 border-2 rounded-xl font-medium hover:bg-gray-50 text-sm">{t('hotelsMgmt.modal.cancel')}</button>
-              <button onClick={saveAll} disabled={saving}
-                className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 flex items-center justify-center gap-2 disabled:opacity-60 text-sm shadow-sm">
-                {saving
-                  ? <><Loader2 className="w-4 h-4 animate-spin"/>{t('hotelsMgmt.modal.saving')}</>
-                  : <><Plus className="w-4 h-4"/>{editingHotel ? t('hotelsMgmt.modal.saveEdits') : t('hotelsMgmt.modal.saveHotel')}</>}
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Price Calculator Modal */}
+      {calculatorOpen && (
+        <PriceCalculatorModal
+          onClose={() => setCalculatorOpen(false)}
+        />
       )}
     </div>
   );

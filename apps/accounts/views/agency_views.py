@@ -7,6 +7,7 @@ from rest_framework import status, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from apps.accounts.turnstile import TurnstileRequired
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -76,7 +77,7 @@ class AgencyRegisterView(APIView):
     - إيميل للوكالة: "طلبك قيد المراجعة"
     - إيميل للمسؤولين: "وكالة جديدة بانتظار المراجعة"
     """
-    permission_classes = [AllowAny]
+    permission_classes = [AllowAny, TurnstileRequired]
     parser_classes     = [MultiPartParser, FormParser, JSONParser]
 
     def post(self, request):

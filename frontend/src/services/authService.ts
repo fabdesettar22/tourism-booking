@@ -47,11 +47,11 @@ export const getStoredUser = (): AuthUser | null => {
 
 export const isAuthenticated = () => !!getAccessToken();
 
-export const login = async (username: string, password: string): Promise<LoginResponse> => {
+export const login = async (username: string, password: string, cfToken?: string | null): Promise<LoginResponse> => {
   const res = await fetch(`${BASE}/api/v1/accounts/login/`, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ username, password }),
+    body:    JSON.stringify({ username, password, cf_turnstile_token: cfToken || '' }),
   });
 
   if (!res.ok) {

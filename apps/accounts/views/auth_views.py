@@ -7,6 +7,7 @@ from rest_framework import status, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from apps.accounts.turnstile import TurnstileRequired
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
@@ -45,7 +46,7 @@ def get_tokens_for_user(user):
 # ─────────────────────────────────────────────
 
 class SupplierRegisterStep1View(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [AllowAny, TurnstileRequired]
 
     def post(self, request):
         serializer = SupplierStep1Serializer(data=request.data)
@@ -230,7 +231,7 @@ class SupplierRegisterStep4View(APIView):
 
 class LoginView(APIView):
     """POST /api/v1/accounts/login/ — thin: يفوّض للـ service."""
-    permission_classes = [AllowAny]
+    permission_classes = [AllowAny, TurnstileRequired]
 
     def post(self, request):
         from apps.accounts.services import auth_service
@@ -454,7 +455,7 @@ class OtpRequestView(APIView):
     يُولّد رمز 6 أرقام، يُرسله إيميل، ويُسجّله في DB.
     حد أقصى 5 طلبات/ساعة لكل إيميل.
     """
-    permission_classes = [AllowAny]
+    permission_classes = [AllowAny, TurnstileRequired]
     authentication_classes = []
 
     def post(self, request):

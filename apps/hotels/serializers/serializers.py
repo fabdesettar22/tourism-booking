@@ -18,10 +18,15 @@ class HotelSerializer(serializers.ModelSerializer):
             'city',        # ID للكتابة والقراءة
             'city_name',   # اسم المدينة للعرض
             'country',     # اسم الدولة للعرض
-            'address', 'stars', 'description', 'image',
+            'address', 'stars', 'description',
+            'description_ar', 'description_en',
+            'image',
             # 🆕 العمولة والتفعيل
             'commission_percentage', 'is_active',
             'is_ready_for_activation', 'missing_for_activation',
+            # 🆕 كتيب الأسعار
+            'hotel_chain', 'default_margin_pct', 'rate_currency',
+            'tax_per_night_per_room',
         ]
 
     def get_city_name(self, obj):

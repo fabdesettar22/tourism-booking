@@ -81,7 +81,7 @@ class BookingSerializer(serializers.ModelSerializer):
         ]
 
     def get_package_name(self, obj):
-        return obj.package.name if obj.package else None
+        return obj.package.title if obj.package else None
 
     def get_country_name(self, obj):
         return obj.country.name if obj.country else None

@@ -1,4 +1,7 @@
+from decimal import Decimal
+
 from django.db import models
+
 from apps.locations.models import City
 
 
@@ -18,11 +21,15 @@ class Hotel(models.Model):
     )
     name        = models.CharField(max_length=200, verbose_name="اسم الفندق")
     address     = models.TextField(blank=True, default='', verbose_name="العنوان")
-    stars       = models.IntegerField(
-        choices=[(i, f"{i} ★") for i in range(1, 6)],
-        default=3, verbose_name="النجوم"
+    stars       = models.DecimalField(
+        max_digits=2, decimal_places=1,
+        default=Decimal('3'),
+        verbose_name="النجوم",
+        help_text="من 1 إلى 5، يدعم النصف نجمة (4.5)",
     )
     description = models.TextField(blank=True, verbose_name="وصف الفندق")
+    description_ar = models.TextField(blank=True, default='', verbose_name="الوصف بالعربية")
+    description_en = models.TextField(blank=True, default='', verbose_name="الوصف بالإنجليزية")
     image       = models.ImageField(
         upload_to='hotels/', blank=True, null=True, verbose_name="صورة الفندق"
     )
@@ -54,6 +61,27 @@ class Hotel(models.Model):
         verbose_name="نسبة عمولة الوكالة (%)",
         help_text="مثلاً 20.00 تعني 20% فوق سعر المورد",
     )
+    # ── حقول كتيب الأسعار (YOUNEED 2026) ─────────────────
+    hotel_chain = models.CharField(
+        max_length=80, blank=True, default='', db_index=True,
+        verbose_name="سلسلة الفنادق",
+        help_text="Mercure, Holiday Inn, Ibis Style, Resort World, Thistle...",
+    )
+    default_margin_pct = models.DecimalField(
+        max_digits=5, decimal_places=2,
+        default=Decimal('10'),
+        verbose_name="نسبة الربح الافتراضية %",
+        help_text="تستخدم كقيمة أولية لـ RoomRate.markup_pct عند الإنشاء (6-10% عادة)",
+    )
+    rate_currency = models.CharField(
+        max_length=3, default='MYR',
+        verbose_name="عملة كتيب الأسعار",
+    )
+    tax_per_night_per_room = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        default=Decimal('0'),
+        verbose_name="الضريبة لليلة الواحدة للغرفة الواحدة",
+    )
     created_at  = models.DateTimeField(auto_now_add=True)
     updated_at  = models.DateTimeField(auto_now=True)
 
@@ -69,11 +97,14 @@ class Hotel(models.Model):
 
     @property
     def is_ready_for_activation(self):
-        """هل الفندق جاهز للتفعيل؟ (يحتاج صورة + وصف + عمولة)"""
+        """هل الفندق جاهز للتفعيل؟ (يحتاج صورة + وصف فقط — العمولة اختيارية)"""
         has_image       = bool(self.image)
-        has_description = bool(self.description and self.description.strip())
-        has_commission  = self.commission_percentage is not None
-        return has_image and has_description and has_commission
+        has_description = bool(
+            (self.description and self.description.strip())
+            or (self.description_ar and self.description_ar.strip())
+            or (self.description_en and self.description_en.strip())
+        )
+        return has_image and has_description
 
     @property
     def missing_for_activation(self):
@@ -81,10 +112,12 @@ class Hotel(models.Model):
         missing = []
         if not self.image:
             missing.append('image')
-        if not (self.description and self.description.strip()):
+        if not (
+            (self.description and self.description.strip())
+            or (self.description_ar and self.description_ar.strip())
+            or (self.description_en and self.description_en.strip())
+        ):
             missing.append('description')
-        if self.commission_percentage is None:
-            missing.append('commission_percentage')
         return missing
 
     def __str__(self):

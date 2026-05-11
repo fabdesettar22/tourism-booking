@@ -31,6 +31,9 @@ class Notification(models.Model):
     is_read      = models.BooleanField(default=False, verbose_name="مقروء")
     link         = models.CharField(max_length=200, blank=True, verbose_name="الرابط")
     reference_id = models.IntegerField(null=True, blank=True, verbose_name="معرف المصدر")
+    title_key    = models.CharField(max_length=100, blank=True, default='')
+    message_key  = models.CharField(max_length=100, blank=True, default='')
+    params       = models.JSONField(default=dict, blank=True)
     created_at   = models.DateTimeField(auto_now_add=True)
 
     class Meta:

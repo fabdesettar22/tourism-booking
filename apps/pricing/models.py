@@ -63,7 +63,10 @@ class ExchangeRate(models.Model):
     valid_from    = models.DateField(verbose_name='صالح من')
     valid_to      = models.DateField(null=True, blank=True, verbose_name='صالح حتى')
     is_active     = models.BooleanField(default=True, verbose_name='فعّال')
+    is_manual     = models.BooleanField(default=False, verbose_name='تعديل يدوي')
+    source        = models.CharField(max_length=32, blank=True, default='', verbose_name='المصدر')
     created_at    = models.DateTimeField(auto_now_add=True)
+    updated_at    = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name        = 'سعر الصرف'
@@ -77,18 +80,24 @@ class ExchangeRate(models.Model):
         return f"1 {self.from_currency} = {self.rate} {self.to_currency} (من {self.valid_from})"
 
     @classmethod
-    def get_rate(cls, from_currency, to_currency):
+    def get_rate(cls, from_currency, to_currency, on_date=None):
         """
         يرجع أحدث سعر صرف فعّال بين عملتين.
+        التعديل اليدوي (is_manual=True) له الأولوية.
         """
         from django.utils import timezone
-        today = timezone.now().date()
-        obj = cls.objects.filter(
+        if on_date is None:
+            on_date = timezone.localdate()
+        if from_currency == to_currency:
+            from decimal import Decimal
+            return Decimal('1')
+        qs = cls.objects.filter(
             from_currency=from_currency,
             to_currency=to_currency,
             is_active=True,
-            valid_from__lte=today,
+            valid_from__lte=on_date,
         ).filter(
-            models.Q(valid_to__isnull=True) | models.Q(valid_to__gte=today)
-        ).first()
+            models.Q(valid_to__isnull=True) | models.Q(valid_to__gte=on_date)
+        ).order_by('-is_manual', '-valid_from', '-created_at')
+        obj = qs.first()
         return obj.rate if obj else None

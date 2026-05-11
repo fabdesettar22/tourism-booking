@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Mail, KeyRound, ArrowRight, ArrowLeft, Loader2, RefreshCw } from 'lucide-react';
 import { useLanguage } from '../../hooks/useLanguage';
 import { requestOtp, verifyOtp } from '../../services/otpApi';
+import { TurnstileWidget } from '../../components/security/TurnstileWidget';
 
 interface Props {
   onSuccess?: () => void;
@@ -13,6 +14,7 @@ export function SupplierOtpLogin({ onSuccess }: Props) {
   const navigate = useNavigate();
 
   const [step, setStep] = useState<'email' | 'code'>('email');
+  const [cfToken, setCfToken] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
@@ -92,7 +94,7 @@ export function SupplierOtpLogin({ onSuccess }: Props) {
     setError('');
     setInfo('');
     try {
-      const res = await requestOtp(email);
+      const res = await requestOtp(email, cfToken);
       setInfo(res.message);
       setStep('code');
       setSecondsLeft(60);
@@ -221,6 +223,8 @@ export function SupplierOtpLogin({ onSuccess }: Props) {
             {error && (
               <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
             )}
+
+            <TurnstileWidget onToken={setCfToken} />
 
             <button
               onClick={handleRequestOtp}

@@ -16,7 +16,7 @@ import type { AuthUser } from '../../services/authService';
 interface Props { user: AuthUser; onLogout: () => void; onUserUpdate: (u: AuthUser) => void; }
 type ToastType = 'success' | 'error' | 'warning';
 interface Toast { id: number; type: ToastType; message: string; }
-type TabId = 'profile' | 'password' | 'agency' | 'system' | 'notifications' | 'security' | 'export' | 'commission';
+type TabId = 'profile' | 'password' | 'agency' | 'system' | 'pricing' | 'notifications' | 'security' | 'export' | 'commission';
 
 // ─── Toast ────────────────────────────────────────────────
 function ToastList({ toasts, remove }: { toasts: Toast[]; remove: (id: number) => void }) {
@@ -121,6 +121,22 @@ export function SettingsPage({ user, onLogout, onUserUpdate }: Props) {
   const [agencyLogo, setAgencyLogo]     = useState<File | null>(null);
   const [agencyLogoPreview, setAgencyLogoPreview] = useState<string | null>(null);
 
+  // ─── Site Branding (Admin) ────────────────────────────
+  const [siteName, setSiteName]               = useState('');
+  const [siteLogoFile, setSiteLogoFile]       = useState<File | null>(null);
+  const [siteLogoPreview, setSiteLogoPreview] = useState<string | null>(null);
+  const [siteLogoExists, setSiteLogoExists]   = useState(false);
+
+  // ─── Pricing tab state ────────────────────────────────
+  type FxRate = { id: number; from_currency: string; to_currency: string; rate: string; is_manual: boolean; is_active: boolean; valid_from: string; source?: string; updated_at?: string };
+  const [fxRates, setFxRates] = useState<FxRate[]>([]);
+  const [fxLoading, setFxLoading] = useState(false);
+  const [fxRefreshing, setFxRefreshing] = useState(false);
+  const [hqCommission, setHqCommission] = useState<string>('10.00');
+  const [defaultCurr, setDefaultCurr] = useState<string>('MYR');
+  const [editingRateId, setEditingRateId] = useState<number | null>(null);
+  const [editingRateValue, setEditingRateValue] = useState<string>('');
+
   // ─── System State (Admin) ─────────────────────────────
   const [system, setSystem] = useState({
     default_currency:    'MYR',
@@ -151,6 +167,144 @@ export function SettingsPage({ user, onLogout, onUserUpdate }: Props) {
     { device: 'MacBook Pro — Chrome', location: t('appSettings.security.cities.kl'), time: t('appSettings.security.times.now'),         current: true  },
     { device: 'iPhone 15 — Safari',   location: t('appSettings.security.cities.kl'), time: t('appSettings.security.times.twoHoursAgo'), current: false },
   ];
+
+  // ─── Fetch Site Branding (Admin / system tab) ─────────
+  useEffect(() => {
+    if (!isAdmin || activeTab !== 'system') return;
+    apiFetch('/api/v1/site-settings/')
+      .then(r => r.json())
+      .then(d => {
+        setSiteName(d.site_name || '');
+        if (d.site_logo_url) {
+          setSiteLogoPreview(d.site_logo_url);
+          setSiteLogoExists(true);
+        } else {
+          setSiteLogoPreview(null);
+          setSiteLogoExists(false);
+        }
+      })
+      .catch(() => {});
+  }, [isAdmin, activeTab]);
+
+  const saveSiteBranding = async () => {
+    setSaving(true);
+    try {
+      const fd = new FormData();
+      fd.append('site_name', siteName);
+      if (siteLogoFile) fd.append('site_logo', siteLogoFile);
+      const r = await apiFetch('/api/v1/site-settings/', { method: 'PATCH', body: fd });
+      if (!r.ok) throw new Error();
+      const d = await r.json();
+      setSiteLogoFile(null);
+      if (d.site_logo_url) {
+        setSiteLogoPreview(d.site_logo_url);
+        setSiteLogoExists(true);
+      }
+      addToast('success', t('appSettings.system.brandingSaved'));
+    } catch {
+      addToast('error', t('appSettings.toasts.error') || 'Error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const removeSiteLogo = async () => {
+    setSaving(true);
+    try {
+      const fd = new FormData();
+      fd.append('site_logo', '');
+      const r = await apiFetch('/api/v1/site-settings/', { method: 'PATCH', body: fd });
+      if (!r.ok) throw new Error();
+      setSiteLogoPreview(null);
+      setSiteLogoFile(null);
+      setSiteLogoExists(false);
+      addToast('success', t('appSettings.system.brandingSaved'));
+    } catch {
+      addToast('error', t('appSettings.toasts.error') || 'Error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ─── Fetch Pricing data ───────────────────────────────
+  useEffect(() => {
+    if (!isAdmin || activeTab !== 'pricing') return;
+    setFxLoading(true);
+    Promise.all([
+      apiFetch('/api/v1/pricing/admin/rates/').then(r => r.json()),
+      apiFetch('/api/v1/site-settings/').then(r => r.json()),
+    ])
+      .then(([rates, settings]) => {
+        const arr: FxRate[] = Array.isArray(rates) ? rates : (rates.results || []);
+        setFxRates(arr);
+        if (settings.default_hq_commission_pct != null) setHqCommission(String(settings.default_hq_commission_pct));
+        if (settings.default_currency) setDefaultCurr(settings.default_currency);
+      })
+      .catch(() => addToast('error', t('appSettings.toasts.error') || 'Error'))
+      .finally(() => setFxLoading(false));
+  }, [isAdmin, activeTab]);
+
+  const refreshFxRates = async () => {
+    setFxRefreshing(true);
+    try {
+      const r = await apiFetch('/api/v1/pricing/admin/refresh-rates/', { method: 'POST' });
+      if (!r.ok) throw new Error();
+      const list = await apiFetch('/api/v1/pricing/admin/rates/').then(x => x.json());
+      const arr: FxRate[] = Array.isArray(list) ? list : (list.results || []);
+      setFxRates(arr);
+      addToast('success', t('appSettings.pricing.refreshed') || 'Rates refreshed');
+    } catch {
+      addToast('error', t('appSettings.toasts.error') || 'Error');
+    } finally {
+      setFxRefreshing(false);
+    }
+  };
+
+  const saveRateOverride = async (rateId: number) => {
+    try {
+      const r = await apiFetch(`/api/v1/pricing/admin/rates/${rateId}/`, {
+        method: 'PATCH',
+        body: JSON.stringify({ rate: editingRateValue, is_manual: true }),
+      });
+      if (!r.ok) throw new Error();
+      const updated = await r.json();
+      setFxRates(prev => prev.map(x => x.id === rateId ? updated : x));
+      setEditingRateId(null);
+      addToast('success', t('appSettings.pricing.saved') || 'Saved');
+    } catch {
+      addToast('error', t('appSettings.toasts.error') || 'Error');
+    }
+  };
+
+  const toggleManual = async (r: FxRate) => {
+    try {
+      const res = await apiFetch(`/api/v1/pricing/admin/rates/${r.id}/`, {
+        method: 'PATCH',
+        body: JSON.stringify({ is_manual: !r.is_manual }),
+      });
+      if (!res.ok) throw new Error();
+      const updated = await res.json();
+      setFxRates(prev => prev.map(x => x.id === r.id ? updated : x));
+    } catch {
+      addToast('error', t('appSettings.toasts.error') || 'Error');
+    }
+  };
+
+  const saveHqCommission = async () => {
+    setSaving(true);
+    try {
+      const fd = new FormData();
+      fd.append('default_hq_commission_pct', hqCommission);
+      fd.append('default_currency', defaultCurr);
+      const r = await apiFetch('/api/v1/site-settings/', { method: 'PATCH', body: fd });
+      if (!r.ok) throw new Error();
+      addToast('success', t('appSettings.pricing.saved') || 'Saved');
+    } catch {
+      addToast('error', t('appSettings.toasts.error') || 'Error');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // ─── Fetch Agency ─────────────────────────────────────
   useEffect(() => {
@@ -252,6 +406,7 @@ export function SettingsPage({ user, onLogout, onUserUpdate }: Props) {
     { id: 'profile',       label: t('appSettings.tabs.profile'),       icon: <User className="w-4 h-4"/> },
     { id: 'password',      label: t('appSettings.tabs.password'),      icon: <Lock className="w-4 h-4"/> },
     { id: 'system',        label: t('appSettings.tabs.system'),        icon: <Settings className="w-4 h-4"/> },
+    { id: 'pricing',       label: t('appSettings.tabs.pricing'),       icon: <Percent className="w-4 h-4"/> },
     { id: 'notifications', label: t('appSettings.tabs.notifications'), icon: <Bell className="w-4 h-4"/> },
     { id: 'security',      label: t('appSettings.tabs.security'),      icon: <Shield className="w-4 h-4"/> },
     { id: 'export',        label: t('appSettings.tabs.export'),        icon: <Download className="w-4 h-4"/> },
@@ -583,32 +738,55 @@ export function SettingsPage({ user, onLogout, onUserUpdate }: Props) {
           {/* ── System (Admin) ── */}
           {activeTab === 'system' && isAdmin && (
             <>
-              <SectionCard title={t('appSettings.system.bookingsTitle')} description={t('appSettings.system.bookingsDesc')}>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <Field label={t('appSettings.system.defaultCurrency')}>
-                      <select value={system.default_currency} onChange={e => setSystem({...system, default_currency: e.target.value})}
-                        className="w-full border p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm">
-                        {CURRENCIES.map(c => <option key={c}>{c}</option>)}
-                      </select>
-                    </Field>
-                    <Field label={t('appSettings.system.bookingExpiry')} hint={t('appSettings.system.bookingExpiryHint')}>
-                      <input type="number" value={system.booking_expiry_hours} onChange={e => setSystem({...system, booking_expiry_hours: e.target.value})}
-                        className="w-full border p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" dir="ltr"/>
-                    </Field>
-                    <Field label={t('appSettings.system.minNights')}>
-                      <input type="number" value={system.min_nights} onChange={e => setSystem({...system, min_nights: e.target.value})}
-                        className="w-full border p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" dir="ltr"/>
-                    </Field>
-                    <Field label={t('appSettings.system.cancellationFee')} hint={t('appSettings.system.cancellationFeeHint')}>
-                      <input type="number" value={system.cancellation_fee} onChange={e => setSystem({...system, cancellation_fee: e.target.value})}
-                        className="w-full border p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" dir="ltr"/>
-                    </Field>
+              <SectionCard title={t('appSettings.system.brandingTitle')} description={t('appSettings.system.brandingDesc')}>
+                <div className="space-y-5">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{t('appSettings.system.siteLogo')}</label>
+                    <div className="flex items-center gap-5">
+                      <div className="w-24 h-24 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden shrink-0">
+                        {siteLogoPreview ? (
+                          <img src={siteLogoPreview} alt="logo" className="w-full h-full object-contain" />
+                        ) : (
+                          <Globe className="w-8 h-8 text-gray-300" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700">
+                            <Camera className="w-4 h-4" />
+                            {t('appSettings.system.uploadLogo')}
+                            <input type="file" accept="image/*" className="hidden"
+                              onChange={e => {
+                                const f = e.target.files?.[0];
+                                if (!f) return;
+                                setSiteLogoFile(f);
+                                setSiteLogoPreview(URL.createObjectURL(f));
+                              }}
+                            />
+                          </label>
+                          {siteLogoExists && !siteLogoFile && (
+                            <button onClick={removeSiteLogo} disabled={saving}
+                              className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-xl text-sm font-medium hover:bg-red-100 disabled:opacity-60">
+                              <X className="w-4 h-4" />
+                              {t('appSettings.system.removeLogo')}
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500">{t('appSettings.system.siteLogoHint')}</p>
+                      </div>
+                    </div>
                   </div>
-                  <Field label={t('appSettings.system.defaultCommission')} hint={t('appSettings.system.defaultCommissionHint')}>
-                    <input type="number" value={system.default_commission} onChange={e => setSystem({...system, default_commission: e.target.value})}
-                      className="w-full border p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm max-w-xs" dir="ltr"/>
+
+                  <Field label={t('appSettings.system.siteName')}>
+                    <input value={siteName} onChange={e => setSiteName(e.target.value)}
+                      className="w-full border p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"/>
                   </Field>
+
+                  <button onClick={saveSiteBranding} disabled={saving}
+                    className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-60">
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin"/> : <Save className="w-4 h-4"/>}
+                    {t('appSettings.system.saveBranding')}
+                  </button>
                 </div>
               </SectionCard>
 
@@ -638,6 +816,100 @@ export function SettingsPage({ user, onLogout, onUserUpdate }: Props) {
                     {t('appSettings.system.saveSettings')}
                   </button>
                 </div>
+              </SectionCard>
+            </>
+          )}
+
+          {/* ── Pricing (Admin) ── */}
+          {activeTab === 'pricing' && isAdmin && (
+            <>
+              <SectionCard title={t('appSettings.pricing.commissionTitle') || 'العمولة الافتراضية'} description={t('appSettings.pricing.commissionDesc') || 'تُطبَّق على أي عنصر بدون عمولة محدَّدة'}>
+                <div className="grid grid-cols-2 gap-4 max-w-md">
+                  <Field label={t('appSettings.pricing.hqCommission') || 'عمولة HQ %'}>
+                    <input type="number" step="0.01" value={hqCommission} onChange={e => setHqCommission(e.target.value)}
+                      className="w-full border p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" dir="ltr"/>
+                  </Field>
+                  <Field label={t('appSettings.pricing.defaultCurrency') || 'العملة الافتراضية'}>
+                    <select value={defaultCurr} onChange={e => setDefaultCurr(e.target.value)}
+                      className="w-full border p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm">
+                      {['MYR','USD','EUR','SGD','AED','SAR','DZD'].map(c => <option key={c}>{c}</option>)}
+                    </select>
+                  </Field>
+                </div>
+                <button onClick={saveHqCommission} disabled={saving}
+                  className="mt-4 flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-60">
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin"/> : <Save className="w-4 h-4"/>}
+                  {t('appSettings.pricing.save') || 'حفظ'}
+                </button>
+              </SectionCard>
+
+              <SectionCard
+                title={t('appSettings.pricing.ratesTitle') || 'أسعار الصرف'}
+                description={t('appSettings.pricing.ratesDesc') || 'تُحدَّث تلقائياً يومياً. التعديل اليدوي يطغى على القيم التلقائية.'}
+              >
+                <div className="flex justify-end mb-4">
+                  <button onClick={refreshFxRates} disabled={fxRefreshing}
+                    className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-xl text-sm font-medium hover:bg-orange-700 disabled:opacity-60">
+                    {fxRefreshing ? <Loader2 className="w-4 h-4 animate-spin"/> : null}
+                    {t('appSettings.pricing.refreshNow') || 'تحديث الآن'}
+                  </button>
+                </div>
+                {fxLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-gray-500"><Loader2 className="w-4 h-4 animate-spin"/> {t('common.loading') || 'جارٍ التحميل...'}</div>
+                ) : fxRates.length === 0 ? (
+                  <div className="text-sm text-gray-500 py-6">{t('appSettings.pricing.empty') || 'لا توجد أسعار. اضغط "تحديث الآن" لجلبها.'}</div>
+                ) : (
+                  <div className="overflow-x-auto -mx-2">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-start text-xs text-gray-500 border-b border-gray-100">
+                          <th className="px-3 py-2 text-start font-medium">{t('appSettings.pricing.from') || 'من'}</th>
+                          <th className="px-3 py-2 text-start font-medium">{t('appSettings.pricing.to') || 'إلى'}</th>
+                          <th className="px-3 py-2 text-start font-medium">{t('appSettings.pricing.rate') || 'السعر'}</th>
+                          <th className="px-3 py-2 text-start font-medium">{t('appSettings.pricing.source') || 'المصدر'}</th>
+                          <th className="px-3 py-2 text-start font-medium">{t('appSettings.pricing.manual') || 'يدوي'}</th>
+                          <th className="px-3 py-2 text-start font-medium">{t('appSettings.pricing.actions') || 'إجراءات'}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {fxRates.filter(r => r.is_active).map(r => (
+                          <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                            <td className="px-3 py-2 font-medium" dir="ltr">{r.from_currency}</td>
+                            <td className="px-3 py-2 font-medium" dir="ltr">{r.to_currency}</td>
+                            <td className="px-3 py-2" dir="ltr">
+                              {editingRateId === r.id ? (
+                                <input value={editingRateValue} onChange={e => setEditingRateValue(e.target.value)}
+                                  className="w-32 border px-2 py-1 rounded text-sm" autoFocus/>
+                              ) : (
+                                <span className="font-mono">{Number(r.rate).toFixed(6)}</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2 text-xs text-gray-500">{r.source || '—'}</td>
+                            <td className="px-3 py-2">
+                              <button onClick={() => toggleManual(r)}
+                                className={`text-xs px-2 py-1 rounded-full ${r.is_manual ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
+                                {r.is_manual ? '✓ ' + (t('appSettings.pricing.manual') || 'يدوي') : (t('appSettings.pricing.auto') || 'تلقائي')}
+                              </button>
+                            </td>
+                            <td className="px-3 py-2">
+                              {editingRateId === r.id ? (
+                                <div className="flex gap-1">
+                                  <button onClick={() => saveRateOverride(r.id)} className="text-xs px-3 py-1 bg-blue-600 text-white rounded">{t('common.save') || 'حفظ'}</button>
+                                  <button onClick={() => setEditingRateId(null)} className="text-xs px-3 py-1 bg-gray-100 rounded">{t('common.cancel') || 'إلغاء'}</button>
+                                </div>
+                              ) : (
+                                <button onClick={() => { setEditingRateId(r.id); setEditingRateValue(r.rate); }}
+                                  className="text-xs text-blue-600 hover:text-blue-700">
+                                  {t('appSettings.pricing.edit') || 'تعديل'}
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </SectionCard>
             </>
           )}

@@ -5,7 +5,8 @@ import {
   Search, Eye, Trash2, Loader2, CheckCircle2, XCircle,
   AlertTriangle, X, Building2, Moon, Users,
   ChevronLeft, ChevronRight, Phone, Mail, Package,
-  Sparkles, CalendarDays, Star, Tag, Check, Clock, Plus, Globe
+  Sparkles, CalendarDays, Star, Tag, Check, Clock, Plus, Globe,
+  Settings as SettingsIcon, Save, ChevronDown
 } from 'lucide-react';
 import { BookingWizard } from './BookingWizard';
 
@@ -384,6 +385,43 @@ export function BookingsManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
+  // ─── Booking settings (moved from SettingsPage system tab) ───
+  const [showSettings, setShowSettings] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [bSettings, setBSettings] = useState({
+    default_currency:    'MYR',
+    booking_expiry_hours: '48',
+    min_nights:          '1',
+    cancellation_fee:    '0',
+    default_commission:  '10.00',
+  });
+  const saveBookingSettings = async () => {
+    setSavingSettings(true);
+    try {
+      // Persist what the backend supports today: default currency + commission to SiteSettings
+      const fd = new FormData();
+      fd.append('default_currency', bSettings.default_currency);
+      fd.append('default_hq_commission_pct', bSettings.default_commission);
+      const r = await apiFetch('/api/v1/site-settings/', { method: 'PATCH', body: fd });
+      if (!r.ok) throw new Error();
+      addToast('success', t('bookingsMgmt.settings.saved') || 'Saved');
+    } catch {
+      addToast('error', t('bookingsMgmt.toasts.saveFail') || 'Error');
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+  useEffect(() => {
+    if (!showSettings) return;
+    apiFetch('/api/v1/site-settings/').then(r => r.json()).then(d => {
+      setBSettings(s => ({
+        ...s,
+        default_currency: d.default_currency || s.default_currency,
+        default_commission: String(d.default_hq_commission_pct ?? s.default_commission),
+      }));
+    }).catch(() => {});
+  }, [showSettings]);
+
   const addToast = (type: ToastType, msg: string) => {
     const id = Date.now();
     setToasts(p=>[...p,{id,type,message:msg}]);
@@ -483,11 +521,60 @@ export function BookingsManagement() {
           <h1 className="text-2xl font-bold text-gray-800">{t('bookingsMgmt.title')}</h1>
           <p className="text-gray-500 text-sm mt-0.5">{t('bookingsMgmt.subtitle')}</p>
         </div>
-        <button onClick={()=>setShowPicker(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors">
-          <Plus className="w-4 h-4"/> {t('bookingsMgmt.bookPackage')}
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowSettings(s => !s)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${showSettings ? 'bg-orange-100 text-orange-700' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+            <SettingsIcon className="w-4 h-4"/> {t('bookingsMgmt.settings.title') || 'إعدادات الحجوزات'}
+            <ChevronDown className={`w-4 h-4 transition-transform ${showSettings ? 'rotate-180' : ''}`}/>
+          </button>
+          <button onClick={()=>setShowPicker(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors">
+            <Plus className="w-4 h-4"/> {t('bookingsMgmt.bookPackage')}
+          </button>
+        </div>
       </div>
+
+      {/* Settings Panel */}
+      {showSettings && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <h3 className="text-base font-semibold text-gray-900 mb-1">{t('bookingsMgmt.settings.title') || 'إعدادات الحجوزات'}</h3>
+          <p className="text-xs text-gray-500 mb-5">{t('bookingsMgmt.settings.desc') || 'تكوين سلوك نظام الحجوزات'}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">{t('bookingsMgmt.settings.defaultCurrency') || 'العملة الافتراضية'}</label>
+              <select value={bSettings.default_currency} onChange={e => setBSettings({...bSettings, default_currency: e.target.value})}
+                className="w-full border p-2.5 rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                {['MYR','USD','EUR','SGD','AED','SAR','DZD'].map(c => <option key={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">{t('bookingsMgmt.settings.bookingExpiry') || 'مهلة الحجز المعلق (ساعات)'}</label>
+              <input type="number" value={bSettings.booking_expiry_hours} onChange={e => setBSettings({...bSettings, booking_expiry_hours: e.target.value})}
+                className="w-full border p-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" dir="ltr"/>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">{t('bookingsMgmt.settings.minNights') || 'الحد الأدنى لعدد الليالي'}</label>
+              <input type="number" value={bSettings.min_nights} onChange={e => setBSettings({...bSettings, min_nights: e.target.value})}
+                className="w-full border p-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" dir="ltr"/>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">{t('bookingsMgmt.settings.cancellationFee') || 'نسبة رسوم الإلغاء %'}</label>
+              <input type="number" value={bSettings.cancellation_fee} onChange={e => setBSettings({...bSettings, cancellation_fee: e.target.value})}
+                className="w-full border p-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" dir="ltr"/>
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">{t('bookingsMgmt.settings.defaultCommission') || 'العمولة الافتراضية للوكالات الجديدة %'}</label>
+              <input type="number" value={bSettings.default_commission} onChange={e => setBSettings({...bSettings, default_commission: e.target.value})}
+                className="w-full border p-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-xs" dir="ltr"/>
+            </div>
+          </div>
+          <button onClick={saveBookingSettings} disabled={savingSettings}
+            className="mt-5 flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-60">
+            {savingSettings ? <Loader2 className="w-4 h-4 animate-spin"/> : <Save className="w-4 h-4"/>}
+            {t('bookingsMgmt.settings.save') || 'حفظ'}
+          </button>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

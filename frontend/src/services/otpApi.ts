@@ -23,11 +23,11 @@ export interface OtpVerifyResponse {
   };
 }
 
-export async function requestOtp(email: string): Promise<OtpRequestResponse> {
+export async function requestOtp(email: string, cfToken?: string | null): Promise<OtpRequestResponse> {
   const res = await fetch(`${BASE}/api/v1/accounts/otp/request/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: email.trim().toLowerCase() }),
+    body: JSON.stringify({ email: email.trim().toLowerCase(), cf_turnstile_token: cfToken || '' }),
   });
   const data = await res.json();
   if (!res.ok) {

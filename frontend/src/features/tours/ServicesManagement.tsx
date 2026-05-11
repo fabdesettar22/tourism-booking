@@ -10,6 +10,9 @@ import {
   Upload, Gift, PlaneLanding, PlaneTakeoff
 } from 'lucide-react';
 import { CountryCityPicker } from '../../components/forms/CountryCityPicker';
+import { AirportTransfersPanel } from './AirportTransfersPanel';
+import { ToursPanel } from './ToursPanel';
+import { GiftsPanel } from './GiftsPanel';
 
 // ─── Types ────────────────────────────────────────────────
 interface City { id: number; name: string; country: number; }
@@ -654,9 +657,52 @@ const TABLE_HEADERS: Record<'ar'|'en'|'ms', string[]> = {
   ms: ['Perkhidmatan','Kategori','Bandar','Hari','Peserta','Harga','Jenis','Tindakan'],
 };
 
+// ─── SubView Tabs (Services / Airport Transfers) ─────────
+function SubViewTabs({
+  subView, setSubView,
+}: { subView: 'services' | 'airport' | 'tours' | 'gifts'; setSubView: (v: 'services' | 'airport' | 'tours' | 'gifts') => void }) {
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-1 inline-flex gap-1 flex-wrap">
+      <button
+        onClick={() => setSubView('services')}
+        className={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
+          subView === 'services' ? 'bg-[#FF6B35] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'
+        }`}>
+        <Briefcase className="w-4 h-4" />
+        كل الخدمات
+      </button>
+      <button
+        onClick={() => setSubView('airport')}
+        className={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
+          subView === 'airport' ? 'bg-[#0F2742] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'
+        }`}>
+        <PlaneLanding className="w-4 h-4" />
+        نقل المطار
+      </button>
+      <button
+        onClick={() => setSubView('tours')}
+        className={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
+          subView === 'tours' ? 'bg-purple-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'
+        }`}>
+        <MapPin className="w-4 h-4" />
+        الجولات السياحية
+      </button>
+      <button
+        onClick={() => setSubView('gifts')}
+        className={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
+          subView === 'gifts' ? 'bg-pink-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'
+        }`}>
+        <Gift className="w-4 h-4" />
+        الهدايا
+      </button>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────
 export function ServicesManagement() {
   const { t, lang, isRTL } = useLanguage();
+  const [subView, setSubView] = useState<'services' | 'airport' | 'tours' | 'gifts'>('services');
   const [cities, setCities] = useState<City[]>([]);
   const [countries, setCountries] = useState<Country[]>([]);
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
@@ -782,9 +828,41 @@ export function ServicesManagement() {
   const tableHeaders = TABLE_HEADERS[lang] || TABLE_HEADERS.en;
   const align = isRTL ? 'text-right' : 'text-left';
 
+  // ── Early return for Airport Transfers sub-view ────────
+  if (subView === 'airport') {
+    return (
+      <div className="max-w-7xl mx-auto space-y-4" dir={isRTL ? 'rtl' : 'ltr'}>
+        <SubViewTabs subView={subView} setSubView={setSubView} />
+        <AirportTransfersPanel />
+      </div>
+    );
+  }
+
+  // ── Early return for Tours sub-view ────────────────────
+  if (subView === 'tours') {
+    return (
+      <div className="max-w-7xl mx-auto space-y-4" dir={isRTL ? 'rtl' : 'ltr'}>
+        <SubViewTabs subView={subView} setSubView={setSubView} />
+        <ToursPanel />
+      </div>
+    );
+  }
+
+  // ── Early return for Gifts sub-view ────────────────────
+  if (subView === 'gifts') {
+    return (
+      <div className="max-w-7xl mx-auto space-y-4" dir={isRTL ? 'rtl' : 'ltr'}>
+        <SubViewTabs subView={subView} setSubView={setSubView} />
+        <GiftsPanel />
+      </div>
+    );
+  }
+
   return(
     <div className="max-w-7xl mx-auto space-y-6" dir={isRTL ? 'rtl' : 'ltr'}>
       <ToastNotif toasts={toasts} remove={id=>setToasts(p=>p.filter(t=>t.id!==id))}/>
+
+      <SubViewTabs subView={subView} setSubView={setSubView} />
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

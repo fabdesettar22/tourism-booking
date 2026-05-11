@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django.db import models
 from apps.locations.models import City
 
@@ -246,3 +247,4 @@ class ServicePhoto(models.Model):
             models.Index(fields=['service', 'is_primary']),
             models.Index(fields=['service', 'order']),
         ]
+
