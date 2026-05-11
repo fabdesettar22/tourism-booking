@@ -109,6 +109,7 @@ const PublicNavbar = ({ onLogin, onSupplier, onAgency, lang, onLangChange, t, is
     { key:"nav.destinations", label: t("nav.destinations"), href:"/destinations" },
     { key:"nav.activities",   label: t("nav.activities"),   href:"/activities"   },
     { key:"nav.hotels",       label: t("nav.hotels"),       href:"/hotels"       },
+    { key:"nav.flights",      label: t("nav.flights"),      href:"/flights"      },
     { key:"nav.blog",         label: t("nav.blog"),         href:"/blog"         },
   ];
 
@@ -736,7 +737,7 @@ const Footer = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) => (
         </div>
         {[
           { title:t("footer.support"),  items:[{label:t("footer.helpCenter"),href:"#"},{label:t("footer.liveChat"),href:"#"},{label:t("footer.security")  ,href:"#"}] },
-          { title:t("footer.company2"), items:[{label:t("footer.aboutUs"),   href:"#"},{label:t("footer.careers"), href:"#"},{label:t("footer.contact")   ,href:"#"}] },
+          { title:t("footer.company2"), items:[{label:t("footer.aboutUs"),   href:"/about"},{label:t("footer.careers"), href:"#"},{label:t("footer.contact")   ,href:"/contact"}] },
           { title:t("footer.services"), items:[{label:t("footer.hotels"),    href:"/hotels"},{label:t("footer.guide"),href:"#"},{label:t("footer.transport"),href:"#"}] },
           { title:t("footer.legal"),    items:[{label:t("footer.terms"),     href:"/terms"}, {label:t("footer.privacy"),href:"/privacy"},{label:t("footer.cookies"),href:"/cookies"}] },
         ].map(col=>(

@@ -2,7 +2,8 @@
 import {
   LayoutDashboard, Calendar, Building2, Users, Package,
   MapPin, Hotel, Briefcase, DollarSign, BarChart3, Settings,
-  Globe, ChevronRight, Menu, X, UserPlus, Megaphone, Home, Sparkles, Map, FileText, Tag
+  Globe, ChevronRight, Menu, X, UserPlus, Megaphone, Home, Sparkles, Map, FileText, Tag,
+  Pin, PinOff
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '../../services/apiFetch';
@@ -27,6 +28,7 @@ const ADMIN_MENU = [
   { id: 'hotels',        labelKey: 'hotels',        icon: Hotel },
   { id: 'extranet',      labelKey: 'extranet',      icon: Hotel },
   { id: 'services',      labelKey: 'services',      icon: Briefcase },
+  { id: 'flights',       labelKey: 'flights',       icon: Briefcase },
   { id: 'agencies',      labelKey: 'agencies',      icon: Building2 },
   { id: 'customers',     labelKey: 'customers',     icon: Users },
   { id: 'financial',     labelKey: 'financial',     icon: DollarSign },
@@ -63,6 +65,17 @@ export function Sidebar({ activeTab, setActiveTab, user, onLogout }: SidebarProp
   const [siteName, setSiteName]     = useState<string>('You Need Travel');
   const [hovered, setHovered]       = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [pinned, setPinned]         = useState<boolean>(() => {
+    try { return localStorage.getItem('sidebar.pinned') === '1'; } catch { return false; }
+  });
+
+  const togglePinned = () => {
+    setPinned(prev => {
+      const next = !prev;
+      try { localStorage.setItem('sidebar.pinned', next ? '1' : '0'); } catch {}
+      return next;
+    });
+  };
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { counts } = usePendingCount();
 
@@ -85,7 +98,7 @@ export function Sidebar({ activeTab, setActiveTab, user, onLogout }: SidebarProp
   const menuItems = isAdmin ? ADMIN_MENU : AGENCY_MENU;
   const menuKey   = isAdmin ? 'adminMenu' : 'agencyMenu';
 
-  const expanded = hovered || mobileOpen;
+  const expanded = hovered || mobileOpen || pinned;
 
   const handleMouseEnter = () => {
     if (hoverTimer.current) clearTimeout(hoverTimer.current);
@@ -132,7 +145,7 @@ export function Sidebar({ activeTab, setActiveTab, user, onLogout }: SidebarProp
             )}
           </div>
 
-          <div className={`overflow-hidden transition-all duration-300 ${expanded ? 'w-36 opacity-100' : 'w-0 opacity-0'}`}>
+          <div className={`overflow-hidden transition-all duration-300 ${expanded ? 'flex-1 opacity-100' : 'w-0 opacity-0'}`}>
             <h1 className="text-sidebar-foreground text-sm font-bold leading-none truncate whitespace-nowrap">
               {!isAdmin && user?.agency_name ? user.agency_name : siteName}
             </h1>
@@ -140,6 +153,19 @@ export function Sidebar({ activeTab, setActiveTab, user, onLogout }: SidebarProp
               {isAdmin ? t('sidebar.panelAdmin') : t('sidebar.panelAgency')}
             </p>
           </div>
+
+          {expanded && (
+            <button
+              onClick={togglePinned}
+              title={pinned ? t('sidebar.unpin') : t('sidebar.pin')}
+              className="hidden lg:flex shrink-0 w-7 h-7 items-center justify-center rounded-lg text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors"
+            >
+              {pinned
+                ? <PinOff className="w-4 h-4" />
+                : <Pin className="w-4 h-4" />
+              }
+            </button>
+          )}
         </div>
       </div>
 
@@ -228,7 +254,7 @@ export function Sidebar({ activeTab, setActiveTab, user, onLogout }: SidebarProp
           bg-sidebar ${borderSide} border-sidebar-border h-full
           transition-all duration-300 ease-in-out
           overflow-hidden shrink-0
-          ${hovered ? 'w-64' : 'w-[60px]'}
+          ${expanded ? 'w-64' : 'w-[60px]'}
         `}
       >
         <SidebarContent />

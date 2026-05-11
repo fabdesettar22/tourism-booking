@@ -62,7 +62,13 @@ INSTALLED_APPS = [
     'apps.reviews',
     'apps.loyalty',
     'apps.security',
+    'apps.flights',
 ]
+
+# ─── Duffel (Flight provider) ─────────────────────────────
+DUFFEL_API_KEY = os.getenv('DUFFEL_API_KEY', '')
+DUFFEL_ENV     = os.getenv('DUFFEL_ENV', 'test')
+DUFFEL_BASE    = 'https://api.duffel.com'
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',          # يجب أن يبقى أول middleware

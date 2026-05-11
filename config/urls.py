@@ -1,10 +1,12 @@
 from django.contrib import admin
+from django.contrib.sitemaps.views import sitemap
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
 from apps.hotels.urls import public_urlpatterns as public_hotel_urls
 from apps.services.urls import public_urlpatterns as public_service_urls
+from apps.blog.sitemaps import BlogPostSitemap, StaticViewSitemap
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -15,7 +17,12 @@ urlpatterns = [
     path('api/v1/hotels/',            include('apps.hotels.urls')),
     path('api/v1/rooms/',             include('apps.rooms.urls')),
     path('api/v1/pricing/',           include('apps.pricing.urls')),
+    path('api/v1/services/',          include('apps.airport_transfers.urls')),
+    path('api/v1/services/',          include('apps.tours_excursions.urls')),
+    path('api/v1/services/',          include('apps.gifts.urls')),
     path('api/v1/services/',          include('apps.services.urls')),
+    path('api/v1/flights/',           include('apps.flights.urls')),
+    path('api/v1/hotel-rates/',       include('apps.hotel_rates.urls')),
     path('api/v1/packages/',          include('apps.packages.urls')),
     path('api/v1/bookings/',          include('apps.bookings.urls')),
     path('api/v1/site-settings/',     include('apps.settings_app.urls')),
@@ -26,6 +33,15 @@ urlpatterns = [
     path('api/v1/hero-hotels/',       include('apps.hero_hotels.urls', namespace='hero_hotels')),
     path('api/v1/advertising/',      include('apps.advertising.urls')),
     path('api/v1/blog/',              include('apps.blog.urls')),
+    path('api/v1/reviews/',           include('apps.reviews.urls')),
+    path('api/v1/loyalty/',           include('apps.loyalty.urls')),
+    path('api/v1/security/',          include('apps.security.urls')),
+
+    # ─── SEO ──────────────────────────────────────────────
+    path('sitemap.xml', sitemap, {'sitemaps': {
+        'blog': BlogPostSitemap,
+        'static': StaticViewSitemap,
+    }}, name='sitemap'),
 
     # ─── Public API (للسائح — AllowAny) ───────────────────
     path('api/v1/public/hotels/',    include(public_hotel_urls)),

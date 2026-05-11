@@ -1,5 +1,5 @@
 // src/app/App.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { HotelOnboardingWizard }  from '../features/supplier/onboarding/HotelOnboardingWizard';
 import { LoginPage }              from '../features/auth/LoginPage';
@@ -12,37 +12,46 @@ import { Sidebar }                from '../components/layout/Sidebar';
 import { Header }                 from '../components/layout/Header';
 import { DashboardContent }       from '../features/dashboard/DashboardContent';
 import { AgencyDashboard }        from '../features/dashboard/AgencyDashboard';
-import { BookingsManagement }     from '../features/bookings/BookingsManagement';
-import { AgenciesManagement }     from '../features/agencies/AgenciesManagement';
-import { RegistrationRequests }   from '../features/registrations/RegistrationRequests';
-import { CustomersManagement }    from '../features/agencies/CustomersManagement';
-import { PackagesManagement }     from '../features/tours/PackagesManagement';
-import { DestinationsManagement } from '../features/destinations/DestinationsManagement';
-import { HotelsManagement }       from '../features/hotels/HotelsManagement';
-import { ServicesManagement }     from '../features/tours/ServicesManagement';
-import { FinancialReports }       from '../features/analytics/FinancialReports';
-import { ExtranetManagement }     from '../features/hotels/ExtranetManagement';
-import { AnalyticsReports }       from '../features/analytics/AnalyticsReports';
-import { SettingsPage }           from '../pages/admin/SettingsPage';
-import { AdsManagement } from '../features/advertising/AdsManagement';
-import { HomepageManagement } from '../features/homepage/HomepageManagement';
-import { HeroHotelsManagement } from '../features/heroHotels/HeroHotelsManagement';
-import { DestinationsAdminPage } from '../features/destinationsAdmin/DestinationsAdminPage';
-import { BlogModule }            from '../features/blog/BlogModule';
-import { CategoryManagement as BlogCategoryManagement } from '../features/blog/CategoryManagement';
-import { TagManagement as BlogTagManagement }           from '../features/blog/TagManagement';
-import { BlogListPage }          from '../pages/public/blog/BlogListPage';
-import { BlogDetailPage }        from '../pages/public/blog/BlogDetailPage';
+const BookingsManagement = lazy(() => import('../features/bookings/BookingsManagement').then(m => ({ default: m.BookingsManagement })));
+const AgenciesManagement = lazy(() => import('../features/agencies/AgenciesManagement').then(m => ({ default: m.AgenciesManagement })));
+const RegistrationRequests = lazy(() => import('../features/registrations/RegistrationRequests').then(m => ({ default: m.RegistrationRequests })));
+const CustomersManagement = lazy(() => import('../features/agencies/CustomersManagement').then(m => ({ default: m.CustomersManagement })));
+const PackagesManagement = lazy(() => import('../features/tours/PackagesManagement').then(m => ({ default: m.PackagesManagement })));
+const DestinationsManagement = lazy(() => import('../features/destinations/DestinationsManagement').then(m => ({ default: m.DestinationsManagement })));
+const HotelsManagement = lazy(() => import('../features/hotels/HotelsManagement').then(m => ({ default: m.HotelsManagement })));
+const ServicesManagement = lazy(() => import('../features/tours/ServicesManagement').then(m => ({ default: m.ServicesManagement })));
+const FlightsManagement = lazy(() => import('../features/flights/FlightsManagement').then(m => ({ default: m.FlightsManagement })));
+const FinancialReports = lazy(() => import('../features/analytics/FinancialReports').then(m => ({ default: m.FinancialReports })));
+const ExtranetManagement = lazy(() => import('../features/hotels/ExtranetManagement').then(m => ({ default: m.ExtranetManagement })));
+const AnalyticsReports = lazy(() => import('../features/analytics/AnalyticsReports').then(m => ({ default: m.AnalyticsReports })));
+const SettingsPage = lazy(() => import('../pages/admin/SettingsPage').then(m => ({ default: m.SettingsPage })));
+const AdsManagement = lazy(() => import('../features/advertising/AdsManagement').then(m => ({ default: m.AdsManagement })));
+const HomepageManagement = lazy(() => import('../features/homepage/HomepageManagement').then(m => ({ default: m.HomepageManagement })));
+const HeroHotelsManagement = lazy(() => import('../features/heroHotels/HeroHotelsManagement').then(m => ({ default: m.HeroHotelsManagement })));
+const DestinationsAdminPage = lazy(() => import('../features/destinationsAdmin/DestinationsAdminPage').then(m => ({ default: m.DestinationsAdminPage })));
+const BlogModule = lazy(() => import('../features/blog/BlogModule').then(m => ({ default: m.BlogModule })));
+const BlogCategoryManagement = lazy(() => import('../features/blog/CategoryManagement').then(m => ({ default: m.CategoryManagement })));
+const BlogTagManagement = lazy(() => import('../features/blog/TagManagement').then(m => ({ default: m.TagManagement })));
+const BlogListPage = lazy(() => import('../pages/public/blog/BlogListPage').then(m => ({ default: m.BlogListPage })));
+const BlogDetailPage = lazy(() => import('../pages/public/blog/BlogDetailPage').then(m => ({ default: m.BlogDetailPage })));
 import { getStoredUser, clearAuth } from '../services/authService';
 import type { AuthUser }          from '../services/authService';
 import { useLanguage }            from '../hooks/useLanguage';
 import { ComingSoonPage }         from '../pages/public/ComingSoonPage';
-import { HotelDetailPage }        from '../pages/public/HotelDetailPage';
-import { HotelsListPage }         from '../pages/public/HotelsListPage';
-import { ServiceDetailPage }      from '../pages/public/ServiceDetailPage';
+const HotelDetailPage = lazy(() => import('../pages/public/HotelDetailPage').then(m => ({ default: m.HotelDetailPage })));
+const HotelsListPage = lazy(() => import('../pages/public/HotelsListPage').then(m => ({ default: m.HotelsListPage })));
+const FlightsPage = lazy(() => import('../pages/public/FlightsPage').then(m => ({ default: m.FlightsPage })));
+const ServiceDetailPage = lazy(() => import('../pages/public/ServiceDetailPage').then(m => ({ default: m.ServiceDetailPage })));
 import { TermsPage }              from '../pages/public/legal/TermsPage';
 import { PrivacyPage }            from '../pages/public/legal/PrivacyPage';
 import { CookiesPage }            from '../pages/public/legal/CookiesPage';
+import { AboutPage }              from '../pages/public/AboutPage';
+import { ContactPage }            from '../pages/public/ContactPage';
+import { HelpPage }               from '../pages/public/HelpPage';
+import { SecurityPage }           from '../pages/public/SecurityPage';
+import { CareersPage }            from '../pages/public/CareersPage';
+import { GuidesPage }             from '../pages/public/GuidesPage';
+import { TransportPage }          from '../pages/public/TransportPage';
 import { SupplierOtpLogin }       from '../features/auth/SupplierOtpLogin';
 import { ServiceSupplierDashboard } from '../features/supplier/dashboard/ServiceSupplierDashboard';
 import { fetchSupplierMe }        from '../services/supplierProfileApi';
@@ -234,6 +243,7 @@ function AdminApp() {
       case 'hotels':       return isAdmin ? <HotelsManagement /> : null;
       case 'extranet':     return isAdmin ? <ExtranetManagement /> : null;
       case 'services':     return isAdmin ? <ServicesManagement /> : null;
+      case 'flights':      return isAdmin ? <FlightsManagement /> : null;
       case 'registrations': return isAdmin ? <RegistrationRequests /> : null;
       case 'agencies':     return isAdmin ? <AgenciesManagement /> : null;
       case 'analytics':    return isAdmin ? <AnalyticsReports /> : null;
@@ -254,7 +264,7 @@ function AdminApp() {
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <Header user={user} onLogout={handleLogout} onNavigate={setActiveTab}/>
         <main className="flex-1 overflow-y-auto">
-          <div className="p-4 md:p-6 lg:p-8">{renderContent()}</div>
+          <div className="p-4 md:p-6 lg:p-8"><Suspense fallback={<div className="p-12 text-center text-gray-400">Loading…</div>}>{renderContent()}</Suspense></div>
         </main>
       </div>
     </div>
@@ -279,7 +289,7 @@ export default function App() {
 
   return (
     <div dir={isRTL ? 'rtl' : 'ltr'}>
-      <Routes>
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-[#FF6B35] border-t-transparent rounded-full animate-spin" /></div>}><Routes>
         {/* ── Public ─────────────────────────────── */}
         <Route path="/"                          element={<HomePageRoute />} />
 
@@ -311,6 +321,7 @@ export default function App() {
         <Route path="/destinations" element={<ComingSoonPage pageName="Destinations" />} />
         <Route path="/activities"   element={<ComingSoonPage pageName="Activities" />} />
         <Route path="/hotels"       element={<HotelsListPage />} />
+        <Route path="/flights"      element={<FlightsPage />} />
         <Route path="/blog"         element={<BlogListPage />} />
         <Route path="/blog/:slug"   element={<BlogDetailPage />} />
 
@@ -318,10 +329,17 @@ export default function App() {
         <Route path="/terms"     element={<TermsPage />} />
         <Route path="/privacy"   element={<PrivacyPage />} />
         <Route path="/cookies"   element={<CookiesPage />} />
+        <Route path="/about"     element={<AboutPage />} />
+        <Route path="/contact"   element={<ContactPage />} />
+        <Route path="/help"      element={<HelpPage />} />
+        <Route path="/security"  element={<SecurityPage />} />
+        <Route path="/careers"   element={<CareersPage />} />
+        <Route path="/guides"    element={<GuidesPage />} />
+        <Route path="/transport" element={<TransportPage />} />
 
         {/* ── Fallback ────────────────────────────── */}
         <Route path="*"                          element={<Navigate to="/" replace />} />
-      </Routes>
+      </Routes></Suspense>
     </div>
   );
 }
