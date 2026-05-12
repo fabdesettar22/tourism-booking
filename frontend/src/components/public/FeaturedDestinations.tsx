@@ -91,11 +91,11 @@ export function FeaturedDestinations({ lang, isRTL, onSelectCity }: Props) {
 
   if (loading) {
     return (
-      <section className="bg-white py-14" dir={isRTL ? 'rtl' : 'ltr'}>
+      <section className="bg-[#FAF9F5] py-16" dir={isRTL ? 'rtl' : 'ltr'}>
         <div className="max-w-7xl mx-auto px-4">
-          <div className="mb-8">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">{T.title}</h2>
-            <p className="text-gray-500 mt-2">{T.subtitle}</p>
+          <div className="mb-10">
+            <div className="h-3 w-24 bg-[#F26522]/20 rounded-full mb-3 animate-pulse" />
+            <div className="h-8 w-64 bg-gray-200 rounded-full animate-pulse" />
           </div>
           <div className="grid grid-cols-12 gap-3 sm:gap-4">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -118,11 +118,14 @@ export function FeaturedDestinations({ lang, isRTL, onSelectCity }: Props) {
   };
 
   return (
-    <section className="bg-white py-14" dir={isRTL ? 'rtl' : 'ltr'}>
+    <section className="bg-[#FAF9F5] py-16" dir={isRTL ? 'rtl' : 'ltr'}>
       <div className="max-w-7xl mx-auto px-4">
-        <div className="mb-8">
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">{T.title}</h2>
-          <p className="text-gray-500 mt-2">{T.subtitle}</p>
+        <div className={`mb-10 ${isRTL ? 'text-right' : ''}`}>
+          <p className="text-[#F26522] text-[11px] font-semibold uppercase tracking-[0.3em] mb-2">
+            ✦ {lang === 'ar' ? 'اكتشف' : lang === 'ms' ? 'Terokai' : 'Explore'}
+          </p>
+          <h2 className="font-display text-4xl md:text-5xl font-light text-[#0F2742] tracking-tight">{T.title}</h2>
+          <p className="text-gray-500 mt-2 font-light">{T.subtitle}</p>
         </div>
 
         <div className="grid grid-cols-12 gap-3 sm:gap-4 auto-rows-[150px] sm:auto-rows-[200px]">

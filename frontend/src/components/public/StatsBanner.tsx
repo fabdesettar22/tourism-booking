@@ -31,21 +31,21 @@ export function StatsBanner({ lang, isRTL, customers, destinations, suppliers, p
   };
 
   return (
-    <section className="bg-gradient-to-br from-[#FF6B35] to-[#e07a38] py-5" dir={isRTL ? 'rtl' : 'ltr'}>
+    <section className="bg-[#080D30] border-y border-[#F26522]/15 py-6" dir={isRTL ? 'rtl' : 'ltr'}>
       <div className="max-w-7xl mx-auto px-4">
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
           {items.map((item, i) => {
             const Icon = item.icon;
             return (
-              <div key={i} className="flex items-center justify-center gap-2.5 text-white">
-                <div className="w-8 h-8 bg-white/15 backdrop-blur-sm rounded-lg flex items-center justify-center shrink-0">
-                  <Icon className="w-4 h-4" />
+              <div key={i} className="flex items-center justify-center gap-3 text-white">
+                <div className="w-9 h-9 bg-[#F26522]/12 border border-[#F26522]/25 rounded-xl flex items-center justify-center shrink-0">
+                  <Icon className="w-4 h-4 text-[#F26522]" />
                 </div>
                 <div className="leading-tight">
-                  <div className="text-base sm:text-lg font-bold tracking-tight">
+                  <div className="text-lg font-bold tracking-tight text-white">
                     {fmtNumber(item.value)}{item.plus && '+'}
                   </div>
-                  <div className="text-[10px] sm:text-xs text-white/80">{item.label}</div>
+                  <div className="text-[11px] text-gray-400">{item.label}</div>
                 </div>
               </div>
             );

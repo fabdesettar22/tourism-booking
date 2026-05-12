@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence, useInView } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -26,6 +27,25 @@ import {
   fetchPublicHotels, fetchPublicServices,
   type PublicHotelListItem, type PublicServiceListItem,
 } from "../../services/publicApi";
+
+// ═══ SHARED ANIMATION HELPERS ═══════════════════════════
+const AnimatedSection = ({
+  children, className = '', delay = 0,
+}: { children: React.ReactNode; className?: string; delay?: number }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { once: true, margin: '-60px' });
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 30 }}
+      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+      transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1], delay }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+};
 
 interface Destination { name:string; tours:number; activities:number; image:string; }
 interface Testimonial { name:string; location:string; text:string; rating:number; avatar:string; }
@@ -115,94 +135,163 @@ const PublicNavbar = ({ onLogin, onSupplier, onAgency, lang, onLangChange, t, is
 
   const currentLang = LANGUAGES.find(l=>l.code===lang);
 
+  const isGlass = !scrolled;
+
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-white border-b border-gray-100 ${scrolled?"shadow-md":""}`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-[auto_1fr_auto] lg:grid-cols-3 items-center h-16 gap-4">
-          {/* Logo (col 1) */}
+    <motion.nav
+      initial={{ y: -80, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+      className={`fixed top-3 left-3 right-3 z-50 rounded-2xl transition-all duration-500 ${
+        scrolled
+          ? 'bg-white/96 backdrop-blur-xl shadow-xl shadow-[#0C1440]/8 border border-[#F26522]/20 nav-scrolled'
+          : 'bg-[#0C1440]/15 backdrop-blur-md border border-white/12'
+      }`}
+    >
+      <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-[auto_1fr_auto] lg:grid-cols-3 items-center h-14 gap-4">
+          {/* Logo */}
           <a href="/" onClick={e=>{ e.preventDefault(); navigate('/'); }}
             className="flex items-center flex-shrink-0 justify-self-start">
-            <img src="/IMG_7936.PNG" alt="MYBRIDGE" className="h-10 w-auto"/>
+            <img src="/IMG_7936.PNG" alt="MYBRIDGE" className="h-9 w-auto"/>
           </a>
 
-          {/* Desktop Links (col 2 — centered) */}
-          <div className="hidden lg:flex items-center gap-1 justify-self-center">
+          {/* Desktop Links */}
+          <div className="hidden lg:flex items-center gap-0.5 justify-self-center">
             {navLinks.map(link=>(
               <a key={link.key} href={link.href}
                 onClick={e=>{ e.preventDefault(); navigate(link.href); }}
-                className="px-3 py-2 text-sm font-medium rounded-lg transition-colors text-gray-700 hover:text-[#F26522] hover:bg-orange-50">
+                className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 tracking-wide ${
+                  isGlass
+                    ? 'text-white/90 hover:text-white hover:bg-white/10'
+                    : 'text-gray-700 hover:text-[#F26522] hover:bg-[#F26522]/8'
+                }`}>
                 {link.label}
               </a>
             ))}
           </div>
 
-          {/* Right Side (col 3) */}
+          {/* Right Side */}
           <div className={`flex items-center gap-2 justify-self-end ${isRTL?'flex-row-reverse':''}`}>
             <div className="relative">
               <button onClick={()=>setLangOpen(!langOpen)}
-                className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl border transition-all border-gray-200 text-gray-700 hover:border-[#F26522] hover:text-[#F26522]">
+                className={`flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl border transition-all duration-200 ${
+                  isGlass
+                    ? 'border-white/25 text-white/90 hover:bg-white/10'
+                    : 'border-gray-200 text-gray-700 hover:border-[#F26522] hover:text-[#F26522]'
+                }`}>
                 {currentLang?.code.toUpperCase()}
                 <FontAwesomeIcon icon={faChevronDown} className="text-[9px]"/>
               </button>
-              {langOpen && (
-                <div className="absolute top-full mt-1 right-0 bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden z-50 min-w-[140px]">
-                  {LANGUAGES.map(l=>(
-                    <button key={l.code} onClick={()=>{ onLangChange(l.code); setLangOpen(false); }}
-                      className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-orange-50 hover:text-[#F26522] ${lang===l.code?"text-[#F26522] font-semibold bg-orange-50":"text-gray-700"}`}>
-                      {l.label}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <AnimatePresence>
+                {langOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                    transition={{ duration: 0.18 }}
+                    className="absolute top-full mt-1.5 right-0 bg-white/98 backdrop-blur-xl border border-[#F26522]/20 rounded-xl shadow-xl overflow-hidden z-50 min-w-[140px]"
+                  >
+                    {LANGUAGES.map(l=>(
+                      <button key={l.code} onClick={()=>{ onLangChange(l.code); setLangOpen(false); }}
+                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-[#F26522]/10 hover:text-[#0C1440] font-medium ${lang===l.code?"text-[#F26522] font-semibold bg-[#F26522]/8":"text-gray-700"}`}>
+                        {l.label}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             <div className="hidden lg:flex items-center gap-1.5">
               <button onClick={onSupplier}
-                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border transition-all border-[#F26522] text-[#F26522] hover:bg-orange-50">
+                className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border transition-all duration-200 ${
+                  isGlass
+                    ? 'border-white/30 text-white/90 hover:bg-white/10'
+                    : 'border-[#F26522]/60 text-[#0C1440] hover:bg-[#F26522]/8'
+                }`}>
                 <FontAwesomeIcon icon={faBuilding} className="text-[10px]"/>
                 {t("nav.supplier")}
               </button>
               <button onClick={onAgency}
-                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border transition-all border-[#F26522] text-[#F26522] hover:bg-orange-50">
+                className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border transition-all duration-200 ${
+                  isGlass
+                    ? 'border-white/30 text-white/90 hover:bg-white/10'
+                    : 'border-[#F26522]/60 text-[#0C1440] hover:bg-[#F26522]/8'
+                }`}>
                 <FontAwesomeIcon icon={faUserTie} className="text-[10px]"/>
                 {t("nav.agency")}
               </button>
             </div>
 
             <button onClick={onLogin}
-              className="bg-[#F26522] hover:bg-[#DD5618] text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors">
+              className="bg-[#F26522] hover:bg-[#D94E15] text-[#0C1440] text-sm font-bold px-5 py-2 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0">
               {t("nav.signIn")}
             </button>
 
             <button onClick={()=>setMenuOpen(!menuOpen)}
-              className="lg:hidden p-2 rounded-lg text-gray-700">
+              className={`lg:hidden p-2 rounded-lg transition-colors ${isGlass ? 'text-white hover:bg-white/10' : 'text-gray-700 hover:bg-gray-100'}`}>
               <FontAwesomeIcon icon={menuOpen?faXmark:faBars}/>
             </button>
           </div>
         </div>
 
-        {menuOpen && (
-          <div className="lg:hidden bg-white border-t border-gray-100 py-3 px-2" dir={isRTL?"rtl":"ltr"}>
-            {navLinks.map(link=>(
-              <a key={link.key} href={link.href}
-                onClick={e=>{ e.preventDefault(); navigate(link.href); setMenuOpen(false); }}
-                className="block px-4 py-2.5 text-sm text-gray-700 hover:text-[#FF6B35] hover:bg-orange-50 rounded-lg">
-                {link.label}
-              </a>
-            ))}
-            <div className="border-t border-gray-100 mt-2 pt-2 space-y-1">
-              <button onClick={onSupplier} className="w-full text-left px-4 py-2.5 text-sm text-[#FF6B35] font-semibold hover:bg-orange-50 rounded-lg flex items-center gap-2">
-                <FontAwesomeIcon icon={faBuilding}/> {t("nav.supplier")}
-              </button>
-              <button onClick={onAgency} className="w-full text-left px-4 py-2.5 text-sm text-[#FF6B35] font-semibold hover:bg-orange-50 rounded-lg flex items-center gap-2">
-                <FontAwesomeIcon icon={faUserTie}/> {t("nav.agency")}
-              </button>
-            </div>
-          </div>
-        )}
+        <AnimatePresence>
+          {menuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              className="lg:hidden overflow-hidden"
+              dir={isRTL?"rtl":"ltr"}
+            >
+              <div className="bg-white/98 backdrop-blur-xl rounded-xl mt-2 mb-2 py-2 px-2 border border-[#F26522]/15 shadow-lg">
+                {navLinks.map(link=>(
+                  <a key={link.key} href={link.href}
+                    onClick={e=>{ e.preventDefault(); navigate(link.href); setMenuOpen(false); }}
+                    className="block px-4 py-2.5 text-sm text-gray-700 hover:text-[#F26522] hover:bg-[#F26522]/8 rounded-lg font-medium transition-colors">
+                    {link.label}
+                  </a>
+                ))}
+                <div className="border-t border-[#F26522]/10 mt-2 pt-2 space-y-1">
+                  <button onClick={onSupplier} className="w-full text-left px-4 py-2.5 text-sm text-[#0C1440] font-semibold hover:bg-[#F26522]/8 rounded-lg flex items-center gap-2">
+                    <FontAwesomeIcon icon={faBuilding} className="text-[#F26522]"/> {t("nav.supplier")}
+                  </button>
+                  <button onClick={onAgency} className="w-full text-left px-4 py-2.5 text-sm text-[#0C1440] font-semibold hover:bg-[#F26522]/8 rounded-lg flex items-center gap-2">
+                    <FontAwesomeIcon icon={faUserTie} className="text-[#F26522]"/> {t("nav.agency")}
+                  </button>
+                  <button onClick={onLogin} className="w-full text-left px-4 py-2.5 text-sm bg-[#F26522] text-[#0C1440] font-bold hover:bg-[#D94E15] rounded-lg">
+                    {t("nav.signIn")}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-    </nav>
+    </motion.nav>
   );
+};
+
+// Static fallback shown when Django API is unreachable
+const FALLBACK_HERO_HOTEL: HeroHotel = {
+  id: 0,
+  card_type: 'hotel',
+  name: 'Mandarin Oriental',
+  logo: null,
+  stars: 5,
+  description: 'An iconic luxury retreat in the heart of Kuala Lumpur, overlooking the Petronas Twin Towers.',
+  location: 'Kuala Lumpur',
+  card_image: 'https://images.unsplash.com/photo-1582719508461-905c673771fd?w=800&q=80',
+  card_video: null,
+  hero_image: 'https://images.unsplash.com/photo-1596422846543-75c6fc197f07?w=1600&q=85',
+  hero_video: null,
+  card_media_kind: 'image',
+  hero_media_kind: 'image',
+  link_url: '/hotels',
+  cta_text: 'Explore',
+  display_order: 0,
 };
 
 // ═══════════════════════════════════════════════════════
@@ -210,7 +299,6 @@ const PublicNavbar = ({ onLogin, onSupplier, onAgency, lang, onLangChange, t, is
 // ═══════════════════════════════════════════════════════
 const HeroSection = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) => {
   const [heroHotels, setHeroHotels] = useState<HeroHotel[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [currentIdx, setCurrentIdx] = useState(0);
 
   useEffect(() => {
@@ -219,53 +307,25 @@ const HeroSection = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
       })
-      .then(data => {
-        setHeroHotels(data.results || []);
-        setIsLoading(false);
-      })
-      .catch(err => {
-        console.error('Error loading hero hotels:', err);
-        setIsLoading(false);
-      });
+      .then(data => { setHeroHotels(data.results || []); })
+      .catch(() => { /* silently fall back to static card */ });
   }, []);
 
+  const displayHotels = heroHotels.length > 0 ? heroHotels : [FALLBACK_HERO_HOTEL];
+  const currentHotel = displayHotels[currentIdx] ?? FALLBACK_HERO_HOTEL;
+
   useEffect(() => {
-    if (heroHotels.length <= 1) return;
+    if (displayHotels.length <= 1) return;
     const timer = setInterval(() => {
-      setCurrentIdx(p => (p + 1) % heroHotels.length);
+      setCurrentIdx(p => (p + 1) % displayHotels.length);
     }, 5000);
     return () => clearInterval(timer);
-  }, [heroHotels.length]);
-
-  if (isLoading) {
-    return (
-      <section className="relative min-h-[680px] flex items-center justify-center bg-[#0F2742]">
-        <div className="text-white flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-[#FF6B35] border-t-transparent rounded-full animate-spin"/>
-          <p className="text-sm text-white/70">Loading...</p>
-        </div>
-      </section>
-    );
-  }
-
-  if (heroHotels.length === 0) {
-    return (
-      <section className="relative min-h-[680px] flex items-center justify-center bg-[#0F2742]">
-        <div className="text-white text-center px-4">
-          <FontAwesomeIcon icon={faHotel} className="text-[#FF6B35] text-4xl mb-4"/>
-          <p className="text-lg text-white/80 mb-2">No hotels available</p>
-          <p className="text-xs text-white/50">Add hotel cards from Django Admin</p>
-        </div>
-      </section>
-    );
-  }
-
-  const currentHotel = heroHotels[currentIdx];
+  }, [displayHotels.length]);
 
   return (
     <section className="relative min-h-[680px] flex items-center overflow-hidden">
       {/* خلفية Hero — صورة أو فيديو */}
-      {heroHotels.map((hotel, i) => (
+      {displayHotels.map((hotel, i) => (
         <div key={hotel.id}
           className="absolute inset-0 transition-opacity duration-1000"
           style={{ opacity: i === currentIdx ? 1 : 0 }}>
@@ -281,46 +341,63 @@ const HeroSection = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) => {
           )}
         </div>
       ))}
-      <div className="absolute inset-0 bg-gradient-to-r from-[#0F2742]/90 via-[#0F2742]/70 to-[#0F2742]/45"/>
+      {/* Premium gradient overlay — deep navy with warm fade */}
+      <div className="absolute inset-0 bg-gradient-to-r from-[#06111E]/92 via-[#0C1440]/72 to-[#0C1440]/35"/>
+      {/* Subtle gold vignette at bottom */}
+      <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#F26522]/8 to-transparent"/>
 
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16">
+      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-16">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
 
-          <div className={isRTL?"text-right":""}>
-            <span className="inline-block bg-white/10 text-white text-xs font-semibold px-3 py-1.5 rounded-full mb-4 border border-white/20 backdrop-blur-sm">
-              <FontAwesomeIcon icon={faMapMarkedAlt} className={isRTL?"ml-2":"mr-2"}/>
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1], delay: 0.15 }}
+            className={isRTL?"text-right":""}
+          >
+            <motion.span
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.3 }}
+              className="inline-flex items-center gap-2 bg-[#F26522]/15 text-[#F26522] text-xs font-semibold px-4 py-2 rounded-full mb-6 border border-[#F26522]/30 backdrop-blur-sm tracking-[0.12em] uppercase"
+            >
+              <FontAwesomeIcon icon={faMapMarkedAlt} className="text-[10px]"/>
               {t("hero.discover")}
-            </span>
-            <h1 className="font-display text-5xl md:text-7xl font-medium text-white leading-[1.05] mb-6 tracking-tight">
+            </motion.span>
+            <h1 className="font-display text-5xl md:text-7xl font-light text-white leading-[1.05] mb-6 tracking-tight">
               {t("hero.title")}<br/>
-              <span className="text-[#C9A961] italic">{t("hero.titleSpan")}</span>
+              <span className="text-[#F26522] italic font-medium">{t("hero.titleSpan")}</span>
             </h1>
-            <p className="text-white/70 text-lg mb-8 leading-relaxed max-w-lg">
+            <p className="text-white/60 text-lg mb-10 leading-relaxed max-w-lg font-light">
               {t("hero.subtitle")}
             </p>
 
-            {/* 🆕 CTA buttons — Supplier + Agency */}
             <div className={`flex flex-col sm:flex-row gap-3 ${isRTL ? 'sm:flex-row-reverse' : ''}`}>
               <a
                 href="/register/supplier"
-                className="group inline-flex items-center justify-center gap-2.5 px-7 py-3.5 bg-[#FF6B35] hover:bg-[#e07a38] text-white font-semibold text-sm rounded-xl shadow-xl shadow-[#FF6B35]/20 transition-all hover:shadow-2xl hover:shadow-[#FF6B35]/30 hover:-translate-y-0.5"
+                className="group inline-flex items-center justify-center gap-2.5 px-7 py-3.5 bg-[#F26522] hover:bg-[#D94E15] text-[#0C1440] font-bold text-sm rounded-xl shadow-xl shadow-[#F26522]/25 transition-all duration-300 hover:shadow-2xl hover:shadow-[#F26522]/35 hover:-translate-y-0.5"
               >
-                <FontAwesomeIcon icon={faBuilding} className="text-white/90" />
+                <FontAwesomeIcon icon={faBuilding} />
                 {t("hero.cta_supplier")}
-                <FontAwesomeIcon icon={isRTL ? faArrowLeft : faArrowRight} className="text-xs opacity-80 group-hover:translate-x-0.5 transition-transform" />
+                <FontAwesomeIcon icon={isRTL ? faArrowLeft : faArrowRight} className="text-xs opacity-70 group-hover:translate-x-1 transition-transform duration-200" />
               </a>
               <a
                 href="/register/agency"
-                className="group inline-flex items-center justify-center gap-2.5 px-7 py-3.5 bg-[#FF6B35] hover:bg-[#e07a38] text-white font-semibold text-sm rounded-xl shadow-xl shadow-[#FF6B35]/20 transition-all hover:shadow-2xl hover:shadow-[#FF6B35]/30 hover:-translate-y-0.5"
+                className="group inline-flex items-center justify-center gap-2.5 px-7 py-3.5 bg-white/10 hover:bg-white/18 text-white font-semibold text-sm rounded-xl border border-white/20 hover:border-white/35 transition-all duration-300 backdrop-blur-sm hover:-translate-y-0.5"
               >
-                <FontAwesomeIcon icon={faBriefcase} className="text-white/90" />
+                <FontAwesomeIcon icon={faBriefcase} />
                 {t("hero.cta_agency")}
-                <FontAwesomeIcon icon={isRTL ? faArrowLeft : faArrowRight} className="text-xs opacity-80 group-hover:translate-x-0.5 transition-transform" />
+                <FontAwesomeIcon icon={isRTL ? faArrowLeft : faArrowRight} className="text-xs opacity-70 group-hover:translate-x-1 transition-transform duration-200" />
               </a>
             </div>
-          </div>
+          </motion.div>
 
-          <div className="relative">
+          <motion.div
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1], delay: 0.4 }}
+            className="relative"
+          >
             <div
               key={currentHotel.id}
               className="relative rounded-3xl overflow-hidden border border-white/20 shadow-2xl transition-all duration-700 animate-fade-in"
@@ -347,7 +424,7 @@ const HeroSection = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) => {
                     <span className="text-white text-xs font-semibold">{currentHotel.location}</span>
                   </div>
                 ) : currentHotel.card_type === 'sponsor' ? (
-                  <div className={`absolute top-5 ${isRTL?"right-5":"left-5"} bg-[#C9A961]/90 backdrop-blur-md rounded-full px-3 py-1 flex items-center gap-1`}>
+                  <div className={`absolute top-5 ${isRTL?"right-5":"left-5"} bg-[#F26522]/90 backdrop-blur-md rounded-full px-3 py-1 flex items-center gap-1`}>
                     <span className="text-white text-[10px] font-bold uppercase tracking-wider">Sponsored</span>
                   </div>
                 ) : currentHotel.card_type === 'partner' ? (
@@ -398,7 +475,7 @@ const HeroSection = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) => {
                     href={currentHotel.link_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-2 mt-2 px-5 py-2.5 bg-[#FF6B35] hover:bg-[#e07a38] text-white text-sm font-semibold rounded-xl transition-colors w-fit shadow-lg"
+                    className="inline-flex items-center justify-center gap-2 mt-2 px-5 py-2.5 bg-[#F26522] hover:bg-[#D94E15] text-[#0C1440] text-sm font-bold rounded-xl transition-all duration-200 w-fit shadow-lg hover:-translate-y-0.5"
                   >
                     {currentHotel.cta_text} →
                   </a>
@@ -407,16 +484,16 @@ const HeroSection = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) => {
             </div>
 
             <div className={`flex items-center gap-2 mt-5 ${isRTL?"justify-end":"justify-start"}`}>
-              {heroHotels.map((_, i) => (
+              {displayHotels.map((_, i) => (
                 <button
                   key={i}
                   onClick={() => setCurrentIdx(i)}
                   aria-label={`Show hotel ${i+1}`}
-                  className={`h-2 rounded-full transition-all ${i===currentIdx?"bg-[#FF6B35] w-8":"bg-white/40 w-2 hover:bg-white/60"}`}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${i===currentIdx?"bg-[#F26522] w-8":"bg-white/30 w-1.5 hover:bg-white/55"}`}
                 />
               ))}
             </div>
-          </div>
+          </motion.div>
 
         </div>
       </div>
@@ -426,17 +503,17 @@ const HeroSection = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) => {
 
 // ══ DESTINATIONS ════════════════════════════════════════
 const DestinationsSection = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) => (
-  <section className="py-24 bg-white" dir={isRTL?"rtl":"ltr"}>
+  <section className="py-24 bg-[#FAF9F5]" dir={isRTL?"rtl":"ltr"}>
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className={`mb-10 ${isRTL?"text-right":""}`}>
-        <p className="text-[#C9A961] text-xs font-semibold uppercase tracking-[0.25em] mb-1">
-          <FontAwesomeIcon icon={faLocationDot} className={isRTL?"ml-1":"mr-1"}/> {t("destinations.label")}
+      <AnimatedSection className={`mb-12 ${isRTL?"text-right":""}`}>
+        <p className="text-[#F26522] text-[11px] font-semibold uppercase tracking-[0.3em] mb-2 flex items-center gap-2">
+          <FontAwesomeIcon icon={faLocationDot}/> {t("destinations.label")}
         </p>
-        <h2 className="font-display text-3xl md:text-4xl font-medium text-gray-900 tracking-tight">{t("destinations.title")}</h2>
-      </div>
+        <h2 className="font-display text-4xl md:text-5xl font-light text-[#0C1440] tracking-tight">{t("destinations.title")}</h2>
+      </AnimatedSection>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {DESTINATIONS.slice(0,7).map(dest=>(
-          <a key={dest.name} href="#" className="mb-card mb-card-img group relative rounded-2xl overflow-hidden border border-gray-100">
+          <a key={dest.name} href="#" className="luxury-card mb-card-img group relative rounded-2xl overflow-hidden">
             <div className="aspect-[3/4] overflow-hidden">
               <img src={dest.image} alt={dest.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"/>
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"/>
@@ -447,10 +524,10 @@ const DestinationsSection = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean
             </div>
           </a>
         ))}
-        <div className="bg-[#0F2742] rounded-2xl p-6 flex flex-col justify-between hover:bg-[#163556] transition-colors cursor-pointer relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-[#C9A961]/10 rounded-full -translate-y-8 translate-x-8" />
-          <p className="font-display text-white text-lg leading-snug relative">Crafting Your Perfect <span className="italic text-[#C9A961]">Travel</span> Experience</p>
-          <a href="/destinations" className="mt-4 bg-[#C9A961] text-[#0F2742] text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 hover:bg-[#d4b67a] transition-colors w-fit relative">
+        <div className="bg-[#0C1440] rounded-2xl p-6 flex flex-col justify-between hover:bg-[#163556] transition-colors cursor-pointer relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-[#F26522]/10 rounded-full -translate-y-8 translate-x-8" />
+          <p className="font-display text-white text-lg leading-snug relative">Crafting Your Perfect <span className="italic text-[#F26522]">Travel</span> Experience</p>
+          <a href="/destinations" className="mt-4 bg-[#F26522] text-[#0C1440] text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 hover:bg-[#d4b67a] transition-colors w-fit relative">
             {t("destinations.browseAll")} <FontAwesomeIcon icon={isRTL?faChevronLeft:faChevronRight} className="text-xs"/>
           </a>
         </div>
@@ -461,19 +538,19 @@ const DestinationsSection = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean
 
 // ══ MALAYSIA ════════════════════════════════════════════
 const MalaysiaSection = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) => (
-  <section className="py-24 bg-[#0F2742]" dir={isRTL?"rtl":"ltr"}>
+  <section className="py-24 bg-[#080D30]" dir={isRTL?"rtl":"ltr"}>
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-        <div className={isRTL?"text-right":""}>
-          <p className="text-[#C9A961] text-xs font-semibold uppercase tracking-[0.25em] mb-4">
-            <FontAwesomeIcon icon={faMapMarkedAlt} className={isRTL?"ml-2":"mr-2"}/>
+        <AnimatedSection className={isRTL?"text-right":""}>
+          <p className="text-[#F26522] text-[11px] font-semibold uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
+            <FontAwesomeIcon icon={faMapMarkedAlt}/>
             {t("malaysia.label")}
           </p>
-          <h2 className="font-display text-4xl md:text-5xl font-medium text-white mb-5 leading-[1.1] tracking-tight">
+          <h2 className="font-display text-4xl md:text-5xl font-light text-white mb-5 leading-[1.1] tracking-tight">
             {t("malaysia.title")}<br/>
-            <span className="text-[#C9A961] italic">{t("malaysia.titleSpan")}</span>
+            <span className="text-[#F26522] italic font-medium">{t("malaysia.titleSpan")}</span>
           </h2>
-          <p className="text-white/55 mb-10 leading-relaxed">{t("malaysia.desc")}</p>
+          <p className="text-white/45 mb-10 leading-relaxed font-light">{t("malaysia.desc")}</p>
           <div className="grid grid-cols-2 gap-4">
             {[
               { num:"30M+",  key:"stats.tourists" },
@@ -481,16 +558,16 @@ const MalaysiaSection = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) 
               { num:"13",    key:"stats.states"   },
               { num:"#1",    key:"stats.ranking"  },
             ].map(s=>(
-              <div key={s.num} className="mb-stat bg-white/5 border border-white/10 rounded-2xl p-5 text-center hover:bg-white/10 transition-colors">
-                <div className="font-display text-3xl font-medium text-[#C9A961] mb-1">{s.num}</div>
-                <div className="text-xs text-white/45">{t(s.key)}</div>
+              <div key={s.num} className="bg-white/5 border border-[#F26522]/15 rounded-2xl p-5 text-center hover:bg-white/8 hover:border-[#F26522]/30 transition-all duration-300 cursor-default">
+                <div className="font-display text-3xl font-light text-[#F26522] mb-1">{s.num}</div>
+                <div className="text-xs text-white/40 tracking-wide">{t(s.key)}</div>
               </div>
             ))}
           </div>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
+        </AnimatedSection>
+        <AnimatedSection className="grid grid-cols-2 gap-4" delay={0.2}>
           {MALAYSIA_DESTINATIONS.map(dest=>(
-            <div key={dest.key} className="mb-card mb-card-img group rounded-2xl overflow-hidden border border-white/10 hover:border-[#FF6B35]/50 cursor-pointer">
+            <div key={dest.key} className="luxury-card mb-card-img group rounded-2xl overflow-hidden cursor-pointer">
               <div className="relative overflow-hidden aspect-square">
                 <img src={dest.image} alt={t(`malaysia.destinations.${dest.key}`)}
                   className="w-full h-full object-cover"/>
@@ -502,7 +579,7 @@ const MalaysiaSection = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) 
               </div>
             </div>
           ))}
-        </div>
+        </AnimatedSection>
       </div>
     </div>
   </section>
@@ -517,31 +594,33 @@ const WhyChooseUs = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) => {
     { icon:faHeadset,      titleKey:"why.f4Title", descKey:"why.f4Desc" },
   ];
   return (
-    <section className="py-24 bg-[#FAF8F3]" dir={isRTL?"rtl":"ltr"}>
+    <section className="py-24 bg-[#FAF9F5]" dir={isRTL?"rtl":"ltr"}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-          <div className={isRTL?"text-right":""}>
-            <span className="inline-block bg-orange-100 text-orange-700 text-xs font-semibold px-3 py-1.5 rounded-full mb-4">{t("why.label")}</span>
-            <h2 className="font-display text-3xl md:text-4xl font-medium text-gray-900 tracking-tight mb-4">{t("why.title")}</h2>
-            <p className="text-gray-500 mb-8 text-sm leading-relaxed">{t("why.subtitle")}</p>
+          <AnimatedSection className={isRTL?"text-right":""}>
+            <span className="inline-block bg-[#F26522]/12 text-[#1E2A78] text-[11px] font-semibold px-4 py-1.5 rounded-full mb-5 tracking-[0.12em] uppercase border border-[#F26522]/20">{t("why.label")}</span>
+            <h2 className="font-display text-4xl md:text-5xl font-light text-[#0C1440] tracking-tight mb-4">{t("why.title")}</h2>
+            <p className="text-gray-500 mb-8 leading-relaxed font-light">{t("why.subtitle")}</p>
             <div className={`flex gap-3 ${isRTL?"justify-end":""}`}>
-              <a href="#" className="bg-gray-900 text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-gray-800 transition-colors flex items-center gap-2">
+              <a href="#" className="bg-[#0C1440] text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-[#163556] transition-colors flex items-center gap-2 shadow-md">
                 <FontAwesomeIcon icon={faGooglePlay}/> {t("why.googlePlay")}
               </a>
-              <a href="#" className="bg-white text-gray-900 text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-gray-100 transition-colors flex items-center gap-2 border border-gray-200">
+              <a href="#" className="bg-white text-[#0C1440] text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-gray-50 transition-colors flex items-center gap-2 border border-gray-200 shadow-sm">
                 <FontAwesomeIcon icon={faAppStore}/> {t("why.appStore")}
               </a>
             </div>
-          </div>
+          </AnimatedSection>
           <div className="grid grid-cols-2 gap-4">
-            {features.map(f=>(
-              <div key={f.titleKey} className="mb-feature bg-white rounded-2xl p-6 hover:bg-orange-50 group border border-gray-100">
-                <div className="mb-icon-wrap w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center mb-4 group-hover:bg-[#FF6B35]">
-                  <FontAwesomeIcon icon={f.icon} className="text-[#FF6B35] group-hover:text-white transition-colors text-lg"/>
+            {features.map((f, idx)=>(
+              <AnimatedSection key={f.titleKey} delay={idx * 0.08}>
+                <div className="luxury-card bg-white rounded-2xl p-6 group cursor-default h-full">
+                  <div className="w-11 h-11 bg-[#F26522]/12 rounded-xl flex items-center justify-center mb-4 group-hover:bg-[#F26522]/22 transition-colors">
+                    <FontAwesomeIcon icon={f.icon} className="text-[#F26522] text-base"/>
+                  </div>
+                  <h3 className={`font-semibold text-[#0C1440] text-sm mb-2 ${isRTL?"text-right":""}`}>{t(f.titleKey)}</h3>
+                  <p className={`text-xs text-gray-500 leading-relaxed font-light ${isRTL?"text-right":""}`}>{t(f.descKey)}</p>
                 </div>
-                <h3 className={`font-bold text-gray-900 text-sm mb-2 group-hover:text-orange-700 transition-colors ${isRTL?"text-right":""}`}>{t(f.titleKey)}</h3>
-                <p className={`text-xs text-gray-500 leading-relaxed ${isRTL?"text-right":""}`}>{t(f.descKey)}</p>
-              </div>
+              </AnimatedSection>
             ))}
           </div>
         </div>
@@ -552,48 +631,48 @@ const WhyChooseUs = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) => {
 
 // ══ SUPPLIER CTA ════════════════════════════════════════
 const SupplierCTASection = ({ onSupplier, t, isRTL }: { onSupplier?:()=>void; t:(k:string)=>string; isRTL:boolean }) => (
-  <section className="py-24 bg-[#0F2742]" dir={isRTL?"rtl":"ltr"}>
+  <section className="py-24 bg-[#080D30]" dir={isRTL?"rtl":"ltr"}>
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-        <div className={isRTL?"text-right":""}>
-          <span className="inline-block bg-orange-500/20 text-orange-400 text-xs font-semibold px-3 py-1.5 rounded-full mb-4">
-            <FontAwesomeIcon icon={faBuilding} className={isRTL?"ml-1":"mr-1"}/> {t("supplierCta.label")}
+        <AnimatedSection className={isRTL?"text-right":""}>
+          <span className="inline-flex items-center gap-2 bg-[#F26522]/15 text-[#F26522] text-[11px] font-semibold px-4 py-1.5 rounded-full mb-5 border border-[#F26522]/25 tracking-[0.12em] uppercase">
+            <FontAwesomeIcon icon={faBuilding}/> {t("supplierCta.label")}
           </span>
-          <h2 className="font-display text-4xl md:text-5xl font-medium text-white mb-5 leading-[1.1] tracking-tight">
+          <h2 className="font-display text-4xl md:text-5xl font-light text-white mb-5 leading-[1.1] tracking-tight">
             {t("supplierCta.title")}<br/>
-            <span className="text-[#FF6B35]">{t("supplierCta.titleSpan")}</span>
+            <span className="text-[#F26522] italic font-medium">{t("supplierCta.titleSpan")}</span>
           </h2>
-          <p className="text-white/55 mb-8 leading-relaxed">{t("supplierCta.desc")}</p>
+          <p className="text-white/45 mb-8 leading-relaxed font-light">{t("supplierCta.desc")}</p>
           <div className={`grid grid-cols-2 gap-3 mb-10 ${isRTL?"text-right":""}`}>
             {[t("supplierCta.f1"),t("supplierCta.f2"),t("supplierCta.f3"),t("supplierCta.f4")].map(f=>(
               <div key={f} className="flex items-center gap-2 text-sm text-white/70">
-                <div className="w-5 h-5 bg-[#FF6B35] rounded-full flex items-center justify-center flex-shrink-0">
-                  <FontAwesomeIcon icon={faCheckCircle} className="text-white text-[9px]"/>
+                <div className="w-5 h-5 bg-[#F26522]/20 border border-[#F26522]/40 rounded-full flex items-center justify-center flex-shrink-0">
+                  <FontAwesomeIcon icon={faCheckCircle} className="text-[#F26522] text-[9px]"/>
                 </div>
                 {f}
               </div>
             ))}
           </div>
           <button onClick={onSupplier}
-            className="mb-btn bg-[#FF6B35] hover:bg-[#e07a38] text-white font-bold px-8 py-4 rounded-xl text-sm flex items-center gap-2 shadow-lg shadow-orange-500/25">
+            className="mb-btn bg-[#F26522] hover:bg-[#D94E15] text-[#0C1440] font-bold px-8 py-4 rounded-xl text-sm flex items-center gap-2 shadow-xl shadow-[#F26522]/20 hover:-translate-y-0.5 transition-all duration-200">
             <FontAwesomeIcon icon={faBuilding}/> {t("supplierCta.cta")}
             <FontAwesomeIcon icon={faArrowRight}/>
           </button>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
+        </AnimatedSection>
+        <AnimatedSection className="grid grid-cols-2 gap-4" delay={0.2}>
           {[
             { num:"2,400+",  key:"supplierCta.stat1Label", icon:faHotel       },
             { num:"18,000+", key:"supplierCta.stat2Label", icon:faCheckCircle },
             { num:"4",       key:"supplierCta.stat3Label", icon:faGlobe       },
             { num:"98%",     key:"supplierCta.stat4Label", icon:faUsers       },
           ].map(s=>(
-            <div key={s.num} className="mb-stat bg-white/5 border border-white/10 rounded-2xl p-6 text-center hover:bg-white/10 transition-colors">
-              <FontAwesomeIcon icon={s.icon} className="text-[#FF6B35] text-2xl mb-3"/>
-              <div className="text-3xl font-bold text-[#FF6B35] mb-1">{s.num}</div>
-              <div className="text-sm text-white/50">{t(s.key)}</div>
+            <div key={s.num} className="bg-white/4 border border-[#F26522]/15 rounded-2xl p-6 text-center hover:bg-white/8 hover:border-[#F26522]/28 transition-all duration-300 cursor-default">
+              <FontAwesomeIcon icon={s.icon} className="text-[#F26522]/70 text-xl mb-3"/>
+              <div className="font-display text-3xl font-light text-[#F26522] mb-1">{s.num}</div>
+              <div className="text-xs text-white/40 tracking-wide">{t(s.key)}</div>
             </div>
           ))}
-        </div>
+        </AnimatedSection>
       </div>
     </div>
   </section>
@@ -601,31 +680,33 @@ const SupplierCTASection = ({ onSupplier, t, isRTL }: { onSupplier?:()=>void; t:
 
 // ══ TESTIMONIALS ════════════════════════════════════════
 const TestimonialsSection = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) => (
-  <section className="py-24 bg-white" dir={isRTL?"rtl":"ltr"}>
+  <section className="py-24 bg-[#FAF9F5]" dir={isRTL?"rtl":"ltr"}>
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="text-center mb-14">
-        <span className="inline-block bg-orange-100 text-orange-700 text-xs font-semibold px-3 py-1.5 rounded-full mb-4">{t("testimonials.label")}</span>
-        <h2 className="font-display text-3xl md:text-4xl font-medium text-gray-900 tracking-tight">{t("testimonials.title")}</h2>
-      </div>
+      <AnimatedSection className="text-center mb-14">
+        <span className="inline-block bg-[#F26522]/12 text-[#1E2A78] text-[11px] font-semibold px-4 py-1.5 rounded-full mb-4 border border-[#F26522]/20 tracking-[0.12em] uppercase">{t("testimonials.label")}</span>
+        <h2 className="font-display text-4xl md:text-5xl font-light text-[#0C1440] tracking-tight">{t("testimonials.title")}</h2>
+      </AnimatedSection>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {TESTIMONIALS.map(testimonial=>(
-          <div key={testimonial.name} className="bg-gray-50 rounded-2xl p-6 hover:bg-orange-50 transition-colors border border-gray-100 hover:border-orange-200">
-            <div className="flex items-center gap-1.5 mb-4">
-              {[1,2,3,4,5].map(s=>(
-                <FontAwesomeIcon key={s} icon={faStar} className="text-amber-400 text-sm"/>
-              ))}
-            </div>
-            <p className={`text-sm text-gray-600 leading-relaxed mb-6 ${isRTL?"text-right":""}`}>"{testimonial.text}"</p>
-            <div className={`flex items-center gap-3 ${isRTL?"flex-row-reverse":""}`}>
-              <div className="w-10 h-10 rounded-full bg-[#FF6B35] flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                {testimonial.avatar}
+        {TESTIMONIALS.map((testimonial, idx)=>(
+          <AnimatedSection key={testimonial.name} delay={idx * 0.1}>
+            <div className="luxury-card bg-white rounded-2xl p-7 h-full cursor-default">
+              <div className="flex items-center gap-1 mb-5">
+                {[1,2,3,4,5].map(s=>(
+                  <FontAwesomeIcon key={s} icon={faStar} className="text-[#F26522] text-xs"/>
+                ))}
               </div>
-              <div className={isRTL?"text-right":""}>
-                <p className="font-semibold text-gray-900 text-sm">{testimonial.name}</p>
-                <p className="text-xs text-gray-500">{testimonial.location}</p>
+              <p className={`text-sm text-gray-600 leading-relaxed mb-7 font-light italic ${isRTL?"text-right":""}`}>"{testimonial.text}"</p>
+              <div className={`flex items-center gap-3 ${isRTL?"flex-row-reverse":""}`}>
+                <div className="w-10 h-10 rounded-full bg-[#F26522]/15 border border-[#F26522]/30 flex items-center justify-center text-[#1E2A78] font-bold text-sm flex-shrink-0">
+                  {testimonial.avatar}
+                </div>
+                <div className={isRTL?"text-right":""}>
+                  <p className="font-semibold text-[#0C1440] text-sm">{testimonial.name}</p>
+                  <p className="text-xs text-gray-400">{testimonial.location}</p>
+                </div>
               </div>
             </div>
-          </div>
+          </AnimatedSection>
         ))}
       </div>
     </div>
@@ -637,38 +718,40 @@ const NewsSection = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) => (
   <section className="py-24 bg-[#FAF8F3]" dir={isRTL?"rtl":"ltr"}>
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className={`flex items-end justify-between mb-10 ${isRTL?"flex-row-reverse":""}`}>
-        <div className={isRTL?"text-right":""}>
-          <p className="text-[#C9A961] text-xs font-semibold uppercase tracking-[0.25em] mb-1">{t("news.label")}</p>
-          <h2 className="font-display text-3xl md:text-4xl font-medium text-gray-900 tracking-tight">{t("news.title")}</h2>
-        </div>
-        <a href="/blog" className="hidden sm:flex items-center gap-1.5 text-[#FF6B35] font-semibold text-sm bg-orange-50 px-4 py-2 rounded-xl hover:bg-orange-100 transition-colors">
+        <AnimatedSection className={isRTL?"text-right":""}>
+          <p className="text-[#F26522] text-[11px] font-semibold uppercase tracking-[0.3em] mb-2">{t("news.label")}</p>
+          <h2 className="font-display text-4xl md:text-5xl font-light text-[#0C1440] tracking-tight">{t("news.title")}</h2>
+        </AnimatedSection>
+        <a href="/blog" className="hidden sm:flex items-center gap-1.5 text-[#F26522] font-semibold text-sm border border-[#F26522]/30 px-4 py-2 rounded-xl hover:bg-[#F26522]/8 transition-colors">
           {t("news.viewMore")} <FontAwesomeIcon icon={isRTL?faChevronLeft:faChevronRight} className="text-xs"/>
         </a>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {NEWS.map((post,i)=>(
-          <div key={post.id} className={`mb-card mb-card-img bg-white rounded-2xl overflow-hidden border border-gray-100 group ${i===0?"md:col-span-1":""}`}>
-            <div className="relative overflow-hidden aspect-video">
-              <img src={post.image} alt={post.title} className="w-full h-full object-cover"/>
-              <div className="absolute top-3 left-3">
-                <span className="bg-white text-gray-700 text-xs font-semibold px-2.5 py-1 rounded-full shadow-sm">{post.category}</span>
+          <AnimatedSection key={post.id} delay={i * 0.1}>
+            <div className={`luxury-card mb-card-img bg-white rounded-2xl overflow-hidden group h-full`}>
+              <div className="relative overflow-hidden aspect-video">
+                <img src={post.image} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"/>
+                <div className="absolute top-3 left-3">
+                  <span className="bg-white/95 backdrop-blur-sm text-[#0C1440] text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm uppercase tracking-wide">{post.category}</span>
+                </div>
+              </div>
+              <div className="p-5">
+                <div className={`flex items-center gap-3 text-xs text-gray-400 mb-3 ${isRTL?"flex-row-reverse":""}`}>
+                  <span>{post.date}</span>
+                  <span className="w-1 h-1 rounded-full bg-gray-300"/>
+                  <span>{post.readTime} read</span>
+                </div>
+                <h3 className={`font-semibold text-[#0C1440] text-sm leading-snug mb-4 line-clamp-2 group-hover:text-[#F26522] transition-colors duration-200 ${isRTL?"text-right":""}`}>{post.title}</h3>
+                <div className={`flex items-center justify-between ${isRTL?"flex-row-reverse":""}`}>
+                  <span className="text-xs text-gray-400">{post.author}</span>
+                  <a href="#" className="text-xs text-[#F26522] font-semibold border border-[#F26522]/25 px-3 py-1.5 rounded-xl hover:bg-[#F26522]/8 transition-colors">
+                    {t("news.read")}
+                  </a>
+                </div>
               </div>
             </div>
-            <div className="p-5">
-              <div className={`flex items-center gap-3 text-xs text-gray-400 mb-3 ${isRTL?"flex-row-reverse":""}`}>
-                <span>{post.date}</span>
-                <span className="w-1 h-1 rounded-full bg-gray-300"/>
-                <span>{post.readTime} read</span>
-              </div>
-              <h3 className={`font-bold text-gray-900 text-sm leading-snug mb-4 line-clamp-2 group-hover:text-[#FF6B35] transition-colors ${isRTL?"text-right":""}`}>{post.title}</h3>
-              <div className={`flex items-center justify-between ${isRTL?"flex-row-reverse":""}`}>
-                <span className="text-xs text-gray-400">{post.author}</span>
-                <a href="#" className="text-xs text-[#FF6B35] font-semibold border border-orange-200 px-3 py-1.5 rounded-xl hover:bg-orange-50 transition-colors">
-                  {t("news.read")}
-                </a>
-              </div>
-            </div>
-          </div>
+          </AnimatedSection>
         ))}
       </div>
     </div>
@@ -681,23 +764,25 @@ const NewsletterSection = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }
   return (
     <section className="py-24 bg-white" dir={isRTL?"rtl":"ltr"}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-[#0F2742] rounded-3xl p-10 md:p-16 grid grid-cols-1 md:grid-cols-2 gap-10 items-center relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-[#FF6B35]/10 rounded-full -translate-y-32 translate-x-32"/>
+        <div className="bg-[#080D30] rounded-3xl p-10 md:p-16 grid grid-cols-1 md:grid-cols-2 gap-10 items-center relative overflow-hidden border border-[#F26522]/15">
+          {/* Gold glow corners */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-[#F26522]/6 rounded-full -translate-y-32 translate-x-32"/>
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-[#F26522]/4 rounded-full translate-y-24 -translate-x-24"/>
           <div className={`relative z-10 ${isRTL?"text-right":""}`}>
-            <span className="inline-block bg-[#FF6B35]/20 text-orange-400 text-xs font-semibold px-3 py-1.5 rounded-full mb-4">
-              <FontAwesomeIcon icon={faBell} className={isRTL?"ml-1":"mr-1"}/> MYBRIDGE
+            <span className="inline-flex items-center gap-2 bg-[#F26522]/15 text-[#F26522] text-[11px] font-semibold px-4 py-1.5 rounded-full mb-5 border border-[#F26522]/25 tracking-[0.12em] uppercase">
+              <FontAwesomeIcon icon={faBell}/> MYBRIDGE
             </span>
-            <h2 className="text-3xl font-bold text-white mb-3">{t("newsletter.title")}</h2>
-            <p className="text-white/55 text-sm">{t("newsletter.subtitle")}</p>
+            <h2 className="font-display text-3xl md:text-4xl font-light text-white mb-3">{t("newsletter.title")}</h2>
+            <p className="text-white/45 font-light">{t("newsletter.subtitle")}</p>
           </div>
           <div className={`relative z-10 flex gap-3 ${isRTL?"flex-row-reverse":""}`}>
             <div className="flex-1 relative">
               <FontAwesomeIcon icon={faEnvelope} className={`absolute ${isRTL?"right-3":"left-3"} top-1/2 -translate-y-1/2 text-gray-400 text-sm`}/>
               <input type="email" value={email} onChange={e=>setEmail(e.target.value)}
                 placeholder={t("newsletter.placeholder")}
-                className={`w-full bg-white text-gray-900 text-sm rounded-xl ${isRTL?"pr-9 pl-4":"pl-9 pr-4"} py-4 outline-none placeholder-gray-400 border-0`}/>
+                className={`w-full bg-white/8 border border-white/12 text-white text-sm rounded-xl ${isRTL?"pr-9 pl-4":"pl-9 pr-4"} py-4 outline-none placeholder-gray-500 focus:border-[#F26522]/40 focus:bg-white/12 transition-all`}/>
             </div>
-            <button className="bg-[#FF6B35] hover:bg-[#e07a38] text-white text-sm font-bold px-6 py-4 rounded-xl transition-colors whitespace-nowrap">
+            <button className="bg-[#F26522] hover:bg-[#D94E15] text-[#0C1440] text-sm font-bold px-6 py-4 rounded-xl transition-all duration-200 whitespace-nowrap hover:-translate-y-0.5 shadow-lg shadow-[#F26522]/20">
               {t("newsletter.subscribe")}
             </button>
           </div>
@@ -709,28 +794,29 @@ const NewsletterSection = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }
 
 // ══ FOOTER ══════════════════════════════════════════════
 const Footer = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) => (
-  <footer className="bg-gray-900 text-gray-400" dir={isRTL?"rtl":"ltr"}>
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-8 mb-12">
+  <footer className="bg-[#06091E] text-gray-400" dir={isRTL?"rtl":"ltr"}>
+    <div className="h-px bg-gradient-to-r from-transparent via-[#F26522]/50 to-transparent"/>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-10">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-8 mb-14">
         <div className="col-span-2">
-          <div className={`flex items-center gap-2 mb-3 ${isRTL?"flex-row-reverse":""}`}>
-            <img src="/logo.svg" alt="MYBRIDGE" className="h-8 w-auto brightness-0 invert"/>
-            <span className="text-white font-bold text-lg">MYBRIDGE</span>
+          <div className={`flex items-center gap-2 mb-4 ${isRTL?"flex-row-reverse":""}`}>
+            <img src="/logo.svg" alt="MYBRIDGE" className="h-8 w-auto brightness-0 invert opacity-90"/>
+            <span className="font-display text-xl text-white/95 tracking-wide">MYBRIDGE</span>
           </div>
-          <p className="text-xs text-gray-500 italic mb-4">{t("footer.tagline")}</p>
-          <div className={`space-y-1 text-xs text-gray-500 ${isRTL?"text-right":""}`}>
-            <p className="font-medium text-gray-400">{t("footer.license")}</p>
+          <p className="text-xs text-[#F26522]/65 italic mb-5 leading-relaxed">{t("footer.tagline")}</p>
+          <div className={`space-y-1 text-xs text-gray-600 mb-5 ${isRTL?"text-right":""}`}>
+            <p className="font-medium text-gray-500">{t("footer.license")}</p>
             <p>{t("footer.company")}</p>
             <p>{t("footer.regNo")}</p>
-            <p className="text-[#FF6B35]">www.mybridge.my</p>
+            <p className="text-[#F26522]">www.mybridge.my</p>
           </div>
-          <div className={`mt-4 ${isRTL?"text-right":""}`}>
-            <p className="text-xs flex items-center gap-2">
-              <FontAwesomeIcon icon={faEnvelope} className="flex-shrink-0 text-[#FF6B35]"/>
+          <div className={`space-y-2 ${isRTL?"text-right":""}`}>
+            <p className="text-xs flex items-center gap-2.5">
+              <FontAwesomeIcon icon={faEnvelope} className="flex-shrink-0 text-[#F26522]/65 w-3"/>
               {t("footer.email")}
             </p>
-            <p className="text-xs flex items-center gap-2 mt-1">
-              <FontAwesomeIcon icon={faPhone} className="flex-shrink-0 text-[#FF6B35]"/>
+            <p className="text-xs flex items-center gap-2.5">
+              <FontAwesomeIcon icon={faPhone} className="flex-shrink-0 text-[#F26522]/65 w-3"/>
               +60 12 345 6789
             </p>
           </div>
@@ -742,28 +828,29 @@ const Footer = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) => (
           { title:t("footer.legal"),    items:[{label:t("footer.terms"),     href:"/terms"}, {label:t("footer.privacy"),href:"/privacy"},{label:t("footer.cookies"),href:"/cookies"}] },
         ].map(col=>(
           <div key={col.title} className={isRTL?"text-right":""}>
-            <h4 className="text-white font-bold text-sm mb-4">{col.title}</h4>
+            <h4 className="text-[#F26522]/75 font-semibold text-[11px] mb-4 uppercase tracking-[0.18em]">{col.title}</h4>
             <ul className="space-y-2.5">
               {col.items.map(item=>(
                 <li key={item.label}>
-                  <a href={item.href} className="text-sm hover:text-orange-400 transition-colors">{item.label}</a>
+                  <a href={item.href} className="text-sm text-gray-500 hover:text-[#F26522] transition-colors duration-200">{item.label}</a>
                 </li>
               ))}
             </ul>
           </div>
         ))}
       </div>
-      <div className="border-t border-gray-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <p className="text-xs">{t("footer.copyright")}</p>
-        <div className="flex items-center gap-3">
+      <div className="h-px bg-gradient-to-r from-transparent via-[#F26522]/18 to-transparent mb-6"/>
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <p className="text-xs text-gray-600">{t("footer.copyright")}</p>
+        <div className="flex items-center gap-2.5">
           {[
             {icon:faFacebook,  href:"#"},
             {icon:faInstagram, href:"#"},
             {icon:faTwitter,   href:"#"},
             {icon:faWhatsapp,  href:"#"},
           ].map((s,i)=>(
-            <a key={i} href={s.href} className="w-8 h-8 bg-gray-800 hover:bg-[#FF6B35] rounded-lg flex items-center justify-center transition-colors">
-              <FontAwesomeIcon icon={s.icon} className="text-gray-400 hover:text-white text-sm"/>
+            <a key={i} href={s.href} className="w-8 h-8 bg-white/4 hover:bg-[#F26522]/18 border border-white/8 hover:border-[#F26522]/35 rounded-xl flex items-center justify-center transition-all duration-200 hover:-translate-y-0.5">
+              <FontAwesomeIcon icon={s.icon} className="text-gray-500 text-xs"/>
             </a>
           ))}
         </div>
@@ -773,7 +860,7 @@ const Footer = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) => (
             {label:t("footer.privacy"),href:"/privacy"},
             {label:t("footer.cookies"),href:"/cookies"},
           ].map(item=>(
-            <a key={item.label} href={item.href} className="text-xs hover:text-orange-400 transition-colors">{item.label}</a>
+            <a key={item.label} href={item.href} className="text-xs text-gray-600 hover:text-[#F26522] transition-colors duration-200">{item.label}</a>
           ))}
         </div>
       </div>
@@ -804,22 +891,22 @@ const FeaturedHotelsSection = ({ lang, isRTL, hidden, t }: { lang: Language; isR
   const seeAll   = t('home.featuredHotels.seeAll');
 
   return (
-    <section className="bg-white py-14" dir={isRTL ? 'rtl' : 'ltr'}>
+    <section className="bg-[#FAF9F5] py-16" dir={isRTL ? 'rtl' : 'ltr'}>
       <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-end justify-between mb-8">
+        <AnimatedSection className="flex items-end justify-between mb-10">
           <div>
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">{title}</h2>
-            <p className="text-gray-500 mt-2">{subtitle}</p>
+            <h2 className="font-display text-4xl font-light text-[#0C1440] tracking-tight">{title}</h2>
+            <p className="text-gray-500 mt-2 font-light">{subtitle}</p>
           </div>
-          <button className="text-sm font-semibold text-[#FF6B35] hover:underline whitespace-nowrap">
+          <button className="text-sm font-semibold text-[#F26522] border border-[#F26522]/30 px-4 py-2 rounded-xl hover:bg-[#F26522]/8 transition-colors whitespace-nowrap">
             {seeAll}
           </button>
-        </div>
+        </AnimatedSection>
 
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="aspect-[4/3] bg-gray-100 rounded-2xl animate-pulse" />
+              <div key={i} className="aspect-[4/3] bg-[#F26522]/8 rounded-2xl animate-pulse" />
             ))}
           </div>
         ) : (
@@ -864,22 +951,22 @@ const FeaturedServicesSection = ({ lang, isRTL, externalFilter, hidden, t }: {
   const seeAll   = t('home.services.seeAll');
 
   return (
-    <section className="bg-gray-50 py-14" dir={isRTL ? 'rtl' : 'ltr'}>
+    <section className="bg-white py-16" dir={isRTL ? 'rtl' : 'ltr'}>
       <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-end justify-between mb-8">
+        <AnimatedSection className="flex items-end justify-between mb-10">
           <div>
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">{title}</h2>
-            <p className="text-gray-500 mt-2">{subtitle}</p>
+            <h2 className="font-display text-4xl font-light text-[#0C1440] tracking-tight">{title}</h2>
+            <p className="text-gray-500 mt-2 font-light">{subtitle}</p>
           </div>
-          <button className="text-sm font-semibold text-[#FF6B35] hover:underline whitespace-nowrap">
+          <button className="text-sm font-semibold text-[#F26522] border border-[#F26522]/30 px-4 py-2 rounded-xl hover:bg-[#F26522]/8 transition-colors whitespace-nowrap">
             {seeAll}
           </button>
-        </div>
+        </AnimatedSection>
 
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="aspect-[4/3] bg-gray-200 rounded-2xl animate-pulse" />
+              <div key={i} className="aspect-[4/3] bg-[#F26522]/8 rounded-2xl animate-pulse" />
             ))}
           </div>
         ) : services.length === 0 ? (
@@ -928,7 +1015,7 @@ export function HomePage({ onLogin }: { onLogin?: () => void }) {
   } | null>(null);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#FAF9F5]">
       <PublicNavbar
         onLogin={onLogin}
         onSupplier={goToSupplier}
@@ -964,7 +1051,7 @@ export function HomePage({ onLogin }: { onLogin?: () => void }) {
       )}
 
       {/* 4. AdSlot */}
-      <section className="bg-white py-2" dir={isRTL ? 'rtl' : 'ltr'}>
+      <section className="bg-[#FAF9F5] py-2" dir={isRTL ? 'rtl' : 'ltr'}>
         <div className="max-w-7xl mx-auto px-4">
           <AdSlot placement="HOME_HERO_TOP" />
         </div>
@@ -986,7 +1073,7 @@ export function HomePage({ onLogin }: { onLogin?: () => void }) {
       )}
 
       {/* 9. Banner Ad */}
-      <section className="bg-white py-8" dir={isRTL ? 'rtl' : 'ltr'}>
+      <section className="bg-[#FAF9F5] py-8" dir={isRTL ? 'rtl' : 'ltr'}>
         <div className="max-w-7xl mx-auto px-4">
           <AdSlot placement="HOME_BANNER_FULL" />
         </div>

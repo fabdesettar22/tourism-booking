@@ -42,37 +42,40 @@ export function TestimonialsCarousel({ lang, isRTL }: Props) {
   const next = () => setIdx(p => (p + 1) % items.length);
 
   return (
-    <section className="bg-white py-16" dir={isRTL ? 'rtl' : 'ltr'}>
+    <section className="bg-[#080D30] py-20" dir={isRTL ? 'rtl' : 'ltr'}>
       <div className="max-w-4xl mx-auto px-4">
         {/* Header */}
-        <div className="text-center mb-10">
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">{T.title}</h2>
-          <p className="text-gray-500 mt-2">{T.subtitle}</p>
+        <div className="text-center mb-12">
+          <p className="text-[#F26522] text-[11px] font-semibold uppercase tracking-[0.3em] mb-3">
+            ✦ {lang === 'ar' ? 'آراء العملاء' : lang === 'ms' ? 'Ulasan Pelanggan' : 'Client Reviews'}
+          </p>
+          <h2 className="font-display text-4xl md:text-5xl font-light text-white tracking-tight">{T.title}</h2>
+          <p className="text-gray-500 mt-3 font-light">{T.subtitle}</p>
         </div>
 
         {/* Carousel */}
         <div className="relative">
-          <div className="bg-gradient-to-br from-orange-50 via-white to-amber-50 rounded-3xl p-8 sm:p-12 border border-gray-100 shadow-sm">
+          <div className="luxury-card bg-[#0C1440]/60 backdrop-blur-sm rounded-3xl p-8 sm:p-12 border border-[#F26522]/15">
             {/* Quote icon */}
-            <Quote className="w-10 h-10 text-[#FF6B35]/20 mb-4" />
+            <Quote className="w-10 h-10 text-[#F26522]/25 mb-4" />
 
             {/* Text */}
-            <p className="text-lg sm:text-xl text-gray-800 leading-relaxed font-medium min-h-[100px]">
+            <p className="text-lg sm:text-xl text-white/85 leading-relaxed font-light min-h-[100px] font-display italic">
               "{text}"
             </p>
 
             {/* Author */}
-            <div className="flex items-center gap-4 mt-8 pt-6 border-t border-gray-100">
+            <div className="flex items-center gap-4 mt-8 pt-6 border-t border-[#F26522]/15">
               {current.avatar_url ? (
-                <img src={current.avatar_url} alt={current.name} className="w-14 h-14 rounded-full object-cover" />
+                <img src={current.avatar_url} alt={current.name} className="w-14 h-14 rounded-full object-cover border-2 border-[#F26522]/30" />
               ) : (
-                <div className="w-14 h-14 rounded-full bg-[#FF6B35] text-white flex items-center justify-center font-bold text-lg">
+                <div className="w-14 h-14 rounded-full bg-[#F26522]/20 border border-[#F26522]/40 text-[#F26522] flex items-center justify-center font-bold text-lg">
                   {current.name.charAt(0)}
                 </div>
               )}
               <div className="flex-1">
-                <p className="font-bold text-gray-900">{current.name}</p>
-                <p className="text-sm text-gray-500">
+                <p className="font-semibold text-white">{current.name}</p>
+                <p className="text-sm text-gray-400">
                   {current.location}{current.country_code ? ` ${countryFlag(current.country_code)}` : ''}
                 </p>
               </div>
@@ -80,7 +83,7 @@ export function TestimonialsCarousel({ lang, isRTL }: Props) {
                 {Array.from({ length: 5 }).map((_, i) => (
                   <Star
                     key={i}
-                    className={`w-4 h-4 ${i < current.rating ? 'fill-amber-500 text-amber-500' : 'text-gray-200'}`}
+                    className={`w-4 h-4 ${i < current.rating ? 'fill-[#F26522] text-[#F26522]' : 'text-white/10'}`}
                   />
                 ))}
               </div>
@@ -92,13 +95,13 @@ export function TestimonialsCarousel({ lang, isRTL }: Props) {
             <>
               <button
                 onClick={prev}
-                className="absolute top-1/2 -translate-y-1/2 -start-4 sm:-start-6 w-10 h-10 bg-white shadow-lg rounded-full flex items-center justify-center hover:scale-110 transition-transform"
+                className="absolute top-1/2 -translate-y-1/2 -start-4 sm:-start-6 w-10 h-10 bg-[#F26522]/15 border border-[#F26522]/30 rounded-full flex items-center justify-center hover:bg-[#F26522]/25 transition-colors text-[#F26522]"
               >
                 {isRTL ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
               </button>
               <button
                 onClick={next}
-                className="absolute top-1/2 -translate-y-1/2 -end-4 sm:-end-6 w-10 h-10 bg-white shadow-lg rounded-full flex items-center justify-center hover:scale-110 transition-transform"
+                className="absolute top-1/2 -translate-y-1/2 -end-4 sm:-end-6 w-10 h-10 bg-[#F26522]/15 border border-[#F26522]/30 rounded-full flex items-center justify-center hover:bg-[#F26522]/25 transition-colors text-[#F26522]"
               >
                 {isRTL ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
               </button>
@@ -113,7 +116,7 @@ export function TestimonialsCarousel({ lang, isRTL }: Props) {
               <button
                 key={i}
                 onClick={() => setIdx(i)}
-                className={`h-2 rounded-full transition-all ${i === idx ? 'bg-[#FF6B35] w-8' : 'bg-gray-300 w-2 hover:bg-gray-400'}`}
+                className={`h-1.5 rounded-full transition-all ${i === idx ? 'bg-[#F26522] w-8' : 'bg-white/20 w-1.5 hover:bg-white/40'}`}
               />
             ))}
           </div>

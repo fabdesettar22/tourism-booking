@@ -1,14 +1,15 @@
 /* MYBRIDGE — Animations & interactions */
+/* Brand colors: Navy #1E2A78 · Orange #F26522 */
 
 @keyframes mb-fade-up { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes mb-ripple { 0% { opacity: 1; transform: scale(0) translate(-50%, -50%); } 100% { opacity: 0; transform: scale(40) translate(-50%, -50%); } }
-@keyframes mb-pulse-glow { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 53, 0.4); } 50% { box-shadow: 0 0 0 12px rgba(255, 107, 53, 0); } }
+@keyframes mb-pulse-glow { 0%, 100% { box-shadow: 0 0 0 0 rgba(242, 101, 34, 0.4); } 50% { box-shadow: 0 0 0 12px rgba(242, 101, 34, 0); } }
 
 /* Reveal on scroll */
 .mb-reveal { opacity: 0; transform: translateY(24px); }
 .mb-reveal.mb-visible { animation: mb-fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
 
-/* Stagger delays (inherited by children that have .mb-reveal) */
+/* Stagger delays */
 .mb-stagger.mb-visible > *:nth-child(1)  { animation-delay: 0.00s; }
 .mb-stagger.mb-visible > *:nth-child(2)  { animation-delay: 0.06s; }
 .mb-stagger.mb-visible > *:nth-child(3)  { animation-delay: 0.12s; }
@@ -17,30 +18,28 @@
 .mb-stagger.mb-visible > *:nth-child(6)  { animation-delay: 0.30s; }
 .mb-stagger.mb-visible > *:nth-child(7)  { animation-delay: 0.36s; }
 .mb-stagger.mb-visible > *:nth-child(8)  { animation-delay: 0.42s; }
-
-/* When parent becomes visible, children animate */
 .mb-stagger.mb-visible > * { opacity: 0; animation: mb-fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
 
 /* Card hover lift */
 .mb-card { transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease, border-color 0.35s ease; }
-.mb-card:hover { transform: translateY(-6px); box-shadow: 0 16px 40px rgba(255, 107, 53, 0.15); }
+.mb-card:hover { transform: translateY(-6px); box-shadow: 0 16px 40px rgba(242, 101, 34, 0.15); }
 
-/* Card with image zoom — applies to img and bg-cover divs */
+/* Card image zoom */
 .mb-card-img { overflow: hidden; }
 .mb-card-img img, .mb-card-img .mb-zoom { transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1); }
 .mb-card:hover .mb-card-img img, .mb-card:hover .mb-card-img .mb-zoom { transform: scale(1.08); }
 
-/* Feature card (for WhyChooseUs) */
+/* Feature card */
 .mb-feature { transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.35s ease, box-shadow 0.35s ease; }
-.mb-feature:hover { transform: translateY(-4px); border-color: #FFB547; box-shadow: 0 12px 28px rgba(255, 107, 53, 0.12); }
+.mb-feature:hover { transform: translateY(-4px); border-color: #F26522; box-shadow: 0 12px 28px rgba(242, 101, 34, 0.14); }
 
-/* Icon wrapper (scales + rotates on parent hover) */
+/* Icon wrapper */
 .mb-icon-wrap { transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.3s ease; }
 .mb-card:hover .mb-icon-wrap, .mb-feature:hover .mb-icon-wrap { transform: scale(1.1) rotate(-5deg); }
 
-/* Button animations (hover lift, click scale, arrow slide, ripple) */
+/* Button animations */
 .mb-btn { position: relative; overflow: hidden; transition: transform 0.2s, box-shadow 0.3s, background-color 0.2s; }
-.mb-btn:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(255, 107, 53, 0.35); }
+.mb-btn:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(242, 101, 34, 0.35); }
 .mb-btn:not(:disabled):active { transform: scale(0.97); }
 .mb-btn svg:last-child { transition: transform 0.25s ease; }
 .mb-btn:hover svg:last-child { transform: translateX(4px); }
@@ -52,10 +51,48 @@
 .mb-stat { transition: transform 0.3s ease, background-color 0.3s ease; }
 .mb-stat:hover { transform: scale(1.04); }
 
-/* Pulse glow on CTA (optional, subtle) */
+/* Pulse glow on CTA */
 .mb-pulse:hover { animation: mb-pulse-glow 1.8s ease-in-out infinite; }
 
-/* Reduced motion */
+/* ═══════════════════════════════════════
+   BRAND IDENTITY (Navy + Orange)
+═══════════════════════════════════════ */
+
+/* Orange border glow on card hover — derived from logo orange */
+.luxury-card {
+  border: 1px solid transparent;
+  transition: border-color 0.4s ease, box-shadow 0.45s ease, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.luxury-card:hover {
+  border-color: rgba(242, 101, 34, 0.30);
+  box-shadow: 0 24px 60px rgba(30, 42, 120, 0.12), 0 0 0 1px rgba(242, 101, 34, 0.10);
+  transform: translateY(-7px);
+}
+
+/* Brand-orange shimmer text */
+@keyframes brand-shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+.gold-shimmer-text {
+  background: linear-gradient(90deg, #F26522 0%, #FFAB76 45%, #F26522 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: brand-shimmer 4s linear infinite;
+}
+
+/* Floating navbar glass border pulse — brand navy glow */
+@keyframes glass-border-glow {
+  0%, 100% { box-shadow: 0 8px 32px rgba(30, 42, 120, 0.10), 0 0 0 1px rgba(242, 101, 34, 0.08); }
+  50%       { box-shadow: 0 8px 40px rgba(30, 42, 120, 0.16), 0 0 0 1px rgba(242, 101, 34, 0.20); }
+}
+.nav-scrolled { animation: glass-border-glow 4s ease-in-out infinite; }
+
+/* ═══════════════════════════════════════
+   Reduced motion
+═══════════════════════════════════════ */
 @media (prefers-reduced-motion: reduce) {
   .mb-reveal, .mb-reveal.mb-visible, .mb-card, .mb-btn, .mb-feature, .mb-icon-wrap, .mb-stat, .mb-pulse, .mb-stagger.mb-visible > * {
     animation: none !important;

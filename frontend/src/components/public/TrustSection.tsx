@@ -49,7 +49,7 @@ export function TrustSection({ lang, isRTL, config }: Props) {
   ];
 
   return (
-    <section className="bg-gray-50 py-14" dir={isRTL ? 'rtl' : 'ltr'}>
+    <section className="bg-[#FAF9F5] py-14" dir={isRTL ? 'rtl' : 'ltr'}>
       <div className="max-w-7xl mx-auto px-4">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {items.map((item, i) => {
@@ -57,13 +57,13 @@ export function TrustSection({ lang, isRTL, config }: Props) {
             return (
               <div
                 key={i}
-                className="bg-white rounded-2xl p-6 hover:shadow-md transition-shadow text-start"
+                className="luxury-card bg-white rounded-2xl p-6 text-start border border-transparent cursor-default"
               >
-                <div className={`w-12 h-12 rounded-2xl ${item.bg} ${item.fg} flex items-center justify-center mb-4`}>
-                  <Icon className="w-6 h-6" strokeWidth={2} />
+                <div className="w-12 h-12 rounded-2xl bg-[#F26522]/10 border border-[#F26522]/20 flex items-center justify-center mb-4">
+                  <Icon className="w-6 h-6 text-[#F26522]" strokeWidth={1.75} />
                 </div>
-                <h3 className="font-bold text-gray-900 text-base mb-1">{item.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{item.subtitle}</p>
+                <h3 className="font-semibold text-[#0F2742] text-base mb-1">{item.title}</h3>
+                <p className="text-sm text-gray-500 leading-relaxed font-light">{item.subtitle}</p>
               </div>
             );
           })}
