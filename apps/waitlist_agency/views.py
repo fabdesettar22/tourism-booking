@@ -2,6 +2,7 @@
 
 import logging
 from django.contrib.auth       import get_user_model
+from django.db                   import transaction, IntegrityError
 from django.utils                import timezone
 from rest_framework.views        import APIView
 from rest_framework.response     import Response
@@ -252,6 +253,7 @@ class AgencyWaitlistApproveView(APIView):
     """
     permission_classes = [IsHQAdmin]
 
+    @transaction.atomic
     def post(self, request, pk):
         try:
             waitlist = AgencyWaitlist.objects.get(id=pk)
@@ -261,7 +263,6 @@ class AgencyWaitlistApproveView(APIView):
         if waitlist.status == 'APPROVED':
             return Response({'error': 'تمت الموافقة مسبقاً.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # استيراد داخلي لتجنّب circular imports
         from apps.accounts.models import Agency, AgencyActivationToken
         from apps.accounts.services.email_service import send_agency_approved_email
 
@@ -273,28 +274,41 @@ class AgencyWaitlistApproveView(APIView):
         except (ValueError, TypeError):
             return Response({'error': 'نسبة العمولة غير صحيحة.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # إنشاء Agency من بيانات Waitlist
-        agency = Agency.objects.create(
-            name                    = waitlist.name,
-            email                   = waitlist.email,
-            phone                   = waitlist.phone,
-            address                 = waitlist.address,
-            commission_rate         = commission,
-            status                  = 'active',
-            is_active               = True,
-            approved_at             = timezone.now(),
-            approved_by             = request.user,
-            registration_number     = waitlist.registration_number or '',
-            country                 = waitlist.country,
-            city                    = waitlist.city,
-            contact_person_name     = waitlist.contact_person_name,
-            contact_person_position = waitlist.contact_person_position,
-        )
-        if waitlist.logo:
-            agency.logo = waitlist.logo
-            agency.save()
+        # إن كانت وكالة بنفس الإيميل موجودة مسبقاً، أعد تفعيلها بدلاً من إنشاء نسخة جديدة
+        existing = Agency.objects.filter(email=waitlist.email).first()
+        if existing:
+            agency = existing
+            agency.status           = 'active'
+            agency.is_active        = True
+            agency.approved_at      = timezone.now()
+            agency.approved_by      = request.user
+            agency.commission_rate  = commission
+            agency.save(update_fields=[
+                'status', 'is_active', 'approved_at', 'approved_by',
+                'commission_rate', 'updated_at',
+            ])
+        else:
+            agency = Agency.objects.create(
+                name                    = waitlist.name,
+                email                   = waitlist.email,
+                phone                   = waitlist.phone,
+                address                 = waitlist.address,
+                commission_rate         = commission,
+                status                  = 'active',
+                is_active               = True,
+                approved_at             = timezone.now(),
+                approved_by             = request.user,
+                registration_number     = waitlist.registration_number or '',
+                country                 = waitlist.country,
+                city                    = waitlist.city,
+                contact_person_name     = waitlist.contact_person_name,
+                contact_person_position = waitlist.contact_person_position,
+            )
+            if waitlist.logo:
+                agency.logo = waitlist.logo
+                agency.save(update_fields=['logo'])
 
-        # تفعيل المستخدم المرتبط بالـ Waitlist (إن وُجد)
+        # ربط المستخدم بالوكالة الجديدة
         if waitlist.user:
             waitlist.user.agency    = agency
             waitlist.user.is_active = True
@@ -304,17 +318,21 @@ class AgencyWaitlistApproveView(APIView):
         waitlist.status = 'APPROVED'
         waitlist.save(update_fields=['status', 'updated_at'])
 
-        # توليد activation token (للتوافق مع الوكالات القديمة التي لا تملك user)
+        # توليد activation token (يحذف القديم إن وُجد)
+        AgencyActivationToken.objects.filter(agency=agency).delete()
         token_obj = AgencyActivationToken.objects.create(agency=agency)
 
-        # إرسال إيميل القبول للوكالة
+        # إرسال إيميل القبول
         email_sent = False
         try:
             email_sent = send_agency_approved_email(agency, token_obj)
         except Exception as e:
             logger.error(f'Failed to send approval email: {e}')
 
-        logger.info(f'✅ Waitlist approved: {waitlist.name} (ref={waitlist.ref_number})')
+        logger.info(
+            f'✅ Waitlist approved: {waitlist.name} (ref={waitlist.ref_number})'
+            f' → agency_id={agency.id} email_sent={email_sent}'
+        )
 
         return Response({
             'message'         : f'تمت الموافقة على "{waitlist.name}".',
@@ -347,6 +365,21 @@ class AgencyWaitlistRejectView(APIView):
         waitlist.status = 'REJECTED'
         waitlist.notes  = reason
         waitlist.save(update_fields=['status', 'notes', 'updated_at'])
+
+        # إيميل رفض للمتقدم
+        try:
+            from types import SimpleNamespace
+            from apps.accounts.services.email_service import send_agency_rejected_email
+            # نستخدم SimpleNamespace لتمرير البيانات المطلوبة للدالة دون إنشاء كائن Agency فعلي
+            dummy = SimpleNamespace(
+                name                 = waitlist.name,
+                email                = waitlist.email,
+                contact_person_name  = waitlist.contact_person_name,
+                id                   = waitlist.ref_number,
+            )
+            send_agency_rejected_email(dummy, reason)
+        except Exception as e:
+            logger.warning(f'Failed to send rejection email to {waitlist.email}: {e}')
 
         logger.info(f'🚫 Waitlist rejected: {waitlist.name} (ref={waitlist.ref_number})')
 
