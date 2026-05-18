@@ -64,7 +64,7 @@ class AgencyWaitlistRegisterView(APIView):
     parser_classes     = [MultiPartParser, FormParser, JSONParser]
 
     def post(self, request):
-        data = request.data
+        data = request.data.copy()  # mutable copy — MultiPartParser returns immutable QueryDict
 
         # UTM params من query string إن لم تكن في body
         for utm in ('utm_source', 'utm_medium', 'utm_campaign'):
