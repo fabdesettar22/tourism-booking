@@ -189,7 +189,7 @@ function PendingAgencyCard({ agency, onApprove, onReject, actionLoading }: {
 
 // ─── Main ─────────────────────────────────────────────────
 export function AgenciesManagement() {
-  const { t, isRTL } = useLanguage();
+  const { t, isRTL, lang } = useLanguage();
   const [agencies, setAgencies]         = useState<Agency[]>([]);
   const [loading, setLoading]           = useState(true);
   const [saving, setSaving]             = useState(false);
