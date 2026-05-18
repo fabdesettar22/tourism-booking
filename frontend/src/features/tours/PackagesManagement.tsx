@@ -925,7 +925,7 @@ export function PackagesManagement({ user }: Props = {}) {
       // ملاحظة: base_price/currency/discount_percentage محذوفة — السعر يُحسب آلياً
       // وقت الحجز عبر POST /api/v1/bookings/calculate/ من المكوّنات الحقيقية في الكتالوج.
       fd.append('highlights', form.highlights || '');
-      fd.append('is_active', form.is_active ? 'true' : 'false');
+      fd.append('status', form.is_active ? 'published' : 'draft');
       fd.append('is_customizable', form.is_customizable ? 'true' : 'false');
       // الوكالة: الأدمن يترك للـbackend (perform_create يعيّنها)، الوكالات ترسل وكالتها
       if(user?.agency) fd.append('agency', String(user.agency));
