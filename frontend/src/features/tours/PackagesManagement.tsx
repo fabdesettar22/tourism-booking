@@ -903,7 +903,7 @@ export function PackagesManagement({ user }: Props = {}) {
 
   const filtered = visiblePackages.filter(p => {
     const ms = (p.name || p.title || '').toLowerCase().includes(searchQuery.toLowerCase());
-    const mc = !filterCountry || p.cities.some(c => c.country_name?.includes(filterCountry));
+    const mc = !filterCountry || (p.cities || []).some(c => c.country_name?.includes(filterCountry));
     return ms && mc;
   });
 
@@ -1045,7 +1045,7 @@ export function PackagesManagement({ user }: Props = {}) {
         <select value={filterCountry} onChange={e=>{setFilterCountry(e.target.value);setCurrentPage(1);}}
           className="border p-2.5 rounded-xl text-sm md:w-44 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
           <option value="">{t('packagesMgmt.allDestinations')}</option>
-          {countries.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
+          {countries.map(c=><option key={c.id} value={c.label||c.name_ar||c.name_en||''}>{c.label||c.name_ar||c.name_en}</option>)}
         </select>
         <div className="flex border rounded-xl overflow-hidden shrink-0">
           <button onClick={()=>{setViewMode('card');setCurrentPage(1);}}

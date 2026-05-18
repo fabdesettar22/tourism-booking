@@ -256,7 +256,7 @@ export function HotelsManagement() {
     const city = cities.find(c => c.id === h.city);
     return (
       (h.name.toLowerCase().includes(searchQuery.toLowerCase()) || h.address.toLowerCase().includes(searchQuery.toLowerCase())) &&
-      (!selectedCountryFilter || city?.country === selectedCountryFilter) &&
+      (!selectedCountryFilter || city?.country_id === selectedCountryFilter) &&
       (!selectedCityFilter || h.city === selectedCityFilter) &&
       (!selectedStarsFilter || h.stars === selectedStarsFilter)
     );
@@ -269,7 +269,7 @@ export function HotelsManagement() {
   const avgStars = ratedHotels.length
     ? (ratedHotels.reduce((s,h) => s + (h.stars || 0), 0) / ratedHotels.length).toFixed(1)
     : '0';
-  const citiesForFilter = cities.filter(c => !selectedCountryFilter || c.country === selectedCountryFilter);
+  const citiesForFilter = cities.filter(c => !selectedCountryFilter || c.country_id === selectedCountryFilter);
   const getImg = (p?: string) => !p ? null : p.startsWith('http') ? p : `${BASE}${p}`;
 
   const handleImg = (f: File|null) => {
@@ -298,7 +298,7 @@ export function HotelsManagement() {
   const openEdit = (hotel: Hotel) => {
     const city = cities.find(c => c.id === hotel.city);
     setEditingHotel(hotel);
-    setFormData({ name:hotel.name, country:city?.country.toString()||'', city:hotel.city.toString(), address:hotel.address, stars:hotel.stars, description:hotel.description||'' });
+    setFormData({ name:hotel.name, country:(city?.country_id ?? city?.country ?? '').toString(), city:hotel.city.toString(), address:hotel.address, stars:hotel.stars, description:hotel.description||'' });
     setHotelImage(null); setImagePreview(getImg(hotel.image));
     setRooms([]); setSeasons([]); setActiveTab('info');
     fetchHotelData(hotel.id);
@@ -511,7 +511,7 @@ export function HotelsManagement() {
         </div>
         <select value={selectedCountryFilter||''} onChange={e=>{setSelectedCountryFilter(e.target.value?Number(e.target.value):null);setSelectedCityFilter(null);setCurrentPage(1);}}
           className="border p-2.5 rounded-xl text-sm md:w-40 w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
-          <option value="">{t('hotelsMgmt.allCountries')}</option>{countries.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+          <option value="">{t('hotelsMgmt.allCountries')}</option>{countries.map(c=><option key={c.id} value={c.id}>{c.label || c.name_ar || c.name_en}</option>)}
         </select>
         <select value={selectedCityFilter||''} onChange={e=>{setSelectedCityFilter(e.target.value?Number(e.target.value):null);setCurrentPage(1);}}
           className="border p-2.5 rounded-xl text-sm md:w-40 w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -537,7 +537,7 @@ export function HotelsManagement() {
           {paginated.length===0 ? <EmptyState hasFilters={hasFilters} onReset={resetFilters}/> :
             paginated.map(hotel => {
               const city = cities.find(c => c.id === hotel.city);
-              const country = countries.find(c => c.id === city?.country);
+              const country = countries.find(c => c.id === (city?.country_id ?? city?.country));
               const img = getImg(hotel.image);
               const chain = (hotel as any).hotel_chain || '';
               // Star-based theme color (matches Services card style)
@@ -649,7 +649,7 @@ export function HotelsManagement() {
               {paginated.length===0 ? <tr><td colSpan={7}><EmptyState hasFilters={hasFilters} onReset={resetFilters}/></td></tr> :
                 paginated.map(hotel => {
                   const city = cities.find(c => c.id === hotel.city);
-                  const country = countries.find(c => c.id === city?.country);
+                  const country = countries.find(c => c.id === (city?.country_id ?? city?.country));
                   const img = getImg(hotel.image);
                   return (
                     <tr key={hotel.id} className="hover:bg-gray-50 transition-colors">

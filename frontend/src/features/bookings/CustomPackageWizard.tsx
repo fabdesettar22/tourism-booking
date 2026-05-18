@@ -136,7 +136,7 @@ export function CustomPackageWizard({ onClose, onSuccess }: Props) {
     });
   }, []);
 
-  const filteredCities = cities.filter(c => c.country === countryId);
+  const filteredCities = cities.filter(c => (c.country_id ?? c.country) === countryId);
 
   const fetchHotelPrices = useCallback(async (cityIdx: number) => {
     const city = pkgCities[cityIdx];
@@ -355,7 +355,7 @@ export function CustomPackageWizard({ onClose, onSuccess }: Props) {
                 <select value={countryId || ''} onChange={e => setCountryId(Number(e.target.value))}
                   className="w-full border p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm bg-white">
                   <option value="">{t('customWiz.step0.selectCountry')}</option>
-                  {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {countries.map(c => <option key={c.id} value={c.id}>{c.label || c.name_ar || c.name_en}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">

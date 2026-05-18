@@ -375,7 +375,7 @@ function ServiceModal({ editing, cities, categories, onSave, onClose, onCategory
   useEffect(() => {
     if (editing) {
       const city = cities.find(c => c.id === editing.city);
-      if (city) setForm(f => ({...f, country: city.country.toString()}));
+      if (city) setForm(f => ({...f, country: (city.country_id ?? city.country ?? '').toString()}));
     }
   }, []);
 

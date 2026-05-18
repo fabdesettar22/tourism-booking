@@ -226,7 +226,7 @@ export function DestinationsManagement() {
     setShowCityModal(true);
   };
   const openEditModal = (city: City) => {
-    setEditingCity(city); setSelectedCountryId(city.country);
+    setEditingCity(city); setSelectedCountryId(city.country_id ?? city.country);
     setNewCityName(city.name); setNewCityNameAr(city.name_ar || ''); setNewCityDescription(city.description || '');
     setCityImage(null); setImagePreview(getImageUrl(city.image));
     setShowCityModal(true);
@@ -372,7 +372,7 @@ export function DestinationsManagement() {
           {paginatedCities.length === 0
             ? <EmptyState hasFilters={hasFilters} onReset={resetFilters} />
             : paginatedCities.map(city => {
-              const country = countries.find(c => c.id === city.country);
+              const country = countries.find(c => c.id === (city.country_id ?? city.country));
               const imgUrl = getImageUrl(city.image);
               return (
                 <div key={city.id}
@@ -428,7 +428,7 @@ export function DestinationsManagement() {
               {paginatedCities.length === 0
                 ? <tr><td colSpan={5}><EmptyState hasFilters={hasFilters} onReset={resetFilters} /></td></tr>
                 : paginatedCities.map(city => {
-                  const country = countries.find(c => c.id === city.country);
+                  const country = countries.find(c => c.id === (city.country_id ?? city.country));
                   const imgUrl = getImageUrl(city.image);
                   return (
                     <tr key={city.id} className="hover:bg-gray-50 transition-colors">
