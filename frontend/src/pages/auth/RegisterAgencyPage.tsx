@@ -10,10 +10,11 @@ import {
   faUserTie, faEnvelope, faArrowRight, faArrowLeft,
   faCheckCircle, faUser, faPhone, faBuilding, faMapMarkerAlt,
   faGlobe, faIdCard, faFileContract, faImage,
-  faUpload, faFilePdf, faTimesCircle, faBriefcase,
+  faUpload, faFilePdf, faTimesCircle, faBriefcase, faLock, faAt,
 } from '@fortawesome/free-solid-svg-icons';
 
 const BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+const TURNSTILE_KEY = (import.meta.env.VITE_TURNSTILE_SITE_KEY as string) || '';
 
 // ════════════════════════════════════════════════════════════════
 // Types
@@ -31,6 +32,9 @@ interface TextForm {
   contact_person_name: string;
   contact_person_position: string;
   contact_person_phone: string;
+  username: string;
+  password: string;
+  password2: string;
 }
 
 interface FilesForm {
@@ -65,6 +69,9 @@ export function RegisterAgencyPage() {
     contact_person_name: '',
     contact_person_position: '',
     contact_person_phone: '',
+    username: '',
+    password: '',
+    password2: '',
   });
 
   const [files, setFiles] = useState<FilesForm>({
@@ -99,6 +106,12 @@ export function RegisterAgencyPage() {
     if (!form.contact_person_name.trim())     return t('registerAgency.errContactNameRequired');
     if (!form.contact_person_position.trim()) return t('registerAgency.errContactPositionRequired');
     if (!form.contact_person_phone.trim())    return t('registerAgency.errContactPhoneRequired');
+    if (!form.username.trim())                return t('registerAgency.errUsernameRequired') || 'Username is required';
+    if (form.username.trim().length < 4)      return t('registerAgency.errUsernameShort') || 'Username must be at least 4 characters';
+    if (!/^[a-zA-Z0-9_]+$/.test(form.username)) return t('registerAgency.errUsernameInvalid') || 'Username: letters, numbers and underscore only';
+    if (!form.password)                       return t('registerAgency.errPasswordRequired') || 'Password is required';
+    if (form.password.length < 8)             return t('registerAgency.errPasswordShort') || 'Password must be at least 8 characters';
+    if (form.password !== form.password2)     return t('registerAgency.errPasswordMismatch') || 'Passwords do not match';
     return null;
   };
 
@@ -121,7 +134,7 @@ export function RegisterAgencyPage() {
     setError('');
     const err = validateStep3();
     if (err) { setError(err); return; }
-    if (!cfToken) { setError(t('registerAgency.errBotVerification') || 'Bot verification required. Please wait for the check to complete and try again.'); return; }
+    if (TURNSTILE_KEY && !cfToken) { setError(t('registerAgency.errBotVerification') || 'Bot verification required. Please wait for the check to complete and try again.'); return; }
 
     setLoading(true);
     try {
@@ -410,6 +423,63 @@ export function RegisterAgencyPage() {
                   </div>
                 </div>
 
+                <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                  <p className="text-xs font-semibold text-blue-700 mb-3 uppercase">
+                    {t('registerAgency.accountCredentialsHeader') || 'Account Credentials'}
+                  </p>
+                  <div className="space-y-4">
+                    <div>
+                      <label className={labelCls}>{t('registerAgency.usernameLabel') || 'Username'}</label>
+                      <div className="relative">
+                        <FontAwesomeIcon icon={faAt} className={iconSideCls} />
+                        <input
+                          className={inputCls}
+                          placeholder={t('registerAgency.usernamePlaceholder') || 'myagency123'}
+                          value={form.username}
+                          onChange={e => set('username', e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
+                          autoComplete="username"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {t('registerAgency.usernameHelp') || 'Letters, numbers and underscore only. Min 4 characters.'}
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className={labelCls}>{t('registerAgency.passwordLabel') || 'Password'}</label>
+                        <div className="relative">
+                          <FontAwesomeIcon icon={faLock} className={iconSideCls} />
+                          <input
+                            className={inputCls}
+                            type="password"
+                            placeholder="••••••••"
+                            value={form.password}
+                            onChange={e => set('password', e.target.value)}
+                            autoComplete="new-password"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className={labelCls}>{t('registerAgency.password2Label') || 'Confirm Password'}</label>
+                        <div className="relative">
+                          <FontAwesomeIcon icon={faLock} className={iconSideCls} />
+                          <input
+                            className={inputCls}
+                            type="password"
+                            placeholder="••••••••"
+                            value={form.password2}
+                            onChange={e => set('password2', e.target.value)}
+                            autoComplete="new-password"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-xs text-blue-600">
+                      {t('registerAgency.credentialsNote') || 'Your account will be activated once your application is approved.'}
+                    </p>
+                  </div>
+                </div>
+
                 <div className="flex gap-3 mt-2">
                   <button
                     onClick={() => { setError(''); setStep(1); }}
@@ -490,7 +560,7 @@ export function RegisterAgencyPage() {
                   </button>
                   <button
                     onClick={handleSubmit}
-                    disabled={loading || !cfToken}
+                    disabled={loading || (!!TURNSTILE_KEY && !cfToken)}
                     className="flex-1 bg-[#FF6B35] hover:bg-[#e07a38] text-white font-bold py-3.5 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {loading

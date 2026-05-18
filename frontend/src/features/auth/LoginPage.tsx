@@ -17,6 +17,7 @@ interface Props {
 }
 
 const HERO_URL = 'https://images.unsplash.com/photo-1596422846543-75c6fc197f07?auto=format&fit=crop&w=1600&q=80';
+const TURNSTILE_KEY = (import.meta.env.VITE_TURNSTILE_SITE_KEY as string) || '';
 
 export function LoginPage({ onSuccess, supplierMode = false }: Props) {
   const { t, isRTL, lang, changeLang } = useLanguage();
@@ -38,6 +39,10 @@ export function LoginPage({ onSuccess, supplierMode = false }: Props) {
   const handleSubmit = async () => {
     if (!form.username || !form.password) {
       setError(t('auth.errorMissingFields')); triggerShake(); return;
+    }
+    if (TURNSTILE_KEY && !cfToken) {
+      setError(t('auth.errorBotCheck') || 'Please wait for the security check to complete.');
+      triggerShake(); return;
     }
     setLoading(true); setError('');
     try {

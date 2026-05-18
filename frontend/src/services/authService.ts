@@ -51,7 +51,7 @@ export const login = async (username: string, password: string, cfToken?: string
   const res = await fetch(`${BASE}/api/v1/accounts/login/`, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ username, password, cf_turnstile_token: cfToken || '' }),
+    body:    JSON.stringify({ username, password, ...(cfToken ? { cf_turnstile_token: cfToken } : {}) }),
   });
 
   if (!res.ok) {
