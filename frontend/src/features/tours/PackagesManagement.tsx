@@ -936,12 +936,15 @@ export function PackagesManagement({ user }: Props = {}) {
       if(!res.ok){ addToast('error', t('packagesMgmt.toasts.saveFail')); setSaving(false); return; }
       const pkg = await res.json();
 
+      if(editingPkg){
+        await apiFetch(`/api/v1/packages/${pkg.id}/clear-cities/`, {method:'POST'});
+      }
       for(const pc of pkgCities){
         if(!pc.city) continue;
         await apiFetch(`/api/v1/packages/${pkg.id}/add-city/`, {
           method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({
-            city: pc.city, nights: pc.nights,
+            city_id: pc.city, nights: pc.nights,
             hotels: (pc.hotels || []).map(h=>({hotel:h.hotel,nights:h.nights})),
             services: (pc.services || []).map(s=>({service:s.service,custom_price:s.custom_price||null})),
           }),

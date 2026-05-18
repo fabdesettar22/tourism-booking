@@ -76,13 +76,14 @@ class CustomPackageViewSet(viewsets.ModelViewSet):
     def add_city(self, request, pk=None):
         package = self.get_object()
         from apps.locations.models import City
-        city = get_object_or_404(City, pk=request.data.get('city_id'))
+        city_id = request.data.get('city_id') or request.data.get('city')
+        city = get_object_or_404(City, pk=city_id)
         if package.country and city.country != package.country:
             return Response(
                 {'error': 'المدينة لا تنتمي لدولة الباقة'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        pkg_city, created = PackageCity.objects.get_or_create(
+        pkg_city, created = PackageCity.objects.update_or_create(
             package=package,
             city=city,
             defaults={
@@ -90,10 +91,33 @@ class CustomPackageViewSet(viewsets.ModelViewSet):
                 'order':  request.data.get('order', package.cities.count() + 1),
             }
         )
-        if not created:
-            return Response({'error': 'المدينة موجودة مسبقاً في الباقة'}, status=status.HTTP_400_BAD_REQUEST)
+        if 'hotels' in request.data:
+            from apps.hotels.models import Hotel
+            pkg_city.hotels.all().delete()
+            for h in (request.data.get('hotels') or []):
+                hotel_id = h.get('hotel') or h.get('hotel_id')
+                if not hotel_id:
+                    continue
+                try:
+                    hotel_obj = Hotel.objects.get(pk=hotel_id)
+                    PackageHotel.objects.create(
+                        package_city=pkg_city,
+                        hotel=hotel_obj,
+                        nights=h.get('nights', 1),
+                    )
+                except Hotel.DoesNotExist:
+                    pass
         from .serializers.serializers import PackageCitySerializer
-        return Response(PackageCitySerializer(pkg_city).data, status=status.HTTP_201_CREATED)
+        return Response(
+            PackageCitySerializer(pkg_city).data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=['post'], url_path='clear-cities')
+    def clear_cities(self, request, pk=None):
+        package = self.get_object()
+        package.cities.all().delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=['delete'], url_path='remove-city/(?P<city_id>[^/.]+)')
     def remove_city(self, request, pk=None, city_id=None):
