@@ -17,6 +17,7 @@ interface Agency {
   logo: string | null;
   commission_rate: string;
   currency: string;
+  status: string;
   is_active: boolean;
   is_approved: boolean;
   employees_count: number;
@@ -25,7 +26,7 @@ interface Agency {
 
 type ToastType = 'success' | 'error' | 'warning';
 interface Toast { id: number; type: ToastType; message: string; }
-type ActiveTab = 'active' | 'pending';
+type ActiveTab = 'active' | 'pending' | 'rejected';
 
 const DATE_LOCALE: Record<string, string> = { ar: 'ar-MY', en: 'en-MY', ms: 'ms-MY' };
 
@@ -229,8 +230,10 @@ export function AgenciesManagement() {
     finally { setLoading(false); }
   };
 
-  const approvedAgencies = agencies.filter(a => a.is_approved);
-  const pendingAgencies  = agencies.filter(a => !a.is_approved);
+  const approvedAgencies  = agencies.filter(a => a.is_approved);
+  // Only show truly pending agencies — rejected/suspended must NOT reappear here
+  const pendingAgencies   = agencies.filter(a => a.status === 'pending');
+  const rejectedAgencies  = agencies.filter(a => a.status === 'rejected');
 
   const filtered = approvedAgencies.filter(a =>
     (a.name||'').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -404,6 +407,21 @@ export function AgenciesManagement() {
             </span>
           )}
         </button>
+        <button
+          onClick={() => { setActiveTab('rejected'); setCurrentPage(1); setSearchQuery(''); }}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium transition-all
+            ${activeTab === 'rejected'
+              ? 'bg-red-500 text-white shadow-sm'
+              : 'text-gray-500 hover:bg-gray-50'}`}
+        >
+          <Ban className="w-4 h-4" />
+          {t('agenciesMgmt.tabs.rejected') || (lang === 'ar' ? 'مرفوضة' : lang === 'ms' ? 'Ditolak' : 'Rejected')}
+          {rejectedAgencies.length > 0 && (
+            <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${activeTab === 'rejected' ? 'bg-red-400' : 'bg-gray-100 text-gray-600'}`}>
+              {rejectedAgencies.length}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* Tab: Active */}
@@ -518,6 +536,59 @@ export function AgenciesManagement() {
                   onReject={a => setRejectTarget(a)}
                   actionLoading={actionLoading}
                 />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Tab: Rejected */}
+      {activeTab === 'rejected' && (
+        <>
+          {rejectedAgencies.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 text-center bg-white border rounded-2xl shadow-sm">
+              <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mb-4">
+                <CheckCircle2 className="w-10 h-10 text-emerald-400" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-700 mb-2">
+                {lang === 'ar' ? 'لا توجد طلبات مرفوضة' : lang === 'ms' ? 'Tiada permohonan ditolak' : 'No rejected agencies'}
+              </h3>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {rejectedAgencies.map(agency => (
+                <div key={agency.id} className="bg-white border-2 border-red-100 rounded-2xl p-5 shadow-sm">
+                  <div className="flex items-start gap-3 mb-4">
+                    {agency.logo ? (
+                      <img src={agency.logo} className="w-12 h-12 rounded-xl object-cover border" alt={agency.name} />
+                    ) : (
+                      <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center shrink-0">
+                        <Building2 className="w-6 h-6 text-red-400" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-gray-900 text-sm truncate">{agency.name}</h3>
+                      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-700 mt-0.5">
+                        <Ban className="w-3 h-3" />
+                        {lang === 'ar' ? 'مرفوض' : lang === 'ms' ? 'Ditolak' : 'Rejected'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5 text-sm text-gray-500 mb-4">
+                    {agency.email && <div className="flex items-center gap-2"><Mail className="w-3.5 h-3.5 shrink-0" /><span className="truncate">{agency.email}</span></div>}
+                    {agency.phone && <div className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 shrink-0" /><span dir="ltr">{agency.phone}</span></div>}
+                  </div>
+                  <button
+                    onClick={() => handleApprove(agency.id)}
+                    disabled={actionLoading === agency.id}
+                    className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-emerald-500 text-white rounded-xl text-sm font-medium hover:bg-emerald-600 disabled:opacity-60 transition-colors"
+                  >
+                    {actionLoading === agency.id
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <Check className="w-4 h-4" />}
+                    {lang === 'ar' ? 'إعادة القبول' : lang === 'ms' ? 'Lulus semula' : 'Re-approve'}
+                  </button>
+                </div>
               ))}
             </div>
           )}
