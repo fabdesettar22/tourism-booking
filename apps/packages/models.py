@@ -28,6 +28,41 @@ class CustomPackage(models.Model):
     is_custom_order     = models.BooleanField(
         default=False, verbose_name='باقة حسب الطلب'
     )
+    # ── الهدية الإجبارية المرتبطة بالباقة ──────────────
+    # nullable مؤقتاً للسماح بترحيل الباقات الموجودة، يصبح إجبارياً عبر validation في الخدمة
+    gift                = models.ForeignKey(
+        'gifts.Gift', on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name='packages',
+        verbose_name='الهدية الإجبارية',
+        help_text='كل باقة تحتاج هدية افتراضية تُضاف لكل حجز',
+    )
+    # ── المكوّنات المسموحة (Template-only — لا أسعار) ──
+    # القالب يحدد ما يستطيع الزبون/الوكالة الاختيار منه وقت الحجز.
+    # الأسعار الفعلية تُحسب آلياً عبر apps.pricing.services على المكوّنات الأصلية.
+    allowed_tours        = models.ManyToManyField(
+        'tours_excursions.Tour', blank=True,
+        related_name='packages_allowed_in',
+        verbose_name='الجولات المسموحة',
+        help_text='الجولات التي يستطيع الزبون اختيارها (مفلترة حسب مدن الباقة)',
+    )
+    allowed_transfers    = models.ManyToManyField(
+        'airport_transfers.AirportTransfer', blank=True,
+        related_name='packages_allowed_in',
+        verbose_name='خدمات النقل المسموحة',
+        help_text='نقل المطار + بين المدن المسموحة لاختيار الزبون',
+    )
+    allowed_flight_routes = models.ManyToManyField(
+        'flights.FlightRoute', blank=True,
+        related_name='packages_allowed_in',
+        verbose_name='مسارات الطيران المسموحة',
+        help_text='مسارات الطيران الداخلي/الدولي المسموحة (Duffel)',
+    )
+    # علامة: هل هذا قالب جاهز للنشر للوكالات؟
+    is_template          = models.BooleanField(
+        default=False, verbose_name='قالب منشور للوكالات',
+        help_text='عند تفعيلها تظهر للوكالات الجزائرية في لوحاتها',
+    )
     client_name         = models.CharField(
         max_length=200, blank=True, verbose_name='اسم العميل'
     )
@@ -58,6 +93,57 @@ class CustomPackage(models.Model):
             return f"{'، '.join(cities)} — {nights} ليالي"
         return f"باقة {nights} ليالي"
 
+    # ── الحالة المُعروضة في الفرونت ─────────────────────────
+    # الفرونت يقرأ pkg.is_active. نُرجعها True عندما status='published'.
+    @property
+    def is_active(self):
+        return self.status == 'published'
+
+    # ── Template helper methods (للقالب الجديد) ──────────────
+    def get_city_ids(self):
+        """قائمة معرّفات المدن في هذه الباقة."""
+        return list(self.cities.values_list('city_id', flat=True))
+
+    def get_allowed_hotels_for_city(self, city_id: int):
+        """يرجع QuerySet للفنادق المسموحة في مدينة محددة من هذه الباقة."""
+        from apps.hotels.models import Hotel
+        try:
+            pc = self.cities.prefetch_related('allowed_hotels').get(city_id=city_id)
+        except PackageCity.DoesNotExist:
+            return Hotel.objects.none()
+        return pc.allowed_hotels.filter(is_active=True)
+
+    def get_allowed_tours_qs(self, city_id: int = None):
+        """الجولات المسموحة (مفلترة اختيارياً بمدينة)."""
+        qs = self.allowed_tours.select_related('city', 'service')
+        if city_id:
+            qs = qs.filter(city_id=city_id)
+        return qs
+
+    def get_allowed_transfers_qs(self, city_id: int = None):
+        """خدمات النقل المسموحة (مفلترة اختيارياً بمدينة)."""
+        qs = self.allowed_transfers.select_related('airport', 'hotel', 'city', 'service')
+        if city_id:
+            qs = qs.filter(city_id=city_id)
+        return qs
+
+    def get_allowed_flight_routes_qs(self):
+        """مسارات الطيران المسموحة في هذه الباقة."""
+        return self.allowed_flight_routes.filter(is_active=True)
+
+    def is_ready_for_publish(self) -> tuple[bool, list]:
+        """هل الباقة جاهزة للنشر للوكالات؟ يرجع (ok, missing_list)."""
+        missing = []
+        if not self.gift_id:
+            missing.append('gift')
+        if not self.cities.exists():
+            missing.append('cities')
+        # كل مدينة تحتاج فندقاً مسموحاً واحداً على الأقل
+        for pc in self.cities.prefetch_related('allowed_hotels').all():
+            if not pc.allowed_hotels.exists():
+                missing.append(f'allowed_hotels_in_city:{pc.city.name}')
+        return (len(missing) == 0, missing)
+
 
 class PackagePaxConfig(models.Model):
     package              = models.OneToOneField(CustomPackage, on_delete=models.CASCADE, related_name='pax_config', verbose_name='الباقة')
@@ -78,8 +164,17 @@ class PackagePaxConfig(models.Model):
 class PackageCity(models.Model):
     package = models.ForeignKey(CustomPackage, on_delete=models.CASCADE, related_name='cities', verbose_name='الباقة')
     city    = models.ForeignKey(City, on_delete=models.CASCADE, verbose_name='المدينة')
-    nights  = models.PositiveIntegerField(default=1, verbose_name='عدد الليالي في المدينة')
+    # nights = حد افتراضي مرجعي فقط؛ الزبون يحدد العدد الفعلي وقت الحجز
+    nights  = models.PositiveIntegerField(default=1, verbose_name='عدد الليالي الافتراضي')
     order   = models.PositiveIntegerField(default=0, verbose_name='ترتيب المدينة')
+
+    # ── الفنادق المسموحة في هذه المدينة (للاختيار وقت الحجز) ──
+    allowed_hotels = models.ManyToManyField(
+        'hotels.Hotel', blank=True,
+        related_name='package_cities_allowed_in',
+        verbose_name='الفنادق المسموحة في هذه المدينة',
+        help_text='الفنادق التي يستطيع الزبون الاختيار منها في هذه المدينة',
+    )
 
     class Meta:
         verbose_name = 'مدينة في الباقة'

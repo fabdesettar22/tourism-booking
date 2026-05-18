@@ -103,7 +103,7 @@ export function CustomersManagement({ user }: Props = {}) {
   };
 
   const filtered = users.filter(u => {
-    const fullName = `${u.first_name} ${u.last_name} ${u.username}`.toLowerCase();
+    const fullName = `${u.first_name || ''} ${u.last_name || ''} ${u.username || ''}`.toLowerCase();
     const matchSearch = fullName.includes(searchQuery.toLowerCase()) ||
       u.email.toLowerCase().includes(searchQuery.toLowerCase());
     const matchRole = !roleFilter || u.role === roleFilter;
@@ -329,7 +329,7 @@ export function CustomersManagement({ user }: Props = {}) {
               </td></tr>
             ) : paginated.map(u => {
               const fullName = `${u.first_name} ${u.last_name}`.trim() || u.username;
-              const initials = fullName.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+              const initials = (fullName || '').split(' ').map(w => w[0] || '').slice(0, 2).join('').toUpperCase();
               return (
                 <tr key={u.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-5 py-3">

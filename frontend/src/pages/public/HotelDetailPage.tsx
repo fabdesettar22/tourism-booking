@@ -25,8 +25,8 @@ export function HotelDetailPage() {
 
   // Photos: prefer .photos[], fallback to single .image
   const photos = hotel
-    ? (hotel.photos.length > 0
-        ? hotel.photos.filter(p => p.image).map(p => ({ url: p.image!, caption: p.caption }))
+    ? ((hotel.photos || []).length > 0
+        ? (hotel.photos || []).filter(p => p.image).map(p => ({ url: p.image!, caption: p.caption }))
         : hotel.image ? [{ url: hotel.image, caption: '' }] : [])
     : [];
 

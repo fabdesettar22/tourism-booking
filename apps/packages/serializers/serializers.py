@@ -89,10 +89,15 @@ class CustomPackageSerializer(serializers.ModelSerializer):
         model = CustomPackage
         fields = [
             'id', 'agency', 'agency_name', 'title', 'description', 'image',
-            'total_nights', 'total_days', 'status',
+            'total_nights', 'total_days', 'status', 'is_active', 'is_template',
             'peak_surcharge_pct', 'currency_cost', 'currency_sell',
             'is_custom_order', 'client_name', 'client_phone', 'client_email',
             'pax_config', 'cities', 'flights', 'transfers', 'tours',
             'profit_margins', 'pricing_table',
             'created_at', 'updated_at',
         ]
+        read_only_fields = ['is_active']
+        extra_kwargs = {
+            # agency يصبح اختياري؛ perform_create في الـview يعيّنه تلقائياً للأدمن
+            'agency': {'required': False},
+        }

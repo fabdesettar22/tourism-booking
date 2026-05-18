@@ -247,8 +247,8 @@ export function AirportTransfersPanel() {
   // ── Toasts ──────────────────────────────────────────────
   const addToast = (type: ToastType, message: string) => {
     const id = Date.now() + Math.random();
-    setToasts(t => [...t, { id, type, message }]);
-    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 4000);
+    setToasts(prev => [...prev, { id, type, message }]);
+    setTimeout(() => setToasts(prev => prev.filter(x => x.id !== id)), 4000);
   };
 
   // ── Load all ────────────────────────────────────────────
@@ -320,13 +320,13 @@ export function AirportTransfersPanel() {
         <EmptyState onAdd={() => { setEditing(null); setShowForm(true); }} />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {transfers.map(t => (
+          {transfers.map(transfer => (
             <TransferCard
-              key={t.service_id}
-              transfer={t}
-              onEdit={() => { setEditing(t); setShowForm(true); }}
-              onDelete={() => setDeleteFor(t)}
-              onCalc={() => setCalcFor(t)}
+              key={transfer.service_id}
+              transfer={transfer}
+              onEdit={() => { setEditing(transfer); setShowForm(true); }}
+              onDelete={() => setDeleteFor(transfer)}
+              onCalc={() => setCalcFor(transfer)}
             />
           ))}
         </div>
@@ -369,16 +369,16 @@ export function AirportTransfersPanel() {
 
       {/* Toasts */}
       <div className="fixed top-5 left-5 space-y-2 z-50">
-        {toasts.map(t => (
-          <div key={t.id} className={`flex items-center gap-2 px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium animate-in fade-in slide-in-from-top-2 ${
-            t.type === 'success' ? 'bg-emerald-600 text-white' :
-            t.type === 'error'   ? 'bg-red-600 text-white' :
+        {toasts.map(toast => (
+          <div key={toast.id} className={`flex items-center gap-2 px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium animate-in fade-in slide-in-from-top-2 ${
+            toast.type === 'success' ? 'bg-emerald-600 text-white' :
+            toast.type === 'error'   ? 'bg-red-600 text-white' :
             'bg-blue-600 text-white'
           }`}>
-            {t.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> :
-             t.type === 'error'   ? <XCircle className="w-4 h-4" /> :
+            {toast.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> :
+             toast.type === 'error'   ? <XCircle className="w-4 h-4" /> :
              <AlertTriangle className="w-4 h-4" />}
-            {t.message}
+            {toast.message}
           </div>
         ))}
       </div>
@@ -900,7 +900,7 @@ function AirportPicker({ airports, value, onChange, onAirportCreated }: {
     if (!q) return airports;
     return airports.filter(a =>
       a.code.toLowerCase().includes(q) ||
-      a.name.toLowerCase().includes(q) ||
+      (a.name || '').toLowerCase().includes(q) ||
       (a.city_name || '').toLowerCase().includes(q)
     );
   }, [airports, query]);
@@ -1124,6 +1124,7 @@ function PhotoManagerSection({ serviceId, photos, setPhotos, onError, api }: {
 }
 
 function EmptyState({ onAdd }: { onAdd: () => void }) {
+  const t = useT();
   return (
     <div className="bg-white border border-dashed border-gray-200 rounded-xl p-12 text-center">
       <PlaneLanding className="w-10 h-10 text-gray-300 mx-auto mb-3" />

@@ -118,8 +118,8 @@ const PublicNavbar = ({ onLogin, onSupplier, onAgency, lang, onLangChange, t, is
   const [langOpen, setLangOpen] = useState(false);
 
   useEffect(()=>{
-    const h = ()=>setScrolled(window.scrollY>20);
-    window.addEventListener("scroll", h);
+    const h = ()=>setScrolled(window.scrollY > 30);
+    window.addEventListener("scroll", h, { passive: true });
     return ()=>window.removeEventListener("scroll", h);
   },[]);
 
@@ -129,72 +129,88 @@ const PublicNavbar = ({ onLogin, onSupplier, onAgency, lang, onLangChange, t, is
     { key:"nav.destinations", label: t("nav.destinations"), href:"/destinations" },
     { key:"nav.activities",   label: t("nav.activities"),   href:"/activities"   },
     { key:"nav.hotels",       label: t("nav.hotels"),       href:"/hotels"       },
-    { key:"nav.flights",      label: t("nav.flights"),      href:"/flights"      },
     { key:"nav.blog",         label: t("nav.blog"),         href:"/blog"         },
   ];
 
   const currentLang = LANGUAGES.find(l=>l.code===lang);
-
   const isGlass = !scrolled;
 
   return (
     <motion.nav
       initial={{ y: -80, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-      className={`fixed top-3 left-3 right-3 z-50 rounded-2xl transition-all duration-500 ${
+      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+      className={`fixed top-3 left-3 right-3 z-50 rounded-2xl transition-all duration-400 ${
         scrolled
-          ? 'bg-white/96 backdrop-blur-xl shadow-xl shadow-[#0C1440]/8 border border-[#F26522]/20 nav-scrolled'
-          : 'bg-[#0C1440]/15 backdrop-blur-md border border-white/12'
+          ? 'bg-white/97 backdrop-blur-2xl shadow-[0_8px_32px_rgba(30,42,120,0.12)] border border-gray-100'
+          : 'bg-[#0C1440]/18 backdrop-blur-md border border-white/10'
       }`}
     >
+      {/* Orange accent line — only when scrolled */}
+      {scrolled && (
+        <div className="absolute top-0 inset-x-0 h-[2.5px] bg-gradient-to-r from-transparent via-[#F26522] to-transparent" />
+      )}
+
       <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-[auto_1fr_auto] lg:grid-cols-3 items-center h-14 gap-4">
-          {/* Logo */}
+        <div className={`flex items-center h-16 gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+
+          {/* ── Logo ── */}
           <a href="/" onClick={e=>{ e.preventDefault(); navigate('/'); }}
-            className="flex items-center flex-shrink-0 justify-self-start">
+            className="flex-shrink-0 flex items-center">
             <img src="/IMG_7936.PNG" alt="MYBRIDGE" className="h-9 w-auto"/>
           </a>
 
-          {/* Desktop Links */}
-          <div className="hidden lg:flex items-center gap-0.5 justify-self-center">
+          {/* ── Desktop Nav Links ── */}
+          <nav className="hidden lg:flex items-center flex-1 justify-center gap-0">
             {navLinks.map(link=>(
               <a key={link.key} href={link.href}
                 onClick={e=>{ e.preventDefault(); navigate(link.href); }}
-                className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 tracking-wide ${
-                  isGlass
-                    ? 'text-white/90 hover:text-white hover:bg-white/10'
-                    : 'text-gray-700 hover:text-[#F26522] hover:bg-[#F26522]/8'
-                }`}>
+                className={`relative group px-3.5 py-2.5 text-[13px] font-medium tracking-wide transition-colors duration-200 ${
+                  isGlass ? 'text-white/80 hover:text-white' : 'text-[#1E2A78]/75 hover:text-[#1E2A78]'
+                }`}
+              >
                 {link.label}
+                {/* Animated underline */}
+                <span className={`absolute bottom-1 left-3.5 right-3.5 h-[1.5px] rounded-full origin-center
+                  scale-x-0 group-hover:scale-x-100 transition-transform duration-250 ease-out
+                  ${isGlass ? 'bg-white/55' : 'bg-[#F26522]'}`}
+                />
               </a>
             ))}
-          </div>
+          </nav>
 
-          {/* Right Side */}
-          <div className={`flex items-center gap-2 justify-self-end ${isRTL?'flex-row-reverse':''}`}>
+          {/* ── Right Side ── */}
+          <div className={`flex items-center gap-1 ml-auto ${isRTL ? 'flex-row-reverse' : ''}`}>
+
+            {/* Language picker */}
             <div className="relative">
-              <button onClick={()=>setLangOpen(!langOpen)}
-                className={`flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl border transition-all duration-200 ${
+              <button
+                onClick={()=>setLangOpen(!langOpen)}
+                className={`flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1.5 rounded-lg transition-colors duration-200 ${
                   isGlass
-                    ? 'border-white/25 text-white/90 hover:bg-white/10'
-                    : 'border-gray-200 text-gray-700 hover:border-[#F26522] hover:text-[#F26522]'
-                }`}>
+                    ? 'text-white/75 hover:text-white hover:bg-white/10'
+                    : 'text-gray-500 hover:text-[#1E2A78]'
+                }`}
+              >
                 {currentLang?.code.toUpperCase()}
-                <FontAwesomeIcon icon={faChevronDown} className="text-[9px]"/>
+                <FontAwesomeIcon icon={faChevronDown} className={`text-[8px] opacity-60 transition-transform duration-200 ${langOpen?'rotate-180':''}`}/>
               </button>
               <AnimatePresence>
                 {langOpen && (
                   <motion.div
-                    initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                    initial={{ opacity: 0, y: -6, scale: 0.97 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -8, scale: 0.96 }}
-                    transition={{ duration: 0.18 }}
-                    className="absolute top-full mt-1.5 right-0 bg-white/98 backdrop-blur-xl border border-[#F26522]/20 rounded-xl shadow-xl overflow-hidden z-50 min-w-[140px]"
+                    exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                    transition={{ duration: 0.16 }}
+                    className="absolute top-full mt-2 right-0 bg-white border border-gray-100 rounded-xl shadow-lg shadow-[#1E2A78]/8 overflow-hidden z-50 min-w-[130px]"
                   >
                     {LANGUAGES.map(l=>(
                       <button key={l.code} onClick={()=>{ onLangChange(l.code); setLangOpen(false); }}
-                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-[#F26522]/10 hover:text-[#0C1440] font-medium ${lang===l.code?"text-[#F26522] font-semibold bg-[#F26522]/8":"text-gray-700"}`}>
+                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors font-medium ${
+                          lang===l.code
+                            ? 'text-[#F26522] bg-[#F26522]/6 font-semibold'
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-[#1E2A78]'
+                        }`}>
                         {l.label}
                       </button>
                     ))}
@@ -203,65 +219,81 @@ const PublicNavbar = ({ onLogin, onSupplier, onAgency, lang, onLangChange, t, is
               </AnimatePresence>
             </div>
 
-            <div className="hidden lg:flex items-center gap-1.5">
-              <button onClick={onSupplier}
-                className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border transition-all duration-200 ${
-                  isGlass
-                    ? 'border-white/30 text-white/90 hover:bg-white/10'
-                    : 'border-[#F26522]/60 text-[#0C1440] hover:bg-[#F26522]/8'
-                }`}>
-                <FontAwesomeIcon icon={faBuilding} className="text-[10px]"/>
-                {t("nav.supplier")}
-              </button>
-              <button onClick={onAgency}
-                className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border transition-all duration-200 ${
-                  isGlass
-                    ? 'border-white/30 text-white/90 hover:bg-white/10'
-                    : 'border-[#F26522]/60 text-[#0C1440] hover:bg-[#F26522]/8'
-                }`}>
-                <FontAwesomeIcon icon={faUserTie} className="text-[10px]"/>
-                {t("nav.agency")}
-              </button>
-            </div>
+            {/* Thin separator */}
+            <div className={`hidden lg:block w-px h-4 mx-1 ${isGlass ? 'bg-white/15' : 'bg-gray-200'}`} />
 
+            {/* Supplier — text-only */}
+            <button onClick={onSupplier}
+              className={`hidden lg:flex items-center gap-1.5 text-[12px] font-semibold px-3 py-2 rounded-xl transition-colors duration-200 ${
+                isGlass
+                  ? 'text-white/75 hover:text-white hover:bg-white/10'
+                  : 'text-[#1E2A78]/70 hover:text-[#F26522] hover:bg-[#F26522]/8'
+              }`}>
+              <FontAwesomeIcon icon={faBuilding} className="text-[9px]"/>
+              {t("nav.supplier")}
+            </button>
+
+            {/* Agency — text-only */}
+            <button onClick={onAgency}
+              className={`hidden lg:flex items-center gap-1.5 text-[12px] font-semibold px-3 py-2 rounded-xl transition-colors duration-200 ${
+                isGlass
+                  ? 'text-white/75 hover:text-white hover:bg-white/10'
+                  : 'text-[#1E2A78]/70 hover:text-[#F26522] hover:bg-[#F26522]/8'
+              }`}>
+              <FontAwesomeIcon icon={faUserTie} className="text-[9px]"/>
+              {t("nav.agency")}
+            </button>
+
+            {/* Sign In — solid orange pill */}
             <button onClick={onLogin}
-              className="bg-[#F26522] hover:bg-[#D94E15] text-[#0C1440] text-sm font-bold px-5 py-2 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0">
+              className="bg-[#F26522] hover:bg-[#D94E15] text-white text-[13px] font-bold
+                px-5 py-2.5 rounded-xl ml-1
+                shadow-[0_4px_14px_rgba(242,101,34,0.35)] hover:shadow-[0_6px_20px_rgba(242,101,34,0.45)]
+                hover:-translate-y-0.5 active:translate-y-0 active:shadow-sm
+                transition-all duration-200">
               {t("nav.signIn")}
             </button>
 
+            {/* Mobile toggle */}
             <button onClick={()=>setMenuOpen(!menuOpen)}
-              className={`lg:hidden p-2 rounded-lg transition-colors ${isGlass ? 'text-white hover:bg-white/10' : 'text-gray-700 hover:bg-gray-100'}`}>
-              <FontAwesomeIcon icon={menuOpen?faXmark:faBars}/>
+              className={`lg:hidden p-2 rounded-xl ml-1 transition-colors ${
+                isGlass ? 'text-white hover:bg-white/10' : 'text-[#1E2A78] hover:bg-gray-100'
+              }`}>
+              <FontAwesomeIcon icon={menuOpen?faXmark:faBars} className="text-base"/>
             </button>
           </div>
         </div>
 
+        {/* ── Mobile Menu ── */}
         <AnimatePresence>
           {menuOpen && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
               className="lg:hidden overflow-hidden"
               dir={isRTL?"rtl":"ltr"}
             >
-              <div className="bg-white/98 backdrop-blur-xl rounded-xl mt-2 mb-2 py-2 px-2 border border-[#F26522]/15 shadow-lg">
+              <div className="bg-white rounded-2xl mt-1.5 mb-2 py-2 px-1.5 border border-gray-100 shadow-lg">
                 {navLinks.map(link=>(
                   <a key={link.key} href={link.href}
                     onClick={e=>{ e.preventDefault(); navigate(link.href); setMenuOpen(false); }}
-                    className="block px-4 py-2.5 text-sm text-gray-700 hover:text-[#F26522] hover:bg-[#F26522]/8 rounded-lg font-medium transition-colors">
+                    className="flex items-center gap-2.5 px-4 py-3 text-sm text-[#1E2A78] hover:text-[#F26522] hover:bg-[#F26522]/6 rounded-xl font-medium transition-colors">
                     {link.label}
                   </a>
                 ))}
-                <div className="border-t border-[#F26522]/10 mt-2 pt-2 space-y-1">
-                  <button onClick={onSupplier} className="w-full text-left px-4 py-2.5 text-sm text-[#0C1440] font-semibold hover:bg-[#F26522]/8 rounded-lg flex items-center gap-2">
-                    <FontAwesomeIcon icon={faBuilding} className="text-[#F26522]"/> {t("nav.supplier")}
+                <div className="border-t border-gray-100 mt-2 pt-2 space-y-1">
+                  <button onClick={()=>{ onSupplier?.(); setMenuOpen(false); }}
+                    className="w-full text-left px-4 py-3 text-sm text-[#1E2A78] font-semibold hover:bg-[#F26522]/6 rounded-xl flex items-center gap-2.5 transition-colors">
+                    <FontAwesomeIcon icon={faBuilding} className="text-[#F26522] text-sm"/> {t("nav.supplier")}
                   </button>
-                  <button onClick={onAgency} className="w-full text-left px-4 py-2.5 text-sm text-[#0C1440] font-semibold hover:bg-[#F26522]/8 rounded-lg flex items-center gap-2">
-                    <FontAwesomeIcon icon={faUserTie} className="text-[#F26522]"/> {t("nav.agency")}
+                  <button onClick={()=>{ onAgency?.(); setMenuOpen(false); }}
+                    className="w-full text-left px-4 py-3 text-sm text-[#1E2A78] font-semibold hover:bg-[#F26522]/6 rounded-xl flex items-center gap-2.5 transition-colors">
+                    <FontAwesomeIcon icon={faUserTie} className="text-[#F26522] text-sm"/> {t("nav.agency")}
                   </button>
-                  <button onClick={onLogin} className="w-full text-left px-4 py-2.5 text-sm bg-[#F26522] text-[#0C1440] font-bold hover:bg-[#D94E15] rounded-lg">
+                  <button onClick={()=>{ onLogin?.(); setMenuOpen(false); }}
+                    className="w-full px-4 py-3 text-sm bg-[#F26522] text-white font-bold hover:bg-[#D94E15] rounded-xl transition-colors shadow-sm">
                     {t("nav.signIn")}
                   </button>
                 </div>
@@ -353,43 +385,90 @@ const HeroSection = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) => {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1], delay: 0.15 }}
-            className={isRTL?"text-right":""}
+            className={isRTL ? "text-right" : ""}
           >
-            <motion.span
+
+            {/* ── Badge with live dot ── */}
+            <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.3 }}
-              className="inline-flex items-center gap-2 bg-[#F26522]/15 text-[#F26522] text-xs font-semibold px-4 py-2 rounded-full mb-6 border border-[#F26522]/30 backdrop-blur-sm tracking-[0.12em] uppercase"
+              className={`inline-flex items-center gap-2.5 mb-7 ${isRTL ? 'flex-row-reverse' : ''}`}
             >
-              <FontAwesomeIcon icon={faMapMarkedAlt} className="text-[10px]"/>
-              {t("hero.discover")}
-            </motion.span>
-            <h1 className="font-display text-5xl md:text-7xl font-light text-white leading-[1.05] mb-6 tracking-tight">
-              {t("hero.title")}<br/>
-              <span className="text-[#F26522] italic font-medium">{t("hero.titleSpan")}</span>
-            </h1>
-            <p className="text-white/60 text-lg mb-10 leading-relaxed max-w-lg font-light">
-              {t("hero.subtitle")}
-            </p>
+              {/* live dot */}
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#F26522] opacity-60" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#F26522]" />
+              </span>
+              <span className="text-[#F26522]/90 text-[11px] font-bold tracking-[0.18em] uppercase">
+                {t("hero.discover")}
+              </span>
+              <span className="w-8 h-px bg-gradient-to-r from-[#F26522]/60 to-transparent" />
+            </motion.div>
 
-            <div className={`flex flex-col sm:flex-row gap-3 ${isRTL ? 'sm:flex-row-reverse' : ''}`}>
+            {/* ── Main title ── */}
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.9, delay: 0.45 }}
+              className="font-display text-5xl md:text-[72px] font-light text-white leading-[1.02] mb-2 tracking-[-0.01em]"
+            >
+              {t("hero.title")}
+            </motion.h1>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.9, delay: 0.55 }}
+              className="mb-2"
+            >
+              <span className="font-display text-5xl md:text-[72px] text-[#F26522] italic font-medium leading-[1.02] tracking-[-0.01em]">
+                The link you<span className="not-italic font-black text-white">need</span>
+              </span>
+            </motion.div>
+
+            {/* ── Accent line under title ── */}
+            <motion.div
+              initial={{ scaleX: 0, opacity: 0 }}
+              animate={{ scaleX: 1, opacity: 1 }}
+              transition={{ duration: 0.8, delay: 0.75, ease: [0.22, 1, 0.36, 1] }}
+              className={`h-[2px] w-24 bg-gradient-to-r from-[#F26522] to-transparent mb-7 ${isRTL ? 'mr-0 ml-auto' : ''}`}
+              style={{ transformOrigin: isRTL ? 'right' : 'left' }}
+            />
+
+            {/* ── Subtitle ── */}
+            <motion.p
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.9, delay: 0.65 }}
+              className="text-white/55 text-[17px] mb-9 leading-[1.75] max-w-md font-light"
+            >
+              {t("hero.subtitle")}
+            </motion.p>
+
+            {/* ── CTA Buttons ── */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.9, delay: 0.9 }}
+              className={`flex flex-col sm:flex-row gap-3 ${isRTL ? 'sm:flex-row-reverse' : ''}`}
+            >
               <a
                 href="/register/supplier"
-                className="group inline-flex items-center justify-center gap-2.5 px-7 py-3.5 bg-[#F26522] hover:bg-[#D94E15] text-[#0C1440] font-bold text-sm rounded-xl shadow-xl shadow-[#F26522]/25 transition-all duration-300 hover:shadow-2xl hover:shadow-[#F26522]/35 hover:-translate-y-0.5"
+                className="group inline-flex items-center justify-center gap-2.5 px-7 py-3.5 bg-[#F26522] hover:bg-[#D94E15] text-white font-bold text-sm rounded-xl shadow-lg shadow-[#F26522]/30 transition-all duration-300 hover:shadow-xl hover:shadow-[#F26522]/40 hover:-translate-y-0.5 active:translate-y-0"
               >
-                <FontAwesomeIcon icon={faBuilding} />
+                <FontAwesomeIcon icon={faBuilding} className="text-white/80" />
                 {t("hero.cta_supplier")}
-                <FontAwesomeIcon icon={isRTL ? faArrowLeft : faArrowRight} className="text-xs opacity-70 group-hover:translate-x-1 transition-transform duration-200" />
+                <FontAwesomeIcon icon={isRTL ? faArrowLeft : faArrowRight} className="text-[10px] opacity-70 group-hover:translate-x-1 transition-transform duration-200" />
               </a>
               <a
                 href="/register/agency"
-                className="group inline-flex items-center justify-center gap-2.5 px-7 py-3.5 bg-white/10 hover:bg-white/18 text-white font-semibold text-sm rounded-xl border border-white/20 hover:border-white/35 transition-all duration-300 backdrop-blur-sm hover:-translate-y-0.5"
+                className="group inline-flex items-center justify-center gap-2.5 px-7 py-3.5 bg-white/8 hover:bg-white/14 text-white font-semibold text-sm rounded-xl border border-white/18 hover:border-white/32 transition-all duration-300 backdrop-blur-sm hover:-translate-y-0.5 active:translate-y-0"
               >
-                <FontAwesomeIcon icon={faBriefcase} />
+                <FontAwesomeIcon icon={faBriefcase} className="text-white/70" />
                 {t("hero.cta_agency")}
-                <FontAwesomeIcon icon={isRTL ? faArrowLeft : faArrowRight} className="text-xs opacity-70 group-hover:translate-x-1 transition-transform duration-200" />
+                <FontAwesomeIcon icon={isRTL ? faArrowLeft : faArrowRight} className="text-[10px] opacity-70 group-hover:translate-x-1 transition-transform duration-200" />
               </a>
-            </div>
+            </motion.div>
           </motion.div>
 
           <motion.div
@@ -398,12 +477,15 @@ const HeroSection = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) => {
             transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1], delay: 0.4 }}
             className="relative"
           >
+            {/* ── Glow ring behind card ── */}
+            <div className="absolute -inset-1 rounded-[28px] bg-gradient-to-br from-[#F26522]/30 via-transparent to-[#1E2A78]/20 blur-xl opacity-70 pointer-events-none" />
+
             <div
               key={currentHotel.id}
-              className="relative rounded-3xl overflow-hidden border border-white/20 shadow-2xl transition-all duration-700 animate-fade-in"
-              style={{ minHeight: 420 }}
+              className="relative rounded-3xl overflow-hidden shadow-[0_40px_80px_rgba(0,0,0,0.5)] transition-all duration-700"
+              style={{ minHeight: 480 }}
             >
-              {/* media البطاقة — صورة أو فيديو */}
+              {/* ── Full background image ── */}
               {currentHotel.card_media_kind === 'video' && currentHotel.card_video ? (
                 <video
                   src={currentHotel.card_video}
@@ -411,85 +493,98 @@ const HeroSection = ({ t, isRTL }: { t:(k:string)=>string; isRTL:boolean }) => {
                   className="absolute inset-0 w-full h-full object-cover"
                 />
               ) : (
-                <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700"
-                  style={{backgroundImage:`url(${currentHotel.card_image || ''})`}}/>
+                <img
+                  src={currentHotel.card_image || ''}
+                  alt={currentHotel.name}
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
               )}
-              <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/50 to-black/85"/>
 
-              <div className={`relative z-10 h-full flex flex-col justify-end p-7 ${isRTL?"text-right":""}`} style={{minHeight:420}}>
-                {/* Top-right badge: location (hotel) أو type tag (others) */}
-                {currentHotel.card_type === 'hotel' && currentHotel.location ? (
-                  <div className={`absolute top-5 ${isRTL?"right-5":"left-5"} bg-white/15 backdrop-blur-md border border-white/25 rounded-full px-3 py-1.5 flex items-center gap-1.5`}>
-                    <FontAwesomeIcon icon={faLocationDot} className="text-[#FF6B35] text-xs"/>
-                    <span className="text-white text-xs font-semibold">{currentHotel.location}</span>
-                  </div>
-                ) : currentHotel.card_type === 'sponsor' ? (
-                  <div className={`absolute top-5 ${isRTL?"right-5":"left-5"} bg-[#F26522]/90 backdrop-blur-md rounded-full px-3 py-1 flex items-center gap-1`}>
-                    <span className="text-white text-[10px] font-bold uppercase tracking-wider">Sponsored</span>
-                  </div>
-                ) : currentHotel.card_type === 'partner' ? (
-                  <div className={`absolute top-5 ${isRTL?"right-5":"left-5"} bg-white/15 backdrop-blur-md border border-white/25 rounded-full px-3 py-1`}>
-                    <span className="text-white text-[10px] font-bold uppercase tracking-wider">Partner</span>
-                  </div>
-                ) : null}
+              {/* ── Light top scrim ── */}
+              <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/30 to-transparent" />
 
-                <div className={`flex items-center gap-3 mb-4 ${isRTL?"flex-row-reverse":""}`}>
-                  {currentHotel.logo && (
-                    <div className="w-14 h-14 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg overflow-hidden">
-                      <img
-                        src={currentHotel.logo}
-                        alt={`${currentHotel.name} logo`}
-                        className="w-10 h-10 object-contain"
-                        onError={(e)=>{(e.currentTarget as HTMLImageElement).style.display='none';}}
-                      />
+              {/* ── FLOATING WHITE CARD at bottom ── */}
+              <div className={`absolute inset-x-0 bottom-0 z-10 p-3 ${isRTL ? 'text-right' : ''}`}>
+                <div className="bg-[#1E2A78]/45 backdrop-blur-xl rounded-2xl px-5 py-4 border border-[#3D52C4]/40 shadow-[0_-8px_40px_rgba(30,42,120,0.35)]">
+
+                  {/* Row 1: logo + name (left) | location (right) */}
+                  <div className={`flex items-center justify-between mb-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                    <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                      <div className="w-11 h-11 rounded-xl bg-white/15 border border-white/25 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
+                        {currentHotel.logo ? (
+                          <img
+                            src={currentHotel.logo}
+                            alt=""
+                            className="w-8 h-8 object-contain"
+                            onError={e => {
+                              const el = e.currentTarget as HTMLImageElement;
+                              el.style.display = 'none';
+                              const parent = el.parentElement;
+                              if (parent) {
+                                parent.innerHTML = `<span style="font-size:15px;font-weight:700;color:white;font-family:serif">${(currentHotel.name||'').charAt(0)||'?'}</span>`;
+                              }
+                            }}
+                          />
+                        ) : (
+                          <span className="text-[15px] font-bold text-white font-display">
+                            {(currentHotel.name||'').charAt(0)||'?'}
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="font-display text-[22px] font-semibold text-white leading-tight tracking-tight">
+                        {currentHotel.name}
+                      </h3>
                     </div>
+                    <div className={`flex items-center gap-1.5 flex-shrink-0 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                      <FontAwesomeIcon icon={faLocationDot} className="text-[#F26522] text-[10px]" />
+                      <span className="text-white/70 text-[10px] font-semibold uppercase tracking-[0.15em]">
+                        {currentHotel.location || 'Malaysia'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Row 2: stars */}
+                  {currentHotel.card_type === 'hotel' && currentHotel.stars ? (
+                    <div className={`flex items-center gap-0.5 mb-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                      {Array.from({ length: currentHotel.stars }).map((_, i) => (
+                        <FontAwesomeIcon key={i} icon={faStar} className="text-[#F26522] text-[9px]" />
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {/* Row 4: description */}
+                  {currentHotel.description && (
+                    <p className="text-white/55 text-xs leading-relaxed line-clamp-1 mb-3">
+                      {currentHotel.description}
+                    </p>
                   )}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-2xl font-bold text-white leading-tight">{currentHotel.name}</h3>
+
+                  {/* Row 4: divider + CTA */}
+                  <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                    <div className="flex-1 h-px bg-gradient-to-r from-[#F26522]/40 to-transparent" />
+                    <a
+                      href={currentHotel.link_url || '#'}
+                      target={currentHotel.link_url ? '_blank' : undefined}
+                      rel="noopener noreferrer"
+                      className="group inline-flex items-center gap-1.5 bg-[#F26522] hover:bg-[#D94E15] text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md shadow-[#F26522]/30 transition-all duration-200 hover:-translate-y-0.5 flex-shrink-0"
+                    >
+                      {currentHotel.cta_text || 'Explore'}
+                      <FontAwesomeIcon icon={isRTL ? faArrowLeft : faArrowRight} className="text-[9px] group-hover:translate-x-0.5 transition-transform" />
+                    </a>
                   </div>
+
                 </div>
-
-                {/* Stars — للفنادق فقط */}
-                {currentHotel.card_type === 'hotel' && currentHotel.stars ? (
-                  <div className={`flex items-center gap-1 mb-4 ${isRTL?"justify-end":""}`}>
-                    {Array.from({length:5}).map((_,i)=>(
-                      <FontAwesomeIcon
-                        key={i}
-                        icon={faStar}
-                        className={`text-sm ${i < (currentHotel.stars||0) ? "text-[#FFD700]" : "text-white/20"}`}
-                      />
-                    ))}
-                    <span className="text-white/80 text-xs font-semibold ml-2 mr-2">{currentHotel.stars}.0</span>
-                  </div>
-                ) : null}
-
-                {currentHotel.description && (
-                  <p className="text-white/85 text-sm leading-relaxed mb-3">
-                    {currentHotel.description}
-                  </p>
-                )}
-
-                {/* CTA — اختياري */}
-                {currentHotel.cta_text && currentHotel.link_url && (
-                  <a
-                    href={currentHotel.link_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-2 mt-2 px-5 py-2.5 bg-[#F26522] hover:bg-[#D94E15] text-[#0C1440] text-sm font-bold rounded-xl transition-all duration-200 w-fit shadow-lg hover:-translate-y-0.5"
-                  >
-                    {currentHotel.cta_text} →
-                  </a>
-                )}
               </div>
             </div>
 
-            <div className={`flex items-center gap-2 mt-5 ${isRTL?"justify-end":"justify-start"}`}>
+            {/* ── Pagination dots ── */}
+            <div className={`flex items-center gap-2 mt-4 ${isRTL ? 'justify-end' : 'justify-start'}`}>
               {displayHotels.map((_, i) => (
                 <button
                   key={i}
                   onClick={() => setCurrentIdx(i)}
-                  aria-label={`Show hotel ${i+1}`}
-                  className={`h-1.5 rounded-full transition-all duration-300 ${i===currentIdx?"bg-[#F26522] w-8":"bg-white/30 w-1.5 hover:bg-white/55"}`}
+                  aria-label={`Show hotel ${i + 1}`}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${i === currentIdx ? 'bg-[#F26522] w-8' : 'bg-white/30 w-1.5 hover:bg-white/55'}`}
                 />
               ))}
             </div>

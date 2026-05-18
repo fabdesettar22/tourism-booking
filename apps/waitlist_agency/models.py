@@ -2,6 +2,7 @@
 
 import uuid
 from django.db import models
+from django.conf import settings
 
 
 # ── Choices ───────────────────────────────────────────────
@@ -84,6 +85,15 @@ class AgencyWaitlist(models.Model):
     utm_source   = models.CharField(max_length=100, blank=True)
     utm_medium   = models.CharField(max_length=100, blank=True)
     utm_campaign = models.CharField(max_length=100, blank=True)
+
+    # ── حساب المستخدم (يُنشأ فور التسجيل) ────────────────
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='agency_waitlist',
+        verbose_name='حساب المستخدم',
+    )
 
     # ── بيانات تلقائية ────────────────────────────────────
     ip_address   = models.GenericIPAddressField(null=True, blank=True)

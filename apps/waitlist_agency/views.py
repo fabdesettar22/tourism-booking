@@ -79,10 +79,23 @@ class AgencyWaitlistRegisterView(APIView):
                 'errors':  serializer.errors,
             }, status=status.HTTP_400_BAD_REQUEST)
 
+        # إنشاء حساب المستخدم فوراً — نشط ليتمكن من تسجيل الدخول
+        # agency=null حتى يوافق الأدمن، وحينها يرى لوحة التحكم الكاملة
+        vd = serializer.validated_data
+        user = User.objects.create_user(
+            username   = vd['username'],
+            password   = vd['password'],
+            email      = vd['email'],
+            first_name = vd.get('contact_person_name', ''),
+            role       = 'agency',
+            is_active  = True,
+        )
+
         # حفظ السجل مع البيانات التلقائية
         instance = serializer.save(
             ip_address  = get_client_ip(request),
             device_type = get_device_type(request),
+            user        = user,
         )
 
         # إرسال إيميل التأكيد (لا يُوقف التسجيل إن فشل)
@@ -281,11 +294,17 @@ class AgencyWaitlistApproveView(APIView):
             agency.logo = waitlist.logo
             agency.save()
 
+        # تفعيل المستخدم المرتبط بالـ Waitlist (إن وُجد)
+        if waitlist.user:
+            waitlist.user.agency    = agency
+            waitlist.user.is_active = True
+            waitlist.user.save(update_fields=['agency', 'is_active'])
+
         # تحديث حالة Waitlist
         waitlist.status = 'APPROVED'
         waitlist.save(update_fields=['status', 'updated_at'])
 
-        # توليد activation token
+        # توليد activation token (للتوافق مع الوكالات القديمة التي لا تملك user)
         token_obj = AgencyActivationToken.objects.create(agency=agency)
 
         # إرسال إيميل القبول للوكالة

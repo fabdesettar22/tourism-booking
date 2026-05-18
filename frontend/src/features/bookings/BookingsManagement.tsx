@@ -190,11 +190,11 @@ function BookingDetailsModal({ booking, onClose, onStatusChange }: {
           )}
 
           {/* Cities */}
-          {booking.cities.length > 0 && (
+          {(booking.cities||[]).length > 0 && (
             <div>
               <p className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wide">{t('bookingsMgmt.detailsModal.itinerary')}</p>
               <div className="space-y-2">
-                {booking.cities.map((c, i) => (
+                {(booking.cities||[]).map((c, i) => (
                   <div key={i} className="border rounded-2xl p-4">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
@@ -208,9 +208,9 @@ function BookingDetailsModal({ booking, onClose, onStatusChange }: {
                         </span>
                       )}
                     </div>
-                    {c.hotels.length > 0 && (
+                    {(c.hotels||[]).length > 0 && (
                       <div className="flex flex-wrap gap-2">
-                        {c.hotels.map((h, hi) => (
+                        {(c.hotels||[]).map((h, hi) => (
                           <span key={hi} className="flex items-center gap-1.5 text-xs bg-blue-50 text-blue-700 px-2.5 py-1.5 rounded-xl">
                             <Building2 className="w-3 h-3"/>
                             {h.hotel_name}
@@ -226,11 +226,11 @@ function BookingDetailsModal({ booking, onClose, onStatusChange }: {
           )}
 
           {/* Services */}
-          {booking.services.length > 0 && (
+          {(booking.services||[]).length > 0 && (
             <div>
               <p className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wide">{t('bookingsMgmt.detailsModal.services')}</p>
               <div className="flex flex-wrap gap-2">
-                {booking.services.map((s, i) => (
+                {(booking.services||[]).map((s, i) => (
                   <span key={i} className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-xl border
                     ${s.is_optional ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-gray-50 text-gray-600 border-gray-200'}`}>
                     <Tag className="w-3 h-3"/> {s.service_name}
@@ -291,7 +291,7 @@ function PackagePickerModal({ onSelect, onClose }: {
   }, []);
 
   const filtered = packages.filter(p =>
-    p.is_active && p.name.toLowerCase().includes(search.toLowerCase())
+    p.is_active && (p.name || '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -440,7 +440,7 @@ export function BookingsManagement() {
   };
 
   const filtered = bookings.filter(b => {
-    const ms = b.client_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const ms = (b.client_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                b.client_phone.includes(searchQuery) ||
                String(b.id).includes(searchQuery) ||
                (b.package_name||'').toLowerCase().includes(searchQuery.toLowerCase());

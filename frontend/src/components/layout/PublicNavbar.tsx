@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faBars, faXmark, faChevronDown,
@@ -7,8 +7,6 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LANGUAGES, type Language } from '../../i18n/index';
-
-type NavbarVariant = 'hero' | 'solid';
 
 interface PublicNavbarProps {
   onLogin?:     () => void;
@@ -18,7 +16,7 @@ interface PublicNavbarProps {
   onLangChange: (l: Language) => void;
   t:            (k: string) => string;
   isRTL:        boolean;
-  variant?:     NavbarVariant;
+  variant?:     'hero' | 'solid';
 }
 
 export function PublicNavbar({
@@ -32,15 +30,16 @@ export function PublicNavbar({
   variant = 'hero',
 }: PublicNavbarProps) {
   const navigate = useNavigate();
-  const [scrolled, setScrolled] = useState(false);
+  const [scrolled, setScrolled] = useState(variant === 'solid');
   const [menuOpen, setMenuOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
 
   useEffect(() => {
-    const h = () => setScrolled(window.scrollY > 40);
-    window.addEventListener('scroll', h);
+    if (variant === 'solid') return;
+    const h = () => setScrolled(window.scrollY > 30);
+    window.addEventListener('scroll', h, { passive: true });
     return () => window.removeEventListener('scroll', h);
-  }, []);
+  }, [variant]);
 
   const handleLogin    = () => onLogin    ? onLogin()    : navigate('/login');
   const handleSupplier = () => onSupplier ? onSupplier() : navigate('/register/supplier');
@@ -56,87 +55,89 @@ export function PublicNavbar({
   ];
 
   const currentLang = LANGUAGES.find(l => l.code === lang);
-  const isSolid     = variant === 'solid';
-  const isGlass     = !isSolid && !scrolled;
-
-  const navBg = isSolid
-    ? 'bg-white/97 shadow-lg shadow-[#0C1440]/6 border border-[#F26522]/18'
-    : scrolled
-      ? 'bg-white/96 backdrop-blur-xl shadow-xl shadow-[#0C1440]/8 border border-[#F26522]/20 nav-scrolled'
-      : 'bg-[#0C1440]/15 backdrop-blur-md border border-white/12';
-
-  const linkCls = isGlass
-    ? 'text-white/90 hover:text-white hover:bg-white/10'
-    : 'text-gray-700 hover:text-[#F26522] hover:bg-[#F26522]/8';
-
-  const langBtnCls = isGlass
-    ? 'border-white/25 text-white/90 hover:bg-white/10 hover:border-white/40'
-    : 'border-gray-200 text-gray-700 hover:border-[#F26522] hover:text-[#F26522]';
-
-  const registerBtnCls = isGlass
-    ? 'border-white/30 text-white/90 hover:bg-white/10'
-    : 'border-[#F26522]/60 text-[#0C1440] hover:bg-[#F26522]/8 hover:border-[#F26522]';
-
-  const loginBtnBg = isGlass
-    ? 'bg-[#F26522] hover:bg-[#D94E15] text-[#0C1440]'
-    : 'bg-[#F26522] hover:bg-[#D94E15] text-[#0C1440]';
+  const isGlass = !scrolled;
 
   return (
     <motion.nav
       initial={{ y: -80, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-      className={`fixed top-3 left-3 right-3 z-50 rounded-2xl transition-all duration-500 ${navBg}`}
+      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+      className={`fixed top-3 left-3 right-3 z-50 rounded-2xl transition-all duration-400 ${
+        scrolled
+          ? 'bg-white/97 backdrop-blur-2xl shadow-[0_8px_32px_rgba(30,42,120,0.12)] border border-gray-100'
+          : 'bg-[#0C1440]/18 backdrop-blur-md border border-white/10'
+      }`}
     >
+      {/* Orange accent line — only when scrolled */}
+      {scrolled && (
+        <div className="absolute top-0 inset-x-0 h-[2.5px] bg-gradient-to-r from-transparent via-[#F26522] to-transparent" />
+      )}
+
       <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-[auto_1fr_auto] lg:grid-cols-3 items-center h-14 gap-4">
+        <div className={`flex items-center h-16 gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
 
           {/* Logo */}
-          <Link to="/" className="flex items-center flex-shrink-0 justify-self-start">
+          <a href="/" onClick={e => { e.preventDefault(); navigate('/'); }}
+            className="flex-shrink-0 flex items-center">
             <img src="/IMG_7936.PNG" alt="MYBRIDGE" className="h-9 w-auto" />
-          </Link>
+          </a>
 
-          {/* Desktop Links */}
-          <div className="hidden lg:flex items-center gap-0.5 justify-self-center">
-            {navLinks.map((link) => (
+          {/* Desktop Nav Links */}
+          <nav className="hidden lg:flex items-center flex-1 justify-center gap-0">
+            {navLinks.map(link => (
               <a
                 key={link.key}
                 href={link.href}
-                onClick={(e) => { e.preventDefault(); navigate(link.href); }}
-                className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 tracking-wide ${linkCls}`}
+                onClick={e => { e.preventDefault(); navigate(link.href); }}
+                className={`relative group px-3.5 py-2.5 text-[13px] font-medium tracking-wide transition-colors duration-200 ${
+                  isGlass ? 'text-white/80 hover:text-white' : 'text-[#1E2A78]/75 hover:text-[#1E2A78]'
+                }`}
               >
                 {link.label}
+                <span className={`absolute bottom-1 left-3.5 right-3.5 h-[1.5px] rounded-full origin-center
+                  scale-x-0 group-hover:scale-x-100 transition-transform duration-250 ease-out
+                  ${isGlass ? 'bg-white/55' : 'bg-[#F26522]'}`}
+                />
               </a>
             ))}
-          </div>
+          </nav>
 
           {/* Right Side */}
-          <div className={`flex items-center gap-2 justify-self-end ${isRTL ? 'flex-row-reverse' : ''}`}>
+          <div className={`flex items-center gap-1 ml-auto ${isRTL ? 'flex-row-reverse' : ''}`}>
 
-            {/* Language */}
+            {/* Language picker */}
             <div className="relative">
               <button
                 onClick={() => setLangOpen(!langOpen)}
-                className={`flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl border transition-all duration-200 ${langBtnCls}`}
+                className={`flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1.5 rounded-lg transition-colors duration-200 ${
+                  isGlass
+                    ? 'text-white/75 hover:text-white hover:bg-white/10'
+                    : 'text-gray-500 hover:text-[#1E2A78]'
+                }`}
               >
                 {currentLang?.code.toUpperCase()}
-                <FontAwesomeIcon icon={faChevronDown} className="text-[9px]" />
+                <FontAwesomeIcon
+                  icon={faChevronDown}
+                  className={`text-[8px] opacity-60 transition-transform duration-200 ${langOpen ? 'rotate-180' : ''}`}
+                />
               </button>
               <AnimatePresence>
                 {langOpen && (
                   <motion.div
-                    initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                    initial={{ opacity: 0, y: -6, scale: 0.97 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -8, scale: 0.96 }}
-                    transition={{ duration: 0.18 }}
-                    className="absolute top-full mt-1.5 right-0 bg-white/98 backdrop-blur-xl border border-[#F26522]/20 rounded-xl shadow-xl shadow-black/10 overflow-hidden z-50 min-w-[140px]"
+                    exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                    transition={{ duration: 0.16 }}
+                    className="absolute top-full mt-2 right-0 bg-white border border-gray-100 rounded-xl shadow-lg shadow-[#1E2A78]/8 overflow-hidden z-50 min-w-[130px]"
                   >
-                    {LANGUAGES.map((l) => (
+                    {LANGUAGES.map(l => (
                       <button
                         key={l.code}
                         onClick={() => { onLangChange(l.code); setLangOpen(false); }}
-                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-[#F26522]/10 hover:text-[#0C1440] font-medium ${
-                          lang === l.code ? 'text-[#F26522] font-semibold bg-[#F26522]/8' : 'text-gray-700'
+                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors font-medium ${
+                          lang === l.code
+                            ? 'text-[#F26522] bg-[#F26522]/6 font-semibold'
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-[#1E2A78]'
                         }`}
                       >
                         {l.label}
@@ -147,38 +148,55 @@ export function PublicNavbar({
               </AnimatePresence>
             </div>
 
-            {/* Supplier / Agency */}
-            <div className="hidden lg:flex items-center gap-1.5">
-              <button
-                onClick={handleSupplier}
-                className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border transition-all duration-200 ${registerBtnCls}`}
-              >
-                <FontAwesomeIcon icon={faBuilding} className="text-[10px]" />
-                {t('nav.supplier')}
-              </button>
-              <button
-                onClick={handleAgency}
-                className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border transition-all duration-200 ${registerBtnCls}`}
-              >
-                <FontAwesomeIcon icon={faUserTie} className="text-[10px]" />
-                {t('nav.agency')}
-              </button>
-            </div>
+            {/* Thin separator */}
+            <div className={`hidden lg:block w-px h-4 mx-1 ${isGlass ? 'bg-white/15' : 'bg-gray-200'}`} />
 
-            {/* Sign In — Gold CTA */}
+            {/* Supplier — text-only */}
+            <button
+              onClick={handleSupplier}
+              className={`hidden lg:flex items-center gap-1.5 text-[12px] font-semibold px-3 py-2 rounded-xl transition-colors duration-200 ${
+                isGlass
+                  ? 'text-white/75 hover:text-white hover:bg-white/10'
+                  : 'text-[#1E2A78]/70 hover:text-[#F26522] hover:bg-[#F26522]/8'
+              }`}
+            >
+              <FontAwesomeIcon icon={faBuilding} className="text-[9px]" />
+              {t('nav.supplier')}
+            </button>
+
+            {/* Agency — text-only */}
+            <button
+              onClick={handleAgency}
+              className={`hidden lg:flex items-center gap-1.5 text-[12px] font-semibold px-3 py-2 rounded-xl transition-colors duration-200 ${
+                isGlass
+                  ? 'text-white/75 hover:text-white hover:bg-white/10'
+                  : 'text-[#1E2A78]/70 hover:text-[#F26522] hover:bg-[#F26522]/8'
+              }`}
+            >
+              <FontAwesomeIcon icon={faUserTie} className="text-[9px]" />
+              {t('nav.agency')}
+            </button>
+
+            {/* Sign In — solid orange pill */}
             <button
               onClick={handleLogin}
-              className={`text-sm font-bold px-5 py-2 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 ${loginBtnBg}`}
+              className="bg-[#F26522] hover:bg-[#D94E15] text-white text-[13px] font-bold
+                px-5 py-2.5 rounded-xl ml-1
+                shadow-[0_4px_14px_rgba(242,101,34,0.35)] hover:shadow-[0_6px_20px_rgba(242,101,34,0.45)]
+                hover:-translate-y-0.5 active:translate-y-0 active:shadow-sm
+                transition-all duration-200"
             >
               {t('nav.signIn')}
             </button>
 
-            {/* Mobile Toggle */}
+            {/* Mobile toggle */}
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className={`lg:hidden p-2 rounded-lg transition-colors ${isGlass ? 'text-white hover:bg-white/10' : 'text-gray-700 hover:bg-gray-100'}`}
+              className={`lg:hidden p-2 rounded-xl ml-1 transition-colors ${
+                isGlass ? 'text-white hover:bg-white/10' : 'text-[#1E2A78] hover:bg-gray-100'
+              }`}
             >
-              <FontAwesomeIcon icon={menuOpen ? faXmark : faBars} />
+              <FontAwesomeIcon icon={menuOpen ? faXmark : faBars} className="text-base" />
             </button>
           </div>
         </div>
@@ -190,37 +208,37 @@ export function PublicNavbar({
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
               className="lg:hidden overflow-hidden"
               dir={isRTL ? 'rtl' : 'ltr'}
             >
-              <div className="bg-white/98 backdrop-blur-xl rounded-xl mt-2 mb-2 py-2 px-2 border border-[#F26522]/15 shadow-lg">
-                {navLinks.map((link) => (
+              <div className="bg-white rounded-2xl mt-1.5 mb-2 py-2 px-1.5 border border-gray-100 shadow-lg">
+                {navLinks.map(link => (
                   <a
                     key={link.key}
                     href={link.href}
-                    onClick={(e) => { e.preventDefault(); navigate(link.href); setMenuOpen(false); }}
-                    className="block px-4 py-2.5 text-sm text-gray-700 hover:text-[#F26522] hover:bg-[#F26522]/8 rounded-lg font-medium transition-colors"
+                    onClick={e => { e.preventDefault(); navigate(link.href); setMenuOpen(false); }}
+                    className="flex items-center gap-2.5 px-4 py-3 text-sm text-[#1E2A78] hover:text-[#F26522] hover:bg-[#F26522]/6 rounded-xl font-medium transition-colors"
                   >
                     {link.label}
                   </a>
                 ))}
-                <div className="border-t border-[#F26522]/10 mt-2 pt-2 space-y-1">
+                <div className="border-t border-gray-100 mt-2 pt-2 space-y-1">
                   <button
                     onClick={() => { handleSupplier(); setMenuOpen(false); }}
-                    className="w-full text-left px-4 py-2.5 text-sm text-[#0C1440] font-semibold hover:bg-[#F26522]/8 rounded-lg flex items-center gap-2"
+                    className="w-full text-left px-4 py-3 text-sm text-[#1E2A78] font-semibold hover:bg-[#F26522]/6 rounded-xl flex items-center gap-2.5 transition-colors"
                   >
-                    <FontAwesomeIcon icon={faBuilding} className="text-[#F26522]" /> {t('nav.supplier')}
+                    <FontAwesomeIcon icon={faBuilding} className="text-[#F26522] text-sm" /> {t('nav.supplier')}
                   </button>
                   <button
                     onClick={() => { handleAgency(); setMenuOpen(false); }}
-                    className="w-full text-left px-4 py-2.5 text-sm text-[#0C1440] font-semibold hover:bg-[#F26522]/8 rounded-lg flex items-center gap-2"
+                    className="w-full text-left px-4 py-3 text-sm text-[#1E2A78] font-semibold hover:bg-[#F26522]/6 rounded-xl flex items-center gap-2.5 transition-colors"
                   >
-                    <FontAwesomeIcon icon={faUserTie} className="text-[#F26522]" /> {t('nav.agency')}
+                    <FontAwesomeIcon icon={faUserTie} className="text-[#F26522] text-sm" /> {t('nav.agency')}
                   </button>
                   <button
                     onClick={() => { handleLogin(); setMenuOpen(false); }}
-                    className="w-full text-left px-4 py-2.5 text-sm bg-[#F26522] text-[#0C1440] font-bold hover:bg-[#D94E15] rounded-lg"
+                    className="w-full px-4 py-3 text-sm bg-[#F26522] text-white font-bold hover:bg-[#D94E15] rounded-xl transition-colors shadow-sm"
                   >
                     {t('nav.signIn')}
                   </button>

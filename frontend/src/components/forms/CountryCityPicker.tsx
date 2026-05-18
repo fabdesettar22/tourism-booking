@@ -15,6 +15,22 @@ const _cache = {
 };
 const CACHE_TTL = 5 * 60 * 1000;
 
+// تُستدعى من DestinationsManagement بعد إضافة/تعديل مدينة
+// لمزامنة القوائم المنسدلة فوراً دون انتظار انتهاء صلاحية الـ cache
+export const clearCityCache = (iso2?: string) => {
+  if (iso2) {
+    _cache.cities.forEach((_, key) => {
+      if (key.startsWith(`${iso2.toUpperCase()}:`)) {
+        _cache.cities.delete(key);
+        _cache.citiesAt.delete(key);
+      }
+    });
+  } else {
+    _cache.cities.clear();
+    _cache.citiesAt.clear();
+  }
+};
+
 // ════════════════════════════════════════════════════════════════
 // Types
 // ════════════════════════════════════════════════════════════════
@@ -218,7 +234,7 @@ export function CountryCityPicker({
 
     setLoadingCities(true);
     try {
-      const url = `${BASE}/api/v1/locations/cities/?country_code=${iso2}${q ? `&q=${encodeURIComponent(q)}` : ''}&limit=50`;
+      const url = `${BASE}/api/v1/locations/cities/?country_code=${iso2}${q ? `&q=${encodeURIComponent(q)}` : ''}`;
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();

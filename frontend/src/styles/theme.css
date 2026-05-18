@@ -134,51 +134,68 @@
   --color-brand-orange: var(--brand-orange);
   --color-brand-orange-600: var(--brand-orange-600);
   --color-brand-orange-50: var(--brand-orange-50);
-  --font-display: 'Cormorant Garamond', Georgia, serif;
-  --font-sans: 'Jost', 'Inter', system-ui, sans-serif;
+  /* Latin display: Cormorant; Arabic chars auto-fallback to Cairo */
+  --font-display: 'Cormorant Garamond', 'Cairo', 'Playfair Display', Georgia, serif;
+  /* Latin body: DM Sans; Arabic chars auto-fallback to Cairo */
+  --font-sans: 'DM Sans', 'Cairo', 'Inter', system-ui, sans-serif;
+  --font-arabic: 'Cairo', 'Noto Sans Arabic', sans-serif;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    /* Smooth font rendering on all platforms */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html {
+    font-size: var(--font-size);
+    text-rendering: optimizeLegibility;
   }
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Jost', 'Inter', system-ui, sans-serif;
+    /* DM Sans for Latin, Cairo auto-fallback for Arabic glyphs */
+    font-family: 'DM Sans', 'Cairo', 'Inter', system-ui, sans-serif;
+    font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+    line-height: 1.6;
   }
 
   /**
   * Default typography styles for HTML elements (h1-h4, p, label, button, input).
-  * These are in @layer base, so Tailwind utility classes (like text-sm, text-lg) automatically override them.
+  * These are in @layer base, so Tailwind utility classes automatically override them.
   */
-
-  html {
-    font-size: var(--font-size);
-  }
 
   h1 {
     font-size: var(--text-2xl);
     font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
   }
 
   h2 {
     font-size: var(--text-xl);
     font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    line-height: 1.25;
+    letter-spacing: -0.015em;
   }
 
   h3 {
     font-size: var(--text-lg);
     font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
   }
 
   h4 {
     font-size: var(--text-base);
     font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    line-height: 1.4;
+  }
+
+  p {
+    line-height: 1.7;
   }
 
   label {
@@ -198,4 +215,42 @@
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Arabic / RTL enhancements — outside @layer for higher cascade priority.
+
+   FONT STRATEGY (no !important needed):
+   • --font-display = 'Cormorant Garamond', 'Cairo', ...
+     → Latin glyphs  → Cormorant Garamond (elegant serif headlines)
+     → Arabic glyphs → Cairo (browser auto-fallback on unicode coverage)
+   • --font-sans    = 'DM Sans', 'Cairo', ...
+     → Latin glyphs  → DM Sans
+     → Arabic glyphs → Cairo
+
+   This means the SAME font-family stack works for both scripts automatically.
+   No context-switching overrides needed.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Fine-tune Arabic text rendering in RTL containers */
+[dir="rtl"] {
+  line-height: 1.75;
+  letter-spacing: 0;
+  word-spacing: 0.03em;
+}
+
+/* Headings in RTL: bump weight for better Arabic impact */
+[dir="rtl"] h1, [dir="rtl"] h2,
+[dir="rtl"] h3, [dir="rtl"] h4 {
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+
+/* Mono font (counters, codes) stays as mono in RTL */
+[dir="rtl"] .font-mono {
+  font-family: ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace;
+  letter-spacing: 0.05em;
+  direction: ltr;
+  unicode-bidi: isolate;
 }

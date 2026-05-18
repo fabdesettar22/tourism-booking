@@ -1,5 +1,5 @@
 # apps/locations/views.py
-from django.db.models import Q
+from django.db.models import Q, F
 from rest_framework import viewsets, filters
 from rest_framework.permissions import AllowAny
 from rest_framework.decorators import action
@@ -103,15 +103,24 @@ class CityViewSet(viewsets.ModelViewSet):
                 Q(name__icontains=q)
             )
 
-        # ترتيب: الأكبر سكاناً أولاً
-        qs = qs.order_by('-population', 'name')
+        # ترتيب: المدن المُضافة يدوياً (geoname_id=NULL) أولاً، ثم الأكبر سكاناً
+        qs = qs.order_by(F('geoname_id').asc(nulls_first=True), '-population', 'name')
 
-        # Limit يُطبَّق فقط في list (للـ retrieve نُرجع كامل QS)
+        # Limit يُطبَّق فقط في list
+        # — عند تصفية بدولة محددة: نُرجع كل مدنها (حتى 5000)
+        # — بدون تصفية: نُحدّد بـ 500 لتجنب إرجاع 144k مدينة دفعةً واحدة
         if self.action == 'list':
-            try:
-                limit = min(int(params.get('limit', 50)), 200)
-            except (ValueError, TypeError):
-                limit = 50
+            has_country_filter = bool(country_id or country_code)
+            if has_country_filter:
+                try:
+                    limit = min(int(params.get('limit', 5000)), 5000)
+                except (ValueError, TypeError):
+                    limit = 5000
+            else:
+                try:
+                    limit = min(int(params.get('limit', 500)), 1000)
+                except (ValueError, TypeError):
+                    limit = 500
             qs = qs[:limit]
 
         return qs

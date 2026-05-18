@@ -272,13 +272,13 @@ export function BlogEditor({ postId, onBack }: Props) {
   const addTagFromInput = async () => {
     const name = tagInput.trim();
     if (!name) return;
-    let existing = allTags.find(t => t.name_en.toLowerCase() === name.toLowerCase() ||
+    let existing = allTags.find(t => (t.name_en || '').toLowerCase() === (name || '').toLowerCase() ||
                                      t.name_ar === name || t.name_ms === name);
     if (!existing) {
       try {
         existing = await blogApi.adminTagsCreate({
           name_en: name, name_ar: name, name_ms: name,
-          slug: name.toLowerCase().replace(/\s+/g, '-'),
+          slug: (name || '').toLowerCase().replace(/\s+/g, '-'),
         });
         setAllTags(t => [...t, existing!]);
       } catch { return; }

@@ -1,82 +1,54 @@
 from rest_framework import viewsets, status, permissions, mixins
-from rest_framework.decorators import action
+from rest_framework.views import APIView
 from rest_framework.response import Response
 
-from .models import FlightRoute, FlightOffer, FlightBookingRequest
+from .models import FlightRoute
 from .serializers import (
     FlightRouteSerializer, FlightRoutePublicSerializer,
-    FlightOfferAdminSerializer, FlightOfferPublicSerializer,
-    FlightBookingRequestSerializer, FlightBookingRequestAdminSerializer,
+    FlightSearchInputSerializer,
 )
 from .services import flight_search, duffel_client
 from .services.duffel_client import DuffelError
+from .services.flight_search import RouteNotAvailable
 
 
-# ─── Admin: routes ────────────────────────────────────────
 class FlightRouteViewSet(viewsets.ModelViewSet):
+    """Admin CRUD for route definitions (origin + destination + commission)."""
     permission_classes = [permissions.IsAdminUser]
     serializer_class = FlightRouteSerializer
-    queryset = FlightRoute.objects.all().prefetch_related("offers")
+    queryset = FlightRoute.objects.all()
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
 
-    @action(detail=True, methods=["post"])
-    def refresh(self, request, pk=None):
-        route = self.get_object()
+
+class PublicFlightRouteViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    """Active routes — used by the public search form to show available city pairs."""
+    permission_classes = [permissions.AllowAny]
+    serializer_class = FlightRoutePublicSerializer
+    queryset = FlightRoute.objects.filter(is_active=True)
+
+
+class FlightSearchView(APIView):
+    """Live search — fetches offers from Duffel for the given route/date/passengers."""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        payload = FlightSearchInputSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        data = payload.validated_data
         try:
-            offers = flight_search.refresh_route_offers(route)
+            result = flight_search.search_live(**data)
+        except RouteNotAvailable as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_404_NOT_FOUND)
         except DuffelError as exc:
             return Response(
                 {"detail": str(exc), "duffel": exc.payload},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
-        return Response({
-            "route": FlightRouteSerializer(route).data,
-            "offers": FlightOfferAdminSerializer(offers, many=True).data,
-        })
-
-    @action(detail=True, methods=["post"])
-    def activate(self, request, pk=None):
-        route = self.get_object()
-        if not route.offers.exists():
-            return Response(
-                {"detail": "Refresh offers before activating."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        route.is_active = True
-        route.save(update_fields=["is_active", "updated_at"])
-        return Response(FlightRouteSerializer(route).data)
-
-    @action(detail=True, methods=["post"])
-    def deactivate(self, request, pk=None):
-        route = self.get_object()
-        route.is_active = False
-        route.save(update_fields=["is_active", "updated_at"])
-        return Response(FlightRouteSerializer(route).data)
-
-    @action(detail=True, methods=["get"])
-    def offers(self, request, pk=None):
-        route = self.get_object()
-        return Response(
-            FlightOfferAdminSerializer(route.offers.all().order_by("total_amount"), many=True).data
-        )
+        return Response(result)
 
 
-# ─── Public: routes & offers ──────────────────────────────
-class PublicFlightRouteViewSet(mixins.RetrieveModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
-    permission_classes = [permissions.AllowAny]
-    serializer_class = FlightRoutePublicSerializer
-    queryset = FlightRoute.objects.filter(is_active=True).prefetch_related("offers")
-
-    @action(detail=True, methods=["get"])
-    def offers(self, request, pk=None):
-        route = self.get_object()
-        offers = flight_search.get_cached_offers(route)
-        return Response(FlightOfferPublicSerializer(offers, many=True).data)
-
-
-# ─── Airports autocomplete ────────────────────────────────
 class AirportsSearchView(viewsets.ViewSet):
     permission_classes = [permissions.AllowAny]
 
@@ -98,17 +70,3 @@ class AirportsSearchView(viewsets.ViewSet):
             for a in results if a.get("iata_code")
         ]
         return Response(slim)
-
-
-# ─── Booking requests ─────────────────────────────────────
-class FlightBookingRequestCreateView(mixins.CreateModelMixin, viewsets.GenericViewSet):
-    permission_classes = [permissions.AllowAny]
-    serializer_class = FlightBookingRequestSerializer
-    queryset = FlightBookingRequest.objects.all()
-
-
-class AdminFlightBookingRequestViewSet(viewsets.ModelViewSet):
-    permission_classes = [permissions.IsAdminUser]
-    serializer_class = FlightBookingRequestAdminSerializer
-    queryset = FlightBookingRequest.objects.select_related("offer", "offer__route").all()
-    http_method_names = ["get", "patch", "delete", "head", "options"]

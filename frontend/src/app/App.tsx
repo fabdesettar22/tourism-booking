@@ -217,14 +217,49 @@ function AdminApp() {
 
   const isAdmin = user.role === 'super_admin' || user.role === 'admin';
 
-  // حالة خاصة: وكالة غير معتمدة
+  // حالة خاصة: وكالة مسجّلة لكن لم تُعتمد بعد (agency=null)
   if (user.role === 'agency' && user.agency === null) return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800 flex items-center justify-center p-4" dir="rtl">
-      <div className="bg-white/10 backdrop-blur-md rounded-3xl border border-white/20 p-10 max-w-md w-full text-center">
-        <span className="text-4xl block mb-4">⏳</span>
-        <h2 className="text-2xl font-bold text-white mb-2">طلبك قيد المراجعة</h2>
-        <p className="text-blue-200 text-sm mb-6">سيتواصل معك فريقنا قريباً.</p>
-        <button onClick={handleLogout} className="w-full bg-white/10 border border-white/20 text-white font-medium rounded-xl py-3 text-sm">
+    <div className="min-h-screen bg-gradient-to-br from-[#0F2742] via-[#0d3260] to-[#1a4a80] flex items-center justify-center p-4">
+      <div className="bg-white/10 backdrop-blur-md rounded-3xl border border-white/20 p-10 max-w-lg w-full text-center" dir="rtl">
+        <div className="w-20 h-20 bg-[#FF6B35]/20 border-2 border-[#FF6B35]/40 rounded-full flex items-center justify-center mx-auto mb-6">
+          <span className="text-4xl">⏳</span>
+        </div>
+        <div className="inline-block bg-amber-500/20 text-amber-300 text-xs font-bold px-3 py-1 rounded-full border border-amber-500/30 mb-4">
+          قيد المراجعة
+        </div>
+        <h2 className="text-2xl font-bold text-white mb-3">
+          مرحباً {user.first_name || user.username}
+        </h2>
+        <p className="text-blue-200 text-sm mb-2 leading-relaxed">
+          تم استلام طلب تسجيل وكالتك بنجاح.
+        </p>
+        <p className="text-blue-300 text-sm mb-6 leading-relaxed">
+          يراجع فريقنا طلبك حالياً وسيتواصل معك على بريدك الإلكتروني خلال 24-48 ساعة بعد التحقق من وثائقك.
+        </p>
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-6 text-right">
+          <p className="text-xs font-semibold text-blue-300 mb-3 uppercase tracking-wide">حالة الطلب</p>
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></div>
+              <span className="text-sm text-white">تم استلام طلبك</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 bg-amber-400 rounded-full flex-shrink-0 animate-pulse"></div>
+              <span className="text-sm text-blue-200">مراجعة الوثائق من قِبل الفريق</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 bg-white/20 rounded-full flex-shrink-0"></div>
+              <span className="text-sm text-blue-400">تفعيل لوحة التحكم</span>
+            </div>
+          </div>
+        </div>
+        <p className="text-xs text-blue-400 mb-6">
+          للاستفسار: <span className="text-[#FF6B35] font-medium">contact@mybridge.my</span>
+        </p>
+        <button
+          onClick={handleLogout}
+          className="w-full bg-white/10 hover:bg-white/20 border border-white/20 text-white font-medium rounded-xl py-3 text-sm transition-colors"
+        >
           تسجيل الخروج
         </button>
       </div>

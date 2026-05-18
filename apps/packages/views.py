@@ -39,6 +39,20 @@ class CustomPackageViewSet(viewsets.ModelViewSet):
     def get_serializer_context(self):
         return {'request': self.request}
 
+    def perform_create(self, serializer):
+        """تعيين agency تلقائياً:
+        - الوكالة ترسل وكالتها مباشرة (يحترم الـmiddleware)
+        - الأدمن: إن لم يرسل، يُختار أوّل agency موجودة (placeholder حتى نضيف HQ agency)
+        """
+        from apps.accounts.models import Agency
+        kwargs = {}
+        if 'agency' not in serializer.validated_data:
+            user = self.request.user
+            agency = getattr(user, 'agency', None) or Agency.objects.first()
+            if agency:
+                kwargs['agency'] = agency
+        serializer.save(**kwargs)
+
     # ── إعداد الأفراد ──────────────────────────────────────────
     @action(detail=True, methods=['post'], url_path='set-pax')
     def set_pax(self, request, pk=None):

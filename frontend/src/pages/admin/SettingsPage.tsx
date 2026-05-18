@@ -423,7 +423,7 @@ export function SettingsPage({ user, onLogout, onUserUpdate }: Props) {
 
   const tabs = isAdmin ? ADMIN_TABS : AGENCY_TABS;
   const fullName = `${user.first_name} ${user.last_name}`.trim() || user.username;
-  const initials = fullName.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
+  const initials = (fullName || '').split(' ').map(w => w[0] || '').slice(0, 2).join('').toUpperCase() || '?';
 
   const CURRENCIES = ['MYR', 'USD', 'EUR', 'SAR', 'AED', 'DZD'];
 

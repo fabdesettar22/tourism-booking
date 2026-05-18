@@ -989,13 +989,13 @@ function DetailModal({ item, type, formatDaysAgo, onClose, onApprove, onReject }
           )}
 
           {/* 🆕 الصور المرفوعة */}
-          {!isAgency && supplier!.photos && supplier!.photos.length > 0 && (
+          {!isAgency && supplier!.photos && (supplier!.photos||[]).length > 0 && (
             <DetailSection
-              title={lang === 'ar' ? `الصور (${supplier!.photos.length})` : lang === 'ms' ? `Gambar (${supplier!.photos.length})` : `Photos (${supplier!.photos.length})`}
+              title={lang === 'ar' ? `الصور (${(supplier!.photos||[]).length})` : lang === 'ms' ? `Gambar (${(supplier!.photos||[]).length})` : `Photos (${(supplier!.photos||[]).length})`}
               icon={Eye}
             >
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                {supplier!.photos.map(photo => (
+                {(supplier!.photos||[]).map(photo => (
                   <a
                     key={photo.id}
                     href={photo.url || '#'}

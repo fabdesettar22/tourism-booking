@@ -264,7 +264,11 @@ export function HotelsManagement() {
   const totalPages = Math.ceil(filteredHotels.length / itemsPerPage);
   const paginated = filteredHotels.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
   const resetFilters = () => { setSearchQuery(''); setSelectedCountryFilter(null); setSelectedCityFilter(null); setSelectedStarsFilter(null); setCurrentPage(1); };
-  const avgStars = hotels.length ? (hotels.reduce((s,h) => s+h.stars, 0)/hotels.length).toFixed(1) : '0';
+  // ⭐ نتجاهل الفنادق التي ليس لها stars (null/undefined) لتجنب NaN
+  const ratedHotels = hotels.filter(h => typeof h.stars === 'number' && !isNaN(h.stars));
+  const avgStars = ratedHotels.length
+    ? (ratedHotels.reduce((s,h) => s + (h.stars || 0), 0) / ratedHotels.length).toFixed(1)
+    : '0';
   const citiesForFilter = cities.filter(c => !selectedCountryFilter || c.country === selectedCountryFilter);
   const getImg = (p?: string) => !p ? null : p.startsWith('http') ? p : `${BASE}${p}`;
 

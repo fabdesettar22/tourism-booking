@@ -36,7 +36,7 @@ export function TestimonialsCarousel({ lang, isRTL }: Props) {
   };
 
   const current = items[idx];
-  const text = current.text[lang] || current.text.en || current.text.ar || '';
+  const text = (current.text || {})[lang] || (current.text || {}).en || (current.text || {}).ar || '';
 
   const prev = () => setIdx(p => (p - 1 + items.length) % items.length);
   const next = () => setIdx(p => (p + 1) % items.length);

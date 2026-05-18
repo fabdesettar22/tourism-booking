@@ -13,9 +13,9 @@ interface Service { id: number; name: string; category: number; city: number; ba
 
 interface PackageCityHotel { id?: number; hotel: number; hotel_name?: string; hotel_stars?: number; hotel_image?: string; nights: number; is_default?: boolean; }
 interface PackageCity { id?: number; city: number; city_name?: string; nights: number; min_nights?: number; max_nights?: number; hotels: PackageCityHotel[]; services: any[]; }
-interface TourPackage { id: number; name: string; is_customizable: boolean; cities: PackageCity[]; base_price: string; currency: string; discount_percentage?: string; final_price: number; }
+interface TourPackage { id: number; name: string; is_customizable: boolean; cities: PackageCity[]; base_price?: string; currency?: string; discount_percentage?: string; final_price?: number; }
 
-interface BookingHotel { hotel: number; hotel_name?: string; nights: number; rooms_count: number; }
+interface BookingHotel { hotel: number; hotel_name?: string; nights: number; rooms_count: number; room_type: string; }
 interface BookingCity { city: number; city_name?: string; nights: number; order: number; hotels: BookingHotel[]; }
 
 // ─── Step Bar ─────────────────────────────────────────────
@@ -122,12 +122,12 @@ function FixedBookingWizard({ pkg, onClose, onSuccess }: {
           client_name: clientName, client_phone: clientPhone,
           client_email: clientEmail, notes,
           adults, children, infants,
-          currency: pkg.currency,
-          cities: pkg.cities.map((c, i) => ({
+          currency: pkg.currency || 'MYR',
+          cities: (pkg.cities || []).map((c, i) => ({
             city: c.city, nights: c.nights, order: i,
-            hotels: c.hotels.map(h => ({ hotel: h.hotel, nights: h.nights, rooms_count: 1 }))
+            hotels: (c.hotels || []).map(h => ({ hotel: h.hotel, nights: h.nights, rooms_count: 1 }))
           })),
-          services: pkg.cities.flatMap(c => c.services.map((s: any) => ({ service: s.service, quantity: 1 }))),
+          services: (pkg.cities || []).flatMap(c => (c.services || []).map((s: any) => ({ service: s.service, quantity: 1 }))),
         }),
       });
       if (res.ok) onSuccess();
@@ -154,16 +154,15 @@ function FixedBookingWizard({ pkg, onClose, onSuccess }: {
           <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
             <p className="text-xs font-semibold text-blue-700 mb-2">{t('bookingWizard.packageDetails')}</p>
             <div className="flex flex-wrap gap-2">
-              {pkg.cities.map((c, i) => (
+              {(pkg.cities||[]).map((c, i) => (
                 <span key={i} className="flex items-center gap-1 text-xs bg-white text-blue-700 px-2.5 py-1.5 rounded-xl border border-blue-200">
                   <MapPin className="w-3 h-3"/> {c.city_name} · {c.nights} {t('bookingWizard.nights')}
                 </span>
               ))}
             </div>
-            <div className="flex items-baseline gap-1 mt-3">
-              <span className="text-2xl font-bold text-blue-600">{pkg.final_price.toFixed(0)}</span>
-              <span className="text-sm text-gray-500">{pkg.currency} {t('bookingWizard.perPerson')}</span>
-              {pkg.discount_percentage && <span className="text-xs bg-red-100 text-red-500 px-2 py-0.5 rounded-full">-{pkg.discount_percentage}%</span>}
+            {/* السعر سيُحسب في الخطوة الأخيرة عبر POST /api/v1/bookings/calculate/ */}
+            <div className="mt-3 text-xs text-gray-500 italic">
+              {t('bookingWizard.priceWillBeCalculated') || 'السعر يُحسب آلياً بعد اختيار التفاصيل'}
             </div>
           </div>
 
@@ -226,7 +225,7 @@ function CustomBookingWizard({ pkg, allServices, onClose, onSuccess }: {
   const [infants, setInfants] = useState(0);
 
   const [bookingCities, setBookingCities] = useState<BookingCity[]>(
-    pkg.cities.map((c, i) => ({
+    (pkg.cities||[]).map((c, i) => ({
       city: c.city, city_name: c.city_name,
       nights: c.nights, order: i, hotels: [],
     }))
@@ -252,13 +251,20 @@ function CustomBookingWizard({ pkg, allServices, onClose, onSuccess }: {
   const toggleHotel = (cityId: number, hotelId: number, hotelName: string, nights: number) => {
     setBookingCities(prev => prev.map(c => {
       if (c.city !== cityId) return c;
-      const exists = c.hotels.find(h => h.hotel === hotelId);
+      const exists = (c.hotels||[]).find(h => h.hotel === hotelId);
       return {
         ...c,
         hotels: exists
-          ? c.hotels.filter(h => h.hotel !== hotelId)
-          : [...c.hotels, { hotel: hotelId, hotel_name: hotelName, nights, rooms_count: 1 }]
+          ? (c.hotels||[]).filter(h => h.hotel !== hotelId)
+          : [...c.hotels, { hotel: hotelId, hotel_name: hotelName, nights, rooms_count: 1, room_type: 'double' }]
       };
+    }));
+  };
+
+  const updateHotel = (cityId: number, hotelId: number, patch: Partial<BookingHotel>) => {
+    setBookingCities(prev => prev.map(c => {
+      if (c.city !== cityId) return c;
+      return { ...c, hotels: (c.hotels||[]).map(h => h.hotel === hotelId ? { ...h, ...patch } : h) };
     }));
   };
 
@@ -267,7 +273,7 @@ function CustomBookingWizard({ pkg, allServices, onClose, onSuccess }: {
 
   const canNext = () => {
     if (step === 0) return adults >= 1;
-    if (step === 1) return bookingCities.every(c => c.hotels.length > 0);
+    if (step === 1) return bookingCities.every(c => (c.hotels||[]).length > 0);
     if (step === 3) return !!clientName.trim() && !!clientPhone.trim();
     return true;
   };
@@ -283,13 +289,13 @@ function CustomBookingWizard({ pkg, allServices, onClose, onSuccess }: {
           client_name: clientName, client_phone: clientPhone,
           client_email: clientEmail, notes,
           adults, children, infants,
-          currency: pkg.currency,
+          currency: pkg.currency || 'MYR',
           cities: bookingCities.map((c, i) => ({
             city: c.city, nights: c.nights, order: i,
-            hotels: c.hotels.map(h => ({ hotel: h.hotel, nights: h.nights, rooms_count: h.rooms_count }))
+            hotels: (c.hotels||[]).map(h => ({ hotel: h.hotel, nights: h.nights, rooms_count: h.rooms_count, room_type: h.room_type }))
           })),
           services: [
-            ...pkg.cities.flatMap(c => c.services.filter((s: any) => !s.is_optional).map((s: any) => ({ service: s.service, quantity: 1 }))),
+            ...(pkg.cities||[]).flatMap(c => (c.services||[]).filter((s: any) => !s.is_optional).map((s: any) => ({ service: s.service, quantity: 1 }))),
             ...selectedServices.map(sId => ({ service: sId, quantity: 1 })),
           ],
         }),
@@ -324,7 +330,7 @@ function CustomBookingWizard({ pkg, allServices, onClose, onSuccess }: {
               <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 text-sm text-purple-700">
                 <p className="font-semibold mb-1">{t('bookingWizard.custom.citiesInPackage')}</p>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {pkg.cities.map((c, i) => (
+                  {(pkg.cities||[]).map((c, i) => (
                     <span key={i} className="flex items-center gap-1 bg-white text-purple-700 text-xs px-2.5 py-1.5 rounded-xl border border-purple-200">
                       <MapPin className="w-3 h-3"/> {c.city_name}
                     </span>
@@ -355,9 +361,9 @@ function CustomBookingWizard({ pkg, allServices, onClose, onSuccess }: {
           {step === 1 && (
             <div className="space-y-5">
               <p className="text-sm text-gray-500">{t('bookingWizard.custom.stayInstructions')}</p>
-              {pkg.cities.map((pkgCity, ci) => {
+              {(pkg.cities||[]).map((pkgCity, ci) => {
                 const bc = bookingCities.find(c => c.city === pkgCity.city)!;
-                const availableHotels = pkgCity.hotels;
+                const availableHotels = pkgCity.hotels || [];
                 const minN = pkgCity.min_nights || 1;
                 const maxN = pkgCity.max_nights || 14;
                 return (
@@ -376,26 +382,50 @@ function CustomBookingWizard({ pkg, allServices, onClose, onSuccess }: {
                       {availableHotels.length === 0
                         ? <p className="text-xs text-gray-400 italic text-center py-3">{t('bookingWizard.custom.noHotelsAvailable')}</p>
                         : availableHotels.map(h => {
-                          const sel = bc.hotels.find(bh => bh.hotel === h.hotel);
+                          const sel = (bc.hotels||[]).find(bh => bh.hotel === h.hotel);
                           const hImg = h.hotel_image ? (h.hotel_image.startsWith('http') ? h.hotel_image : `${BASE}${h.hotel_image}`) : null;
+                          const ROOM_TYPES = ['standard','single','double','twin','triple','family','suite','deluxe'];
                           return (
-                            <button key={h.hotel} onClick={() => toggleHotel(pkgCity.city, h.hotel, h.hotel_name||'', bc.nights)}
-                              className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${isRTL ? 'text-right' : 'text-left'}
-                                ${sel ? 'border-purple-400 bg-purple-50' : 'border-gray-200 hover:border-gray-300 bg-white'}`}>
-                              {hImg
-                                ? <img src={hImg} className="w-11 h-11 rounded-xl object-cover shrink-0" alt=""/>
-                                : <div className="w-11 h-11 bg-gray-100 rounded-xl flex items-center justify-center shrink-0"><Building2 className="w-5 h-5 text-gray-300"/></div>}
-                              <div className="flex-1">
-                                <p className="font-medium text-sm text-gray-900">{h.hotel_name}</p>
-                                <div className="flex gap-0.5 mt-0.5">
-                                  {[1,2,3,4,5].map(s=><Star key={s} className={`w-3 h-3 ${s<=(h.hotel_stars||0)?'text-amber-400 fill-amber-400':'text-gray-200 fill-gray-200'}`}/>)}
+                            <div key={h.hotel} className={`rounded-xl border-2 transition-all overflow-hidden ${sel ? 'border-purple-400' : 'border-gray-200'}`}>
+                              <button onClick={() => toggleHotel(pkgCity.city, h.hotel, h.hotel_name||'', bc.nights)}
+                                className={`w-full flex items-center gap-3 p-3 ${isRTL ? 'text-right' : 'text-left'} ${sel ? 'bg-purple-50' : 'bg-white hover:bg-gray-50'}`}>
+                                {hImg
+                                  ? <img src={hImg} className="w-11 h-11 rounded-xl object-cover shrink-0" alt=""/>
+                                  : <div className="w-11 h-11 bg-gray-100 rounded-xl flex items-center justify-center shrink-0"><Building2 className="w-5 h-5 text-gray-300"/></div>}
+                                <div className="flex-1">
+                                  <p className="font-medium text-sm text-gray-900">{h.hotel_name}</p>
+                                  <div className="flex gap-0.5 mt-0.5">
+                                    {[1,2,3,4,5].map(s=><Star key={s} className={`w-3 h-3 ${s<=(h.hotel_stars||0)?'text-amber-400 fill-amber-400':'text-gray-200 fill-gray-200'}`}/>)}
+                                  </div>
                                 </div>
-                              </div>
-                              {h.is_default && <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{t('bookingWizard.custom.suggested')}</span>}
-                              <div className={`w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center ${sel ? 'bg-purple-500 border-purple-500' : 'border-gray-300'}`}>
-                                {sel && <Check className="w-3 h-3 text-white"/>}
-                              </div>
-                            </button>
+                                {h.is_default && <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{t('bookingWizard.custom.suggested')}</span>}
+                                <div className={`w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center ${sel ? 'bg-purple-500 border-purple-500' : 'border-gray-300'}`}>
+                                  {sel && <Check className="w-3 h-3 text-white"/>}
+                                </div>
+                              </button>
+
+                              {sel && (
+                                <div className={`px-4 py-3 bg-purple-50 border-t border-purple-200 flex flex-wrap gap-4 items-center ${isRTL ? 'flex-row-reverse' : ''}`}>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-semibold text-purple-700">{t('bookingWizard.custom.roomsCount')}</span>
+                                    <Counter value={sel.rooms_count} onChange={v => updateHotel(pkgCity.city, h.hotel, { rooms_count: v })} min={1} max={20}/>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-semibold text-purple-700">{t('bookingWizard.custom.roomType')}</span>
+                                    <select
+                                      value={sel.room_type}
+                                      onChange={e => updateHotel(pkgCity.city, h.hotel, { room_type: e.target.value })}
+                                      onClick={e => e.stopPropagation()}
+                                      className="text-xs border border-purple-300 rounded-lg px-2 py-1.5 bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-purple-400"
+                                    >
+                                      {ROOM_TYPES.map(rt => (
+                                        <option key={rt} value={rt}>{(t(`bookingWizard.custom.roomTypes.${rt}`) as string) || rt}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           );
                         })
                       }
@@ -411,12 +441,12 @@ function CustomBookingWizard({ pkg, allServices, onClose, onSuccess }: {
               <div>
                 <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">{t('bookingWizard.custom.mandatoryServices')}</p>
                 <div className="flex flex-wrap gap-2">
-                  {pkg.cities.flatMap(c => c.services.filter((s:any) => !s.is_optional)).map((s:any, i) => (
+                  {(pkg.cities||[]).flatMap(c => (c.services||[]).filter((s:any) => !s.is_optional)).map((s:any, i) => (
                     <span key={i} className="flex items-center gap-1.5 text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-xl border">
                       <Check className="w-3 h-3 text-emerald-500"/> {s.service_name}
                     </span>
                   ))}
-                  {pkg.cities.flatMap(c => c.services.filter((s:any) => !s.is_optional)).length === 0 &&
+                  {(pkg.cities||[]).flatMap(c => (c.services||[]).filter((s:any) => !s.is_optional)).length === 0 &&
                     <p className="text-xs text-gray-400 italic">{t('bookingWizard.custom.noMandatory')}</p>}
                 </div>
               </div>
@@ -472,12 +502,19 @@ function CustomBookingWizard({ pkg, allServices, onClose, onSuccess }: {
                   <div className="bg-white rounded-xl p-2.5"><p className="text-xl font-bold">{bookingCities.reduce((s,c)=>s+c.nights,0)}</p><p className="text-xs text-gray-500">{t('bookingWizard.custom.summaryNights')}</p></div>
                 </div>
                 {bookingCities.map((c,i)=>(
-                  <div key={i} className="flex items-center justify-between bg-white rounded-xl px-3 py-2 text-sm">
-                    <span className="font-medium">{c.city_name}</span>
-                    <div className="flex items-center gap-3 text-gray-500 text-xs">
-                      <span className="flex items-center gap-1"><Moon className="w-3 h-3"/>{c.nights} {t('bookingWizard.nights')}</span>
-                      <span className="flex items-center gap-1"><Building2 className="w-3 h-3"/>{c.hotels.map(h=>h.hotel_name).join(', ')}</span>
+                  <div key={i} className="bg-white rounded-xl px-3 py-2 text-sm space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">{c.city_name}</span>
+                      <span className="flex items-center gap-1 text-gray-500 text-xs"><Moon className="w-3 h-3"/>{c.nights} {t('bookingWizard.nights')}</span>
                     </div>
+                    {(c.hotels||[]).map((h,hi)=>(
+                      <div key={hi} className="flex items-center gap-2 text-xs text-gray-500 ps-1">
+                        <Building2 className="w-3 h-3 shrink-0"/>
+                        <span className="font-medium text-gray-700">{h.hotel_name}</span>
+                        <span>·</span>
+                        <span>{h.rooms_count}x {(t(`bookingWizard.custom.roomTypes.${h.room_type}`) as string) || h.room_type}</span>
+                      </div>
+                    ))}
                   </div>
                 ))}
                 {selectedServices.length > 0 && (
@@ -527,8 +564,10 @@ function CustomBookingWizard({ pkg, allServices, onClose, onSuccess }: {
 // ══════════════════════════════════════════════════════════
 // 🚀 MAIN EXPORT
 // ══════════════════════════════════════════════════════════
+import { AgencyBookingWizard } from './AgencyBookingWizard';
+
 export function BookingWizard({ pkg, onClose, onSuccess }: {
-  pkg: TourPackage;
+  pkg: TourPackage & { is_template?: boolean };
   onClose: () => void;
   onSuccess: () => void;
 }) {
@@ -540,6 +579,13 @@ export function BookingWizard({ pkg, onClose, onSuccess }: {
       .then(d => setAllServices(Array.isArray(d) ? d : d.results || []));
   }, []);
 
+  // ⭐ القوالب الجديدة (is_template=True) تستخدم الـwizard المتطور
+  // الذي يقرأ من /configurator/ ويستدعي /calculate/ آلياً.
+  if (pkg.is_template) {
+    return <AgencyBookingWizard pkg={pkg} onClose={onClose} onSuccess={onSuccess}/>;
+  }
+
+  // الباقات القديمة (legacy) تبقى على الـwizard البسيط
   if (!pkg.is_customizable) {
     return <FixedBookingWizard pkg={pkg} onClose={onClose} onSuccess={onSuccess}/>;
   }

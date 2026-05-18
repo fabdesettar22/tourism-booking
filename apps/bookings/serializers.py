@@ -14,7 +14,7 @@ class BookingHotelSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = BookingHotel
-        fields = ['id', 'hotel', 'hotel_name', 'hotel_stars', 'room_price', 'nights', 'rooms_count']
+        fields = ['id', 'hotel', 'hotel_name', 'hotel_stars', 'room_price', 'room_type', 'nights', 'rooms_count']
 
     def get_hotel_name(self, obj):
         return obj.hotel.name if obj.hotel else None
@@ -130,6 +130,7 @@ class BookingCreateSerializer(serializers.ModelSerializer):
                     booking_city=booking_city,
                     hotel_id=h['hotel'],
                     room_price_id=h.get('room_price'),
+                    room_type=h.get('room_type', 'double'),
                     nights=h.get('nights', city_data.get('nights', 1)),
                     rooms_count=h.get('rooms_count', 1),
                 )

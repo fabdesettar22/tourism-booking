@@ -1,4 +1,5 @@
 import { apiFetch } from '../../services/apiFetch';
+import { clearCityCache } from '../../components/forms/CountryCityPicker';
 import { useState, useEffect } from 'react';
 import { useLanguage } from '../../hooks/useLanguage';
 import {
@@ -133,6 +134,7 @@ export function DestinationsManagement() {
   const [newCountryName, setNewCountryName] = useState('');
   const [selectedCountryId, setSelectedCountryId] = useState<number | null>(null);
   const [newCityName, setNewCityName] = useState('');
+  const [newCityNameAr, setNewCityNameAr] = useState('');
   const [newCityDescription, setNewCityDescription] = useState('');
   const [cityImage, setCityImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -193,7 +195,7 @@ export function DestinationsManagement() {
   const filteredCities = cities
     .filter(city => {
       const matchesSearch =
-        city.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (city.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         (countries.find(c => c.id === (city.country_id || city.country))?.label || countries.find(c => c.id === (city.country_id || city.country))?.name_ar || countries.find(c => c.id === (city.country_id || city.country))?.name_en || '').toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCountry = selectedCountryFilter === null || (city.country_id || city.country) === selectedCountryFilter;
       return matchesSearch && matchesCountry;
@@ -219,13 +221,13 @@ export function DestinationsManagement() {
   };
 
   const openAddModal = () => {
-    setEditingCity(null); setNewCityName(''); setNewCityDescription('');
+    setEditingCity(null); setNewCityName(''); setNewCityNameAr(''); setNewCityDescription('');
     setCityImage(null); setImagePreview(null); setSelectedCountryId(null);
     setShowCityModal(true);
   };
   const openEditModal = (city: City) => {
     setEditingCity(city); setSelectedCountryId(city.country);
-    setNewCityName(city.name); setNewCityDescription(city.description || '');
+    setNewCityName(city.name); setNewCityNameAr(city.name_ar || ''); setNewCityDescription(city.description || '');
     setCityImage(null); setImagePreview(getImageUrl(city.image));
     setShowCityModal(true);
   };
@@ -238,6 +240,8 @@ export function DestinationsManagement() {
     setSaving(true);
     const fd = new FormData();
     fd.append('name', newCityName);
+    fd.append('name_en', newCityName);
+    if (newCityNameAr.trim()) fd.append('name_ar', newCityNameAr.trim());
     fd.append('country', selectedCountryId.toString());
     if (newCityDescription) fd.append('description', newCityDescription);
     if (cityImage) fd.append('image', cityImage);
@@ -253,6 +257,8 @@ export function DestinationsManagement() {
         const data = await res.json();
         setCities(prev => editingCity ? prev.map(c => c.id === data.id ? data : c) : [...prev, data]);
         setShowCityModal(false);
+        // مسح الـ cache ليظهر التغيير فوراً في كل القوائم المنسدلة
+        clearCityCache();
         const msg = editingCity
           ? t('destinationsAdmin.toasts.cityEdited').replace('{name}', data.name)
           : t('destinationsAdmin.toasts.cityAdded').replace('{name}', data.name);
@@ -523,11 +529,19 @@ export function DestinationsManagement() {
                   {countries.map(c => <option key={c.id} value={c.id}>{c.label || c.name_ar || c.name_en || c.name || `Country ${c.id}`}</option>)}
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('destinationsAdmin.cityModal.cityName')}</label>
-                <input value={newCityName} onChange={e => setNewCityName(e.target.value)}
-                  className="w-full border p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  placeholder={t('destinationsAdmin.cityModal.cityNamePlaceholder')} />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('destinationsAdmin.cityModal.cityName')}</label>
+                  <input value={newCityName} onChange={e => setNewCityName(e.target.value)}
+                    className="w-full border p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    placeholder={t('destinationsAdmin.cityModal.cityNamePlaceholder')} dir="ltr" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('destinationsAdmin.cityModal.cityNameAr')}</label>
+                  <input value={newCityNameAr} onChange={e => setNewCityNameAr(e.target.value)}
+                    className="w-full border p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    placeholder={t('destinationsAdmin.cityModal.cityNameArPlaceholder')} dir="rtl" />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('destinationsAdmin.cityModal.description')}</label>

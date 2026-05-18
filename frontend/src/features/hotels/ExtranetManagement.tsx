@@ -281,8 +281,8 @@ export function ExtranetManagement() {
   useEffect(() => { fetchHotels(); }, []);
 
   const filtered = hotels.filter(h =>
-    h.name.toLowerCase().includes(search.toLowerCase()) ||
-    h.city_name?.toLowerCase().includes(search.toLowerCase())
+    (h.name || '').toLowerCase().includes(search.toLowerCase()) ||
+    (h.city_name || '').toLowerCase().includes(search.toLowerCase())
   );
 
   if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-10 h-10 text-blue-500 animate-spin"/></div>;

@@ -688,7 +688,7 @@ export function CustomPackageWizard({ onClose, onSuccess }: Props) {
                         className="w-full border p-2 rounded-lg mt-1" dir="ltr"/></div>
                   </div>
                   <div className="text-xs text-emerald-600 font-medium">
-                    {t('customWiz.step4.flightTotal').replace('{n}', String((f.price_adult_myr * adults + f.price_child_myr * children + f.price_infant_myr * infants).toFixed(0)))}
+                    {t('customWiz.step4.flightTotal').replace('{n}', String(((Number(f.price_adult_myr) || 0) * adults + (Number(f.price_child_myr) || 0) * children + (Number(f.price_infant_myr) || 0) * infants).toFixed(0)))}
                   </div>
                 </div>
               ))}

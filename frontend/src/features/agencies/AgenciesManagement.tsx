@@ -233,8 +233,8 @@ export function AgenciesManagement() {
   const pendingAgencies  = agencies.filter(a => !a.is_approved);
 
   const filtered = approvedAgencies.filter(a =>
-    a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    a.email.toLowerCase().includes(searchQuery.toLowerCase())
+    (a.name||'').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (a.email||'').toLowerCase().includes(searchQuery.toLowerCase())
   );
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const paginated  = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);

@@ -126,7 +126,7 @@ function CalendarModal({ show, onClose, day, dayBookings, currentDate }: {
                         <DollarSign className="w-3 h-3" /> {b.currency} {parseFloat(b.total_price).toLocaleString()}
                       </span>
                     )}
-                    {b.cities.map((c,ci) => (
+                    {(b.cities||[]).map((c,ci) => (
                       <span key={ci} className="flex items-center gap-1 bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full">
                         <MapPin className="w-3 h-3" /> {c.city_name}
                       </span>
@@ -261,7 +261,7 @@ function BookingsCalendar({ bookings }: { bookings: Booking[] }) {
                         return (
                           <div key={bi} className="px-1.5 py-0.5 rounded text-xs truncate"
                             style={{background:s.bg,color:s.text,borderLeft:`2px solid ${s.border}`}}>
-                            {s.icon} {b.client_name.split(' ')[0]}
+                            {s.icon} {(b.client_name || '').split(' ')[0]}
                           </div>
                         );
                       })}
@@ -345,7 +345,7 @@ export function DashboardContent() {
     { label: t('adminDashboard.cards.totalBookings'),     value: bookings.length,              icon: <Calendar className="w-5 h-5 text-blue-500"/>,    bg: 'bg-blue-50' },
     { label: t('adminDashboard.cards.totalUsers'),        value: users.length,                 icon: <Users className="w-5 h-5 text-green-500"/>,      bg: 'bg-green-50' },
     { label: t('adminDashboard.cards.thisMonthBookings'), value: thisMonth.length,             icon: <TrendingUp className="w-5 h-5 text-purple-500"/>,bg: 'bg-purple-50' },
-    { label: t('adminDashboard.cards.thisMonthRevenue'),  value: `MYR ${thisRevenue.toFixed(0)}`,icon: <DollarSign className="w-5 h-5 text-teal-500"/>, bg: 'bg-teal-50' },
+    { label: t('adminDashboard.cards.thisMonthRevenue'),  value: `MYR ${(Number(thisRevenue) || 0).toFixed(0)}`,icon: <DollarSign className="w-5 h-5 text-teal-500"/>, bg: 'bg-teal-50' },
   ];
 
   const actionItems = [
@@ -496,7 +496,7 @@ export function DashboardContent() {
                     <DollarSign className="w-4 h-4 text-green-500"/>
                     <span className="text-xs text-gray-500">{t('adminDashboard.revenueLabel')}</span>
                   </div>
-                  <p className="text-xl font-bold text-gray-800">MYR {card.rev.toFixed(2)}</p>
+                  <p className="text-xl font-bold text-gray-800">MYR {(card.rev || 0).toFixed(2)}</p>
                 </div>
               </div>
               <div className="border-t border-gray-100 pt-3">

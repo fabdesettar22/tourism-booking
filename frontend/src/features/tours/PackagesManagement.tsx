@@ -28,10 +28,12 @@ interface PackageCity {
 }
 interface TourPackage {
   id: number; name: string; title?: string; slug: string; description: string;
-  base_price: string; currency: string; discount_percentage?: string;
+  // ملاحظة: حقول السعر التالية لم تعد تُستخدم في واجهة الباقة (السعر يُحسب آلياً وقت الحجز).
+  // أُبقيت كـoptional للتوافق مع استجابة الـAPI القديمة فقط.
+  base_price?: string; currency?: string; discount_percentage?: string; final_price?: number;
   image?: string; image_url?: string; highlights: string;
-  is_active: boolean; is_customizable: boolean;
-  cities: PackageCity[]; total_nights: number; cities_count: number; final_price: number;
+  is_active: boolean; is_customizable: boolean; is_template?: boolean;
+  cities: PackageCity[]; total_nights: number; cities_count: number;
 }
 type ToastType = 'success' | 'error' | 'warning';
 interface Toast { id: number; type: ToastType; message: string; }
@@ -86,18 +88,18 @@ function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label:
 }
 
 // ─── Agency Package Card ──────────────────────────────────
-function AgencyPackageCard({ pkg, commissionRate, onBook, onView }: {
-  pkg: TourPackage; commissionRate: number; onBook: () => void; onView: () => void;
+// ملاحظة: لا يُعرض سعر مسبق على بطاقة الباقة. الوكالة تفتح الباقة → ودجت الحجز
+// → تختار المكوّنات → POST /api/v1/bookings/calculate/ يُرجع السعر النهائي بـ EUR + USD.
+function AgencyPackageCard({ pkg, onBook, onView }: {
+  pkg: TourPackage; onBook: () => void; onView: () => void;
 }) {
   const { t, isRTL } = useLanguage();
   const img = pkg.image_url || getImg(pkg.image);
-  const hasDiscount = !!pkg.discount_percentage && parseFloat(pkg.discount_percentage) > 0;
-  const commission = (pkg.final_price * commissionRate / 100).toFixed(0);
 
   return (
     <div className="group bg-white border rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
       <div className="h-44 bg-gradient-to-br from-emerald-100 to-teal-200 relative overflow-hidden cursor-pointer" onClick={onView}>
-        {img ? <img src={img} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={pkg.name}/>
+        {img ? <img src={img} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={(pkg.name || pkg.title || '')}/>
           : <div className="w-full h-full flex flex-col items-center justify-center text-emerald-300"><Package className="w-14 h-14 mb-1"/></div>
         }
         <div className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'}`}>
@@ -105,11 +107,6 @@ function AgencyPackageCard({ pkg, commissionRate, onBook, onView }: {
             {pkg.is_customizable ? t('packagesMgmt.customizable') : t('packagesMgmt.fixed')}
           </span>
         </div>
-        {hasDiscount && (
-          <div className={`absolute top-3 ${isRTL ? 'left-3' : 'right-3'}`}>
-            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-red-500 text-white shadow">-{pkg.discount_percentage}%</span>
-          </div>
-        )}
         <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
           <button onClick={e=>{e.stopPropagation();onView();}}
             className="bg-white text-emerald-600 px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 shadow-lg hover:bg-emerald-50">
@@ -123,32 +120,17 @@ function AgencyPackageCard({ pkg, commissionRate, onBook, onView }: {
         <p className="text-xs text-gray-500 line-clamp-2 mb-3">{pkg.description}</p>
 
         <div className="flex flex-wrap gap-1 mb-3">
-          {pkg.cities.slice(0,3).map((c,i)=>(
+          {(pkg.cities||[]).slice(0,3).map((c,i)=>(
             <span key={i} className="flex items-center gap-1 bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-full">
               <MapPin className="w-3 h-3"/> {c.city_name}
             </span>
           ))}
-          {pkg.cities.length > 3 && <span className="text-xs text-gray-400 px-2 py-1">+{pkg.cities.length-3}</span>}
+          {(pkg.cities||[]).length > 3 && <span className="text-xs text-gray-400 px-2 py-1">+{(pkg.cities||[]).length-3}</span>}
         </div>
 
-        <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
+        <div className="flex items-center gap-3 text-xs text-gray-500 mb-4">
           <span className="flex items-center gap-1"><Globe className="w-3 h-3"/> {pkg.cities_count} {t('packagesMgmt.cityShort')}</span>
           <span className="flex items-center gap-1"><Moon className="w-3 h-3"/> {pkg.total_nights} {t('packagesMgmt.nightShort')}</span>
-        </div>
-
-        <div className="bg-gray-50 rounded-xl p-3 mb-3">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-gray-500">{t('packagesMgmt.packagePrice')}</span>
-            <div className="flex items-baseline gap-1">
-              {hasDiscount && <span className="text-xs line-through text-gray-400">{pkg.base_price}</span>}
-              <span className="text-lg font-bold text-emerald-600">{(pkg.final_price ?? 0).toFixed(0)}</span>
-              <span className="text-xs text-gray-500">{pkg.currency}</span>
-            </div>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-500">{t('packagesMgmt.yourCommission')} ({commissionRate}%)</span>
-            <span className="text-sm font-bold text-amber-600">+{commission} {pkg.currency}</span>
-          </div>
         </div>
 
         <button onClick={onBook}
@@ -162,27 +144,22 @@ function AgencyPackageCard({ pkg, commissionRate, onBook, onView }: {
 }
 
 // ─── Admin Package Card ───────────────────────────────────
+// لا سعر يُعرض على البطاقة. السعر يُحسب وقت الحجز عبر /api/v1/bookings/calculate/.
 function PackageCard({ pkg, onEdit, onDelete, onView, onBook }: {
   pkg: TourPackage; onEdit:()=>void; onDelete:()=>void; onView:()=>void; onBook:()=>void;
 }) {
   const { t, isRTL } = useLanguage();
   const img = pkg.image_url || getImg(pkg.image);
-  const hasDiscount = !!pkg.discount_percentage && parseFloat(pkg.discount_percentage) > 0;
   return (
     <div className="group bg-white border rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer" onClick={onView}>
       <div className="h-44 bg-gradient-to-br from-emerald-100 to-teal-200 relative overflow-hidden">
-        {img ? <img src={img} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={pkg.name}/>
+        {img ? <img src={img} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={(pkg.name || pkg.title || '')}/>
           : <div className="w-full h-full flex flex-col items-center justify-center text-emerald-300"><Package className="w-14 h-14 mb-1"/><span className="text-xs">{t('packagesMgmt.noImage')}</span></div>}
         <div className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'} flex flex-col gap-1`}>
           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shadow ${pkg.is_active?'bg-emerald-500 text-white':'bg-gray-400 text-white'}`}>
             {pkg.is_active ? t('packagesMgmt.active') : t('packagesMgmt.inactive')}
           </span>
         </div>
-        {hasDiscount && (
-          <div className={`absolute top-3 ${isRTL ? 'left-3' : 'right-3'}`}>
-            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-red-500 text-white shadow">-{pkg.discount_percentage}%</span>
-          </div>
-        )}
         <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3"
           onClick={e=>e.stopPropagation()}>
           <button onClick={onView} className="bg-white text-emerald-600 p-2.5 rounded-full hover:bg-emerald-50 shadow-lg"><Eye className="w-4 h-4"/></button>
@@ -194,25 +171,18 @@ function PackageCard({ pkg, onEdit, onDelete, onView, onBook }: {
         <h3 className="font-bold text-gray-900 text-base leading-snug mb-1">{pkg.name || pkg.title}</h3>
         <p className="text-xs text-gray-500 line-clamp-2 mb-3">{pkg.description}</p>
         <div className="flex flex-wrap gap-1 mb-3">
-          {pkg.cities.slice(0,3).map((c,i)=>(
+          {(pkg.cities||[]).slice(0,3).map((c,i)=>(
             <span key={i} className="flex items-center gap-1 bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-full">
               <MapPin className="w-3 h-3"/> {c.city_name}
             </span>
           ))}
-          {pkg.cities.length > 3 && <span className="text-xs text-gray-400 px-2 py-1">+{pkg.cities.length-3}</span>}
+          {(pkg.cities||[]).length > 3 && <span className="text-xs text-gray-400 px-2 py-1">+{(pkg.cities||[]).length-3}</span>}
         </div>
         <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
           <span className="flex items-center gap-1"><Globe className="w-3 h-3"/> {pkg.cities_count} {t('packagesMgmt.cityShort')}</span>
           <span className="flex items-center gap-1"><Moon className="w-3 h-3"/> {pkg.total_nights} {t('packagesMgmt.nightShort')}</span>
         </div>
-        <div className="flex items-end justify-between pt-3 border-t">
-          <div>
-            {hasDiscount && <p className="text-xs line-through text-gray-400">{pkg.base_price} {pkg.currency}</p>}
-            <div className="flex items-baseline gap-1">
-              <span className="text-xl font-bold text-emerald-600">{(pkg.final_price ?? 0).toFixed(0)}</span>
-              <span className="text-xs text-gray-500">{pkg.currency}</span>
-            </div>
-          </div>
+        <div className="flex items-end justify-end pt-3 border-t">
           <button onClick={e=>{e.stopPropagation();onBook();}}
             className={`text-xs px-3 py-1.5 rounded-xl font-medium transition-colors
               ${pkg.is_customizable?'bg-purple-50 text-purple-700 hover:bg-purple-100':'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`}>
@@ -235,10 +205,10 @@ function PackageDetailsModal({ pkg, onClose, onEdit, isAdmin }: {
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[92vh]">
         <div className="h-48 bg-gradient-to-br from-emerald-100 to-teal-200 relative rounded-t-3xl overflow-hidden">
-          {img && <img src={img} className="w-full h-full object-cover" alt={pkg.name}/>}
+          {img && <img src={img} className="w-full h-full object-cover" alt={(pkg.name || pkg.title || '')}/>}
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"/>
           <div className={`absolute bottom-4 ${isRTL ? 'right-6' : 'left-6'} text-white`}>
-            <h2 className="text-2xl font-bold">{pkg.name}</h2>
+            <h2 className="text-2xl font-bold">{(pkg.name || pkg.title || '')}</h2>
             <div className="flex items-center gap-3 mt-1 text-sm opacity-90">
               <span className="flex items-center gap-1"><Globe className="w-3.5 h-3.5"/> {pkg.cities_count} {t('packagesMgmt.cityCount')}</span>
               <span className="flex items-center gap-1"><Moon className="w-3.5 h-3.5"/> {pkg.total_nights} {t('packagesMgmt.nights')}</span>
@@ -251,21 +221,13 @@ function PackageDetailsModal({ pkg, onClose, onEdit, isAdmin }: {
         </div>
 
         <div className="overflow-y-auto flex-1 p-6 space-y-5">
-          <div className="flex items-center justify-between bg-emerald-50 rounded-2xl p-4">
-            <div>
-              {pkg.discount_percentage && <p className="text-xs line-through text-gray-400">{pkg.base_price} {pkg.currency}</p>}
-              <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-bold text-emerald-600">{(pkg.final_price ?? 0).toFixed(0)}</span>
-                <span className="text-gray-500">{pkg.currency}</span>
-                {pkg.discount_percentage && <span className="text-sm bg-red-100 text-red-500 px-2 py-0.5 rounded-full">-{pkg.discount_percentage}%</span>}
-              </div>
-            </div>
-            {isAdmin && onEdit && (
+          {isAdmin && onEdit && (
+            <div className="flex items-center justify-end bg-emerald-50 rounded-2xl p-4">
               <button onClick={onEdit} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-blue-700">
                 <Edit className="w-4 h-4"/> {t('packagesMgmt.detailsModal.edit')}
               </button>
-            )}
-          </div>
+            </div>
+          )}
 
           {pkg.description && (
             <div>
@@ -278,7 +240,7 @@ function PackageDetailsModal({ pkg, onClose, onEdit, isAdmin }: {
             <div>
               <h3 className="font-bold text-gray-800 mb-2">{t('packagesMgmt.detailsModal.highlights')}</h3>
               <div className="flex flex-wrap gap-2">
-                {pkg.highlights.split('•').filter(h=>h.trim()).map((h,i)=>(
+                {(pkg.highlights || '').split('•').filter(h=>h.trim()).map((h,i)=>(
                   <span key={i} className="text-xs bg-teal-50 text-teal-700 px-3 py-1.5 rounded-full border border-teal-200">✓ {h.trim()}</span>
                 ))}
               </div>
@@ -288,7 +250,7 @@ function PackageDetailsModal({ pkg, onClose, onEdit, isAdmin }: {
           <div>
             <h3 className="font-bold text-gray-800 mb-3">{t('packagesMgmt.detailsModal.itinerary')}</h3>
             <div className="space-y-3">
-              {pkg.cities.map((city, ci) => (
+              {(pkg.cities||[]).map((city, ci) => (
                 <div key={ci} className="border rounded-2xl overflow-hidden">
                   <button onClick={()=>setOpenCity(openCity===ci?null:ci)}
                     className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
@@ -304,18 +266,18 @@ function PackageDetailsModal({ pkg, onClose, onEdit, isAdmin }: {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded-full">
-                        {t('packagesMgmt.detailsModal.hotelsCount').replace('{h}', String(city.hotels.length)).replace('{s}', String(city.services.length))}
+                        {t('packagesMgmt.detailsModal.hotelsCount').replace('{h}', String((city.hotels||[]).length)).replace('{s}', String((city.services||[]).length))}
                       </span>
                       <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${openCity===ci ? 'rotate-180' : ''}`}/>
                     </div>
                   </button>
                   {openCity===ci && (
                     <div className="border-t bg-gray-50 p-4 space-y-3">
-                      {city.hotels.length > 0 && (
+                      {(city.hotels||[]).length > 0 && (
                         <div>
                           <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">{t('packagesMgmt.detailsModal.hotels')}</p>
                           <div className="space-y-2">
-                            {city.hotels.map((h,hi)=>(
+                            {(city.hotels||[]).map((h,hi)=>(
                               <div key={hi} className="flex items-center gap-3 bg-white rounded-xl p-3 border">
                                 <Building2 className="w-4 h-4 text-blue-400 shrink-0"/>
                                 <div className="flex-1">
@@ -330,11 +292,11 @@ function PackageDetailsModal({ pkg, onClose, onEdit, isAdmin }: {
                           </div>
                         </div>
                       )}
-                      {city.services.length > 0 && (
+                      {(city.services||[]).length > 0 && (
                         <div>
                           <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">{t('packagesMgmt.detailsModal.services')}</p>
                           <div className="flex flex-wrap gap-2">
-                            {city.services.map((s,si)=>(
+                            {(city.services||[]).map((s,si)=>(
                               <span key={si} className="flex items-center gap-1 text-xs bg-purple-50 text-purple-700 px-2.5 py-1.5 rounded-xl border border-purple-100">
                                 <Briefcase className="w-3 h-3"/> {s.service_name}
                               </span>
@@ -363,30 +325,63 @@ function CityStep({ cities, countries, hotels, services, pkgCities, onChange, is
 }) {
   const { t } = useLanguage();
   const [selCountry, setSelCountry] = useState('');
+  // ⭐ المدن المُجلبة ديناميكياً للدولة المختارة (الـ API يرجع أعلى 50 مدينة فقط بدون فلتر)
+  const [dynamicCities, setDynamicCities] = useState<City[]>([]);
+  const [loadingCities, setLoadingCities] = useState(false);
+
   const addCity = () => onChange([...pkgCities, { city: 0, nights: 1, hotels: [], services: [] }]);
   const removeCity = (i: number) => onChange(pkgCities.filter((_,idx)=>idx!==i));
   const updateCity = (i: number, data: Partial<PackageCity>) =>
     onChange(pkgCities.map((c,idx)=>idx===i?{...c,...data}:c));
-  const filteredCities = cities.filter(c => !selCountry || (c.country_id || c.country) === Number(selCountry));
+
+  // ⭐ عند اختيار دولة: اجلب كل مدنها من الـ API
+  useEffect(() => {
+    if (!selCountry) { setDynamicCities([]); return; }
+    const country = countries.find(c => c.id === Number(selCountry));
+    if (!country?.iso2) return;
+    setLoadingCities(true);
+    apiFetch(`/api/v1/locations/cities/?country_code=${country.iso2}`)
+      .then(r => r.ok ? r.json() : [])
+      .then(d => setDynamicCities(Array.isArray(d) ? d : (d.results || [])))
+      .catch(() => setDynamicCities([]))
+      .finally(() => setLoadingCities(false));
+  }, [selCountry, countries]);
+
+  // ⭐ ادمج الـcities المُحمَّلة مسبقاً مع الـdynamic (يضمن ظهور مدن أُختيرت سابقاً)
+  const allCities = (() => {
+    const map = new Map<number, City>();
+    cities.forEach(c => map.set(c.id, c));
+    dynamicCities.forEach(c => map.set(c.id, c));
+    return Array.from(map.values());
+  })();
+
+  const filteredCities = allCities.filter(c =>
+    !selCountry || (c.country_id || c.country) === Number(selCountry)
+  );
   const getHotelsForCity = (cityId: number) => hotels.filter(h => h.city === cityId);
   const getServicesForCity = (cityId: number) => services.filter(s => s.city === cityId);
 
   return (
     <div className="space-y-4">
+      {/* ⭐ فلتر الدولة ظاهر دائماً (يجب اختيار دولة لجلب مدنها) */}
+      <div className="flex items-center gap-2">
+        <Globe className="w-4 h-4 text-gray-400 shrink-0"/>
+        <select value={selCountry} onChange={e=>setSelCountry(e.target.value)}
+          className="border p-2 rounded-xl text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-400">
+          <option value="">{t('packagesMgmt.cityStep.allCountries')}</option>
+          {countries.map(c=>(
+            <option key={c.id} value={c.id}>
+              {c.label || c.name_ar || c.name_en || c.name || `Country ${c.id}`}
+            </option>
+          ))}
+        </select>
+        {loadingCities && <Loader2 className="w-4 h-4 animate-spin text-blue-500"/>}
+      </div>
+
       {pkgCities.length === 0 && (
         <div className="text-center py-10 text-gray-400">
           <Globe className="w-12 h-12 mx-auto mb-3 text-gray-200"/>
           <p className="text-sm">{t('packagesMgmt.cityStep.noCitiesYet')}</p>
-        </div>
-      )}
-      {pkgCities.length > 0 && (
-        <div className="flex items-center gap-2">
-          <Globe className="w-4 h-4 text-gray-400"/>
-          <select value={selCountry} onChange={e=>setSelCountry(e.target.value)}
-            className="border p-2 rounded-xl text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-400">
-            <option value="">{t('packagesMgmt.cityStep.allCountries')}</option>
-            {countries.map(c=><option key={c.id} value={c.id}>{c.label || c.name_ar || c.name_en || `Country ${c.id}`}</option>)}
-          </select>
         </div>
       )}
       {pkgCities.map((pc, ci) => {
@@ -398,9 +393,22 @@ function CityStep({ cities, countries, hotels, services, pkgCities, onChange, is
               <div className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">{ci+1}</div>
               <div className="flex-1 grid gap-2" style={{gridTemplateColumns: isCustomizable ? '1fr' : '1fr 100px'}}>
                 <select value={pc.city||''} onChange={e=>updateCity(ci,{city:Number(e.target.value),hotels:[],services:[]})}
-                  className="border p-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
-                  <option value="">{t('packagesMgmt.cityStep.selectCity')}</option>
-                  {filteredCities.map(c=><option key={c.id} value={c.id}>{c.name || c.name_ar || c.name_en || `City ${c.id}`}</option>)}
+                  className="border p-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                  disabled={!selCountry && filteredCities.length === 0}>
+                  <option value="">
+                    {!selCountry
+                      ? t('packagesMgmt.cityStep.selectCountryFirst')
+                      : loadingCities
+                        ? t('packagesMgmt.cityStep.loadingCities')
+                        : filteredCities.length === 0
+                          ? t('packagesMgmt.cityStep.noCitiesInCountry')
+                          : t('packagesMgmt.cityStep.selectCity')}
+                  </option>
+                  {filteredCities.map(c=>(
+                    <option key={c.id} value={c.id}>
+                      {c.label || c.name || c.name_ar || c.name_en || `City ${c.id}`}
+                    </option>
+                  ))}
                 </select>
                 {!isCustomizable && (
                   <div className="flex items-center gap-1">
@@ -415,61 +423,90 @@ function CityStep({ cities, countries, hotels, services, pkgCities, onChange, is
             </div>
             {pc.city > 0 && (
               <div className="p-4 space-y-3">
+                {/* ── الفنادق والجولات: محذوفة من هنا ──
+                    المسؤول/الزبون سيختارها لاحقاً وقت الحجز عبر ودجت Stay/Tours
+                    التي تستخدم allowed_hotels (PackageCity↔Hotel) و allowed_tours على القالب.
+                */}
+
+                {/* ── الخدمات الإجبارية (هدايا، وغيرها — لا جولات) ── */}
                 <div>
-                  <p className="text-xs font-semibold text-gray-500 mb-2 flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5"/> {t('packagesMgmt.cityStep.hotels')}</p>
-                  {cityHotels.length === 0
-                    ? <p className="text-xs text-gray-400 italic">{t('packagesMgmt.cityStep.noHotelsInCity')}</p>
-                    : cityHotels.map(h => {
-                        const sel = pc.hotels.find(ph=>ph.hotel===h.id);
-                        return (
-                          <div key={h.id} className={`flex items-center gap-3 p-3 rounded-xl border mb-2 transition-colors ${sel?'bg-blue-50 border-blue-200':'bg-white'}`}>
-                            <input type="checkbox" checked={!!sel}
-                              onChange={e=>{
-                                if(e.target.checked) updateCity(ci,{hotels:[...pc.hotels,{hotel:h.id,hotel_name:h.name,nights:pc.nights}]});
-                                else updateCity(ci,{hotels:pc.hotels.filter(ph=>ph.hotel!==h.id)});
-                              }}
-                              className="w-4 h-4 accent-blue-600"/>
-                            <div className="flex-1">
-                              <p className="text-sm font-medium">{h.name}</p>
-                              <div className="flex">{[1,2,3,4,5].map(s=><Star key={s} className={`w-3 h-3 ${s<=h.stars?'text-amber-400 fill-amber-400':'text-gray-200 fill-gray-200'}`}/>)}</div>
-                            </div>
-                            {sel && (
-                              <div className="flex items-center gap-1">
-                                <Moon className="w-3.5 h-3.5 text-gray-400"/>
-                                <input type="number" min={1} value={sel.nights}
-                                  onChange={e=>updateCity(ci,{hotels:pc.hotels.map(ph=>ph.hotel===h.id?{...ph,nights:Number(e.target.value)}:ph)})}
-                                  className="w-16 border p-1.5 rounded-lg text-sm text-center" dir="ltr"/>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 mb-2 flex items-center gap-1.5"><Briefcase className="w-3.5 h-3.5"/> {t('packagesMgmt.cityStep.services')}</p>
-                  {cityServices.length === 0
-                    ? <p className="text-xs text-gray-400 italic">{t('packagesMgmt.cityStep.noServicesInCity')}</p>
-                    : <div className="flex flex-wrap gap-2">
-                        {cityServices.map(s => {
-                          const sel = pc.services.find(ps=>ps.service===s.id);
+                  <p className="text-xs font-semibold text-gray-500 mb-2 flex items-center gap-1.5">
+                    <Briefcase className="w-3.5 h-3.5"/>
+                    {t('packagesMgmt.cityStep.mandatoryServices') || 'خدمات إجبارية (مثل الهدايا)'}
+                  </p>
+                  {(() => {
+                    // فلترة: خدمات إجبارية فقط، ولا جولات/مرشدين/جولات سياحية
+                    const mandatory = cityServices.filter(s => {
+                      const isOptional = (s as any).is_optional === true;
+                      const cat = String((s as any).category_name || (s as any).service_type || '').toLowerCase();
+                      const isTour = cat.includes('tour') || cat.includes('guide') || cat === 'activity' || cat.includes('جولة');
+                      return !isOptional && !isTour;
+                    });
+                    if (mandatory.length === 0) {
+                      return <p className="text-xs text-gray-400 italic">{t('packagesMgmt.cityStep.noMandatoryServices') || 'لا توجد خدمات إجبارية في هذه المدينة'}</p>;
+                    }
+                    return (
+                      <div className="flex flex-wrap gap-2">
+                        {mandatory.map(s => {
+                          const services = pc.services || [];
+                          const sel = services.find(ps=>ps.service===s.id);
                           return (
                             <button key={s.id} type="button"
                               onClick={()=>{
-                                if(sel) updateCity(ci,{services:pc.services.filter(ps=>ps.service!==s.id)});
-                                else updateCity(ci,{services:[...pc.services,{service:s.id,service_name:s.name}]});
+                                if(sel) updateCity(ci,{services:services.filter(ps=>ps.service!==s.id)});
+                                else updateCity(ci,{services:[...services,{service:s.id,service_name:s.name}]});
                               }}
                               className={`flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl border-2 font-medium transition-all
                                 ${sel?'bg-purple-50 text-purple-700 border-purple-300':'bg-white text-gray-600 border-gray-200 hover:border-purple-200'}`}>
                               <Tag className="w-3 h-3"/> {s.name}
-                              <span className={`text-xs ${s.is_optional?'text-amber-500':'text-red-500'}`}>
-                                {s.is_optional ? t('packagesMgmt.cityStep.optional') : t('packagesMgmt.cityStep.mandatory')}
+                              <span className="text-xs text-red-500">
+                                {t('packagesMgmt.cityStep.mandatory') || 'إجباري'}
                               </span>
                             </button>
                           );
                         })}
                       </div>
-                  }
+                    );
+                  })()}
                 </div>
+
+                {/* ── طيران بين المدن (يظهر فقط لو الباقة فيها أكثر من مدينة) ── */}
+                {pkgCities.length >= 2 && (() => {
+                  // فلترة: خدمات النقل/الطيران لهذه المدينة (transport service_type أو category)
+                  const flightOptions = cityServices.filter(s => {
+                    const cat = String((s as any).category_name || (s as any).service_type || '').toLowerCase();
+                    return cat.includes('transport') || cat.includes('flight') || cat.includes('طيران') || cat.includes('نقل');
+                  });
+                  if (flightOptions.length === 0) return null;
+                  return (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 mb-2 flex items-center gap-1.5">
+                        <Tag className="w-3.5 h-3.5"/>
+                        {t('packagesMgmt.cityStep.intercityFlights') || 'تذاكر طيران/نقل بين المدن'}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {flightOptions.map(s => {
+                          const services = pc.services || [];
+                          const sel = services.find(ps=>ps.service===s.id);
+                          return (
+                            <button key={s.id} type="button"
+                              onClick={()=>{
+                                if(sel) updateCity(ci,{services:services.filter(ps=>ps.service!==s.id)});
+                                else updateCity(ci,{services:[...services,{service:s.id,service_name:s.name}]});
+                              }}
+                              className={`flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl border-2 font-medium transition-all
+                                ${sel?'bg-sky-50 text-sky-700 border-sky-300':'bg-white text-gray-600 border-gray-200 hover:border-sky-200'}`}>
+                              <Tag className="w-3 h-3"/> {s.name}
+                              <span className={`text-xs ${(s as any).is_optional?'text-amber-500':'text-red-500'}`}>
+                                {(s as any).is_optional ? (t('packagesMgmt.cityStep.optional') || 'اختياري') : (t('packagesMgmt.cityStep.mandatory') || 'إجباري')}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </div>
@@ -494,15 +531,23 @@ function PackageModal({ editing, isCustomizable = false, cities, countries, hote
   const { t, isRTL } = useLanguage();
   const [tab, setTab] = useState<'info'|'cities'|'review'>('info');
   const [form, setForm] = useState({
-    name: editing?.name||'', slug: editing?.slug||'',
-    description: editing?.description||'', base_price: editing?.base_price||'',
-    currency: editing?.currency||'MYR', discount_percentage: editing?.discount_percentage||'',
+    // ⭐ الـbackend يرجع 'title' وليس 'name' — نقرأ كلاهما للتوافق
+    name: editing?.name || editing?.title || '',
+    slug: editing?.slug||'',
+    description: editing?.description||'',
     highlights: editing?.highlights||'', is_active: editing?.is_active??true,
     is_customizable: editing?.is_customizable ?? isCustomizable,
   });
   const [imageFile, setImageFile] = useState<File|null>(null);
   const [imagePreview, setImagePreview] = useState<string|null>(editing?.image_url||getImg(editing?.image)||null);
-  const [pkgCities, setPkgCities] = useState<PackageCity[]>(editing?.cities||[]);
+  // ⭐ تطبيع الـcities القادمة من API لضمان وجود hotels و services كمصفوفات
+  const [pkgCities, setPkgCities] = useState<PackageCity[]>(
+    (editing?.cities || []).map(c => ({
+      ...c,
+      hotels: c.hotels || [],
+      services: c.services || [],
+    }))
+  );
 
   const handleImg = (f: File|null) => {
     setImageFile(f);
@@ -511,9 +556,6 @@ function PackageModal({ editing, isCustomizable = false, cities, countries, hote
   };
 
   const totalNights = pkgCities.reduce((s,c)=>s+c.nights,0);
-  const finalPrice = form.discount_percentage
-    ? (parseFloat(form.base_price||'0')*(1-parseFloat(form.discount_percentage)/100)).toFixed(0)
-    : form.base_price;
 
   const TABS = [
     { key:'info',   label: t('packagesMgmt.modal.tabInfo'),   icon:<Package className="w-4 h-4"/> },
@@ -570,25 +612,7 @@ function PackageModal({ editing, isCustomizable = false, cities, countries, hote
                 <textarea value={form.description} onChange={e=>setForm({...form,description:e.target.value})} rows={3}
                   className="w-full border p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm resize-none"/>
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('packagesMgmt.modal.price')}</label>
-                  <input type="number" value={form.base_price} onChange={e=>setForm({...form,base_price:e.target.value})}
-                    className="w-full border p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm" dir="ltr"/>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('packagesMgmt.modal.currency')}</label>
-                  <select value={form.currency} onChange={e=>setForm({...form,currency:e.target.value})}
-                    className="w-full border p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-gray-50 text-sm">
-                    {['MYR','USD','EUR','SAR','AED','DZD'].map(c=><option key={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('packagesMgmt.modal.discount')}</label>
-                  <input type="number" value={form.discount_percentage} onChange={e=>setForm({...form,discount_percentage:e.target.value})}
-                    className="w-full border p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm" dir="ltr"/>
-                </div>
-              </div>
+              {/* ── Price/Currency/Discount: محذوفة لأن السعر يُحسب آلياً وقت الحجز عبر /api/v1/bookings/calculate/ ── */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('packagesMgmt.modal.highlightsField')}</label>
                 <textarea value={form.highlights} onChange={e=>setForm({...form,highlights:e.target.value})} rows={2}
@@ -637,12 +661,11 @@ function PackageModal({ editing, isCustomizable = false, cities, countries, hote
                 <h3 className="font-bold text-emerald-800 mb-3">{t('packagesMgmt.modal.summary')}</h3>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div><span className="text-gray-500">{t('packagesMgmt.modal.summaryName')}</span> <span className="font-semibold mx-1">{form.name||'—'}</span></div>
-                  <div><span className="text-gray-500">{t('packagesMgmt.modal.summaryPrice')}</span> <span className="font-semibold text-emerald-600 mx-1">{finalPrice} {form.currency}</span></div>
                   <div><span className="text-gray-500">{t('packagesMgmt.modal.summaryCities')}</span> <span className="font-semibold mx-1">{pkgCities.length} {t('packagesMgmt.modal.summaryCity')}</span></div>
                   <div><span className="text-gray-500">{t('packagesMgmt.modal.summaryNights')}</span> <span className="font-semibold mx-1">{totalNights} {t('packagesMgmt.modal.summaryNight')}</span></div>
                 </div>
               </div>
-              {(!form.name||!form.base_price)&&(
+              {(!form.name)&&(
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
                   <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5"/>
                   <p className="text-sm text-amber-700">{t('packagesMgmt.modal.validateInputs')}</p>
@@ -659,7 +682,7 @@ function PackageModal({ editing, isCustomizable = false, cities, countries, hote
                 className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 text-sm flex items-center justify-center gap-2">
                 {t('packagesMgmt.modal.next')} {isRTL ? <ChevronLeft className="w-4 h-4"/> : <ChevronRight className="w-4 h-4"/>}
               </button>
-            :<button onClick={()=>onSave(form,imageFile,pkgCities)} disabled={saving||!form.name||!form.base_price}
+            :<button onClick={()=>onSave(form,imageFile,pkgCities)} disabled={saving||!form.name}
                 className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 flex items-center justify-center gap-2 disabled:opacity-50 text-sm">
                 {saving
                   ? <><Loader2 className="w-4 h-4 animate-spin"/>{t('packagesMgmt.modal.saving')}</>
@@ -773,7 +796,7 @@ function StaffModal({ agencyId, onClose }: { agencyId: number; onClose: () => vo
             </div>
           ) : staff.map(u => {
             const name = `${u.first_name} ${u.last_name}`.trim() || u.username;
-            const initials = name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+            const initials = (name || '').split(' ').map(w=>w[0]||'').slice(0,2).join('').toUpperCase();
             return (
               <div key={u.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-2xl border">
                 <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold shrink-0">
@@ -801,15 +824,16 @@ function StaffModal({ agencyId, onClose }: { agencyId: number; onClose: () => vo
 interface Props { user?: AuthUser | null; }
 
 // Headers per language (arrays — handled in component)
+// ملاحظة: عمود "السعر" و"العمولة" محذوف من الجدول لأن السعر يُحسب آلياً وقت الحجز.
 const TABLE_HEADERS_ADMIN: Record<'ar'|'en'|'ms', string[]> = {
-  ar: ['الباقة','المدن','الليالي','السعر','الحالة','إجراءات'],
-  en: ['Package','Cities','Nights','Price','Status','Actions'],
-  ms: ['Pakej','Bandar','Malam','Harga','Status','Tindakan'],
+  ar: ['الباقة','المدن','الليالي','الحالة','إجراءات'],
+  en: ['Package','Cities','Nights','Status','Actions'],
+  ms: ['Pakej','Bandar','Malam','Status','Tindakan'],
 };
 const TABLE_HEADERS_AGENCY: Record<'ar'|'en'|'ms', string[]> = {
-  ar: ['الباقة','المدن','الليالي','السعر','عمولتك','إجراء'],
-  en: ['Package','Cities','Nights','Price','Commission','Action'],
-  ms: ['Pakej','Bandar','Malam','Harga','Komisen','Tindakan'],
+  ar: ['الباقة','المدن','الليالي','إجراء'],
+  en: ['Package','Cities','Nights','Action'],
+  ms: ['Pakej','Bandar','Malam','Tindakan'],
 };
 
 export function PackagesManagement({ user }: Props = {}) {
@@ -890,19 +914,21 @@ export function PackagesManagement({ user }: Props = {}) {
   const handleWizardSuccess = () => { setShowWizard(false); addToast('success', t('packagesMgmt.toasts.bookingSuccess')); };
 
   const handleSave = async (form: any, imageFile: File|null, pkgCities: PackageCity[]) => {
-    if(!form.name.trim()||!form.base_price){ addToast('warning', t('packagesMgmt.toasts.validateInput')); return; }
+    if(!form.name.trim()){ addToast('warning', t('packagesMgmt.toasts.validateInput')); return; }
     setSaving(true);
     try {
       const fd = new FormData();
-      fd.append('name', form.name);
+      // الـbackend يستخدم اسم 'title' للحقل في النموذج
+      fd.append('title', form.name);
       fd.append('slug', form.slug || autoSlug(form.name) || 'package-' + Date.now());
       fd.append('description', form.description || '-');
-      fd.append('base_price', form.base_price);
-      fd.append('currency', form.currency);
+      // ملاحظة: base_price/currency/discount_percentage محذوفة — السعر يُحسب آلياً
+      // وقت الحجز عبر POST /api/v1/bookings/calculate/ من المكوّنات الحقيقية في الكتالوج.
       fd.append('highlights', form.highlights || '');
       fd.append('is_active', form.is_active ? 'true' : 'false');
       fd.append('is_customizable', form.is_customizable ? 'true' : 'false');
-      if(form.discount_percentage) fd.append('discount_percentage', form.discount_percentage);
+      // الوكالة: الأدمن يترك للـbackend (perform_create يعيّنها)، الوكالات ترسل وكالتها
+      if(user?.agency) fd.append('agency', String(user.agency));
       if(imageFile) fd.append('image', imageFile);
 
       const url = editingPkg ? `/api/v1/packages/${editingPkg.id}/` : '/api/v1/packages/';
@@ -916,8 +942,8 @@ export function PackagesManagement({ user }: Props = {}) {
           method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({
             city: pc.city, nights: pc.nights,
-            hotels: pc.hotels.map(h=>({hotel:h.hotel,nights:h.nights})),
-            services: pc.services.map(s=>({service:s.service,custom_price:s.custom_price||null})),
+            hotels: (pc.hotels || []).map(h=>({hotel:h.hotel,nights:h.nights})),
+            services: (pc.services || []).map(s=>({service:s.service,custom_price:s.custom_price||null})),
           }),
         });
       }
@@ -925,8 +951,8 @@ export function PackagesManagement({ user }: Props = {}) {
       await fetchAll();
       setShowModal(false);
       const msg = editingPkg
-        ? t('packagesMgmt.toasts.edited').replace('{name}', pkg.name)
-        : t('packagesMgmt.toasts.added').replace('{name}', pkg.name);
+        ? t('packagesMgmt.toasts.edited').replace('{name}', (pkg.name || pkg.title || ''))
+        : t('packagesMgmt.toasts.added').replace('{name}', (pkg.name || pkg.title || ''));
       addToast('success', `✅ ${msg}`);
     } catch { addToast('error', t('packagesMgmt.toasts.connectFail')); }
     finally { setSaving(false); }
@@ -1052,7 +1078,6 @@ export function PackagesManagement({ user }: Props = {}) {
                 ))
               : paginated.map(pkg=>(
                   <AgencyPackageCard key={pkg.id} pkg={pkg}
-                    commissionRate={agencyCommission}
                     onView={()=>setViewingPkg(pkg)}
                     onBook={()=>openWizard(pkg)}/>
                 ))
@@ -1073,7 +1098,7 @@ export function PackagesManagement({ user }: Props = {}) {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {paginated.length===0
-                ?<tr><td colSpan={6} className="text-center py-16 text-gray-400">{t('packagesMgmt.noResults')}</td></tr>
+                ?<tr><td colSpan={tableHeaders.length} className="text-center py-16 text-gray-400">{t('packagesMgmt.noResults')}</td></tr>
                 :paginated.map(pkg=>(
                   <tr key={pkg.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-5 py-3">
@@ -1083,37 +1108,29 @@ export function PackagesManagement({ user }: Props = {}) {
                           :<div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center"><Package className="w-5 h-5 text-emerald-400"/></div>
                         }
                         <div>
-                          <p className="font-semibold text-gray-900 text-sm">{pkg.name}</p>
+                          <p className="font-semibold text-gray-900 text-sm">{(pkg.name || pkg.title || '')}</p>
                           <p className="text-xs text-gray-400 truncate max-w-[140px]">{pkg.description}</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex flex-wrap gap-1">
-                        {pkg.cities.slice(0,2).map((c,i)=>(
+                        {(pkg.cities||[]).slice(0,2).map((c,i)=>(
                           <span key={i} className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">{c.city_name}</span>
                         ))}
-                        {pkg.cities.length>2&&<span className="text-xs text-gray-400">+{pkg.cities.length-2}</span>}
+                        {(pkg.cities||[]).length>2&&<span className="text-xs text-gray-400">+{(pkg.cities||[]).length-2}</span>}
                       </div>
                     </td>
                     <td className="px-5 py-3">
                       <span className="flex items-center gap-1 text-sm text-gray-600"><Moon className="w-3.5 h-3.5"/>{pkg.total_nights}</span>
                     </td>
-                    <td className="px-5 py-3">
-                      <span className="font-bold text-emerald-600 text-sm">{(pkg.final_price ?? 0).toFixed(0)} {pkg.currency}</span>
-                    </td>
-                    {isAdmin
-                      ? <td className="px-5 py-3">
-                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${pkg.is_active?'bg-emerald-50 text-emerald-600':'bg-gray-100 text-gray-500'}`}>
-                            {pkg.is_active ? t('packagesMgmt.active') : t('packagesMgmt.inactive')}
-                          </span>
-                        </td>
-                      : <td className="px-5 py-3">
-                          <span className="font-bold text-amber-600 text-sm">
-                            +{(pkg.final_price * agencyCommission / 100).toFixed(0)} {pkg.currency}
-                          </span>
-                        </td>
-                    }
+                    {isAdmin && (
+                      <td className="px-5 py-3">
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${pkg.is_active?'bg-emerald-50 text-emerald-600':'bg-gray-100 text-gray-500'}`}>
+                          {pkg.is_active ? t('packagesMgmt.active') : t('packagesMgmt.inactive')}
+                        </span>
+                      </td>
+                    )}
                     <td className="px-5 py-3">
                       <div className="flex gap-1">
                         <button onClick={()=>setViewingPkg(pkg)} className="p-2 rounded-lg text-emerald-600 hover:bg-emerald-50"><Eye className="w-4 h-4"/></button>

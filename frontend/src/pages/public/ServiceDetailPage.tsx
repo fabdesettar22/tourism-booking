@@ -24,8 +24,8 @@ export function ServiceDetailPage() {
   }, [id]);
 
   const photos = service
-    ? (service.photos.length > 0
-        ? service.photos.filter(p => p.image).map(p => ({ url: p.image!, caption: p.caption }))
+    ? ((service.photos || []).length > 0
+        ? (service.photos || []).filter(p => p.image).map(p => ({ url: p.image!, caption: p.caption }))
         : service.image ? [{ url: service.image, caption: '' }] : [])
     : [];
 

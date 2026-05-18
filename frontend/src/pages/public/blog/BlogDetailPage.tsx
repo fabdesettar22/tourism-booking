@@ -119,7 +119,7 @@ export function BlogDetailPage() {
           {post.excerpt && <p className="text-lg text-gray-600 leading-relaxed mb-8 italic">{post.excerpt}</p>}
 
           <div className="flex flex-wrap items-center gap-5 text-xs text-gray-500 pb-6 border-b border-gray-100 mb-8">
-            <span className="font-medium text-gray-900">{post.author.full_name}</span>
+            <span className="font-medium text-gray-900">{post.author?.full_name || ''}</span>
             <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> {formatDate(post.published_at, lang)}</span>
             <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> {post.read_time} {tr.readTime}</span>
             <span className="flex items-center gap-1.5"><Eye className="w-3.5 h-3.5" /> {post.view_count} {tr.views}</span>
@@ -132,7 +132,7 @@ export function BlogDetailPage() {
           />
 
           {/* Tags */}
-          {post.tags.length > 0 && (
+          {(post.tags || []).length > 0 && (
             <div className="flex flex-wrap gap-2 mt-10 pt-6 border-t border-gray-100">
               {post.tags.map(tg => (
                 <span key={tg.id} className="px-3 py-1 bg-gray-100 text-xs text-gray-700 rounded-full">
@@ -159,7 +159,7 @@ export function BlogDetailPage() {
         </div>
 
         {/* Related Hotels */}
-        {post.related_hotels.length > 0 && (
+        {(post.related_hotels || []).length > 0 && (
           <section className="mb-12">
             <h2 className="font-display text-2xl font-medium text-gray-900 tracking-tight mb-5">{tr.relatedHotels}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -187,7 +187,7 @@ export function BlogDetailPage() {
         )}
 
         {/* Related Services */}
-        {post.related_services.length > 0 && (
+        {(post.related_services || []).length > 0 && (
           <section className="mb-12">
             <h2 className="font-display text-2xl font-medium text-gray-900 tracking-tight mb-5">{tr.relatedServices}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

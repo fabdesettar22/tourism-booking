@@ -1,31 +1,45 @@
-"""Flight search service: fetch from Duffel, apply commission, persist offers."""
+"""Live flight search — no offers persisted in DB; pricing is fetched per request."""
 from __future__ import annotations
 
+import hashlib
 import logging
-import time
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any
 
 from django.core.cache import cache
-from django.db import transaction
-from django.utils import timezone
 
-from apps.flights.models import FlightRoute, FlightOffer, FlightSearchLog
+from apps.flights.models import FlightRoute
 from apps.flights.services import duffel_client
 
 logger = logging.getLogger(__name__)
 
-CACHE_TTL_SECONDS = 6 * 60 * 60  # 6 hours
-CACHE_PREFIX = "flights:route"
+CACHE_TTL_SECONDS = 30 * 60  # 30 minutes — quotes are volatile
 TWO_PLACES = Decimal("0.01")
+
+
+class RouteNotAvailable(Exception):
+    pass
 
 
 def _q(value: Decimal) -> Decimal:
     return value.quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
 
 
-def _cache_key(route: FlightRoute) -> str:
-    return f"{CACHE_PREFIX}:{route.id}"
+def _parse_duration_minutes(iso: str | None) -> int:
+    if not iso or not iso.startswith("PT"):
+        return 0
+    hours = minutes = 0
+    cur = ""
+    for ch in iso[2:]:
+        if ch.isdigit():
+            cur += ch
+        elif ch == "H":
+            hours = int(cur or 0)
+            cur = ""
+        elif ch == "M":
+            minutes = int(cur or 0)
+            cur = ""
+    return hours * 60 + minutes
 
 
 def _parse_slice(slc: dict) -> dict:
@@ -55,100 +69,133 @@ def _parse_slice(slc: dict) -> dict:
     }
 
 
-def _parse_duration_minutes(iso: str | None) -> int:
-    """Parse ISO-8601 duration like 'PT8H30M' to minutes. Best-effort."""
-    if not iso or not iso.startswith("PT"):
-        return 0
-    hours = minutes = 0
-    cur = ""
-    for ch in iso[2:]:
-        if ch.isdigit():
-            cur += ch
-        elif ch == "H":
-            hours = int(cur or 0)
-            cur = ""
-        elif ch == "M":
-            minutes = int(cur or 0)
-            cur = ""
-    return hours * 60 + minutes
-
-
-def _build_offer_record(route: FlightRoute, raw: dict) -> dict[str, Any]:
+def _build_offer(raw: dict, commission_pct: Decimal) -> dict[str, Any]:
     base = Decimal(str(raw.get("total_amount") or "0"))
-    base_currency = raw.get("total_currency") or "USD"
-    commission = _q(base * (route.commission_percentage / Decimal("100")))
+    currency = raw.get("total_currency") or "USD"
+    commission = _q(base * (commission_pct / Decimal("100")))
     total = _q(base + commission)
-
-    slices = [_parse_slice(s) for s in raw.get("slices", [])]
-    total_minutes = sum(_parse_duration_minutes(s.get("duration")) for s in raw.get("slices", []))
     owner = raw.get("owner") or {}
+    slices = [_parse_slice(s) for s in raw.get("slices", [])]
+    duration = sum(_parse_duration_minutes(s.get("duration")) for s in raw.get("slices", []))
 
     return {
-        "provider_offer_id": raw.get("id", ""),
+        "duffel_offer_id": raw.get("id", ""),
         "owner_iata": owner.get("iata_code") or "",
         "owner_name": owner.get("name") or "",
-        "base_amount": _q(base),
-        "base_currency": base_currency,
-        "commission_amount": commission,
-        "total_amount": total,
-        "total_duration_min": total_minutes,
-        "slices_summary": slices,
-        "raw_payload": raw,
+        "base_amount": str(_q(base)),
+        "commission_amount": str(commission),
+        "total_amount": str(total),
+        "currency": currency,
+        "duration_min": duration,
         "expires_at": raw.get("expires_at"),
+        "slices": slices,
     }
 
 
-@transaction.atomic
-def refresh_route_offers(route: FlightRoute, *, limit: int = 20) -> list[FlightOffer]:
-    """Hit Duffel, replace offers for this route, return persisted records."""
-    started = time.monotonic()
+def _cache_key(origin, destination, dep, ret, adults, children, infants, cabin) -> str:
+    payload = f"{origin}|{destination}|{dep}|{ret or ''}|{adults}|{children}|{infants}|{cabin}"
+    return "flights:search:" + hashlib.sha1(payload.encode()).hexdigest()
+
+
+def _route_payload(route: FlightRoute) -> dict[str, Any]:
+    return {
+        "id": str(route.id),
+        "origin": route.origin_iata,
+        "destination": route.destination_iata,
+        "commission_percentage": str(route.commission_percentage),
+        "base_price": str(route.base_price) if route.base_price is not None else None,
+        "commission_amount": str(route.commission_amount) if route.commission_amount is not None else None,
+        "final_price": str(route.final_price) if route.final_price is not None else None,
+        "display_title": route.display_title,
+        "currency": route.currency,
+        "pricing_source": "manual" if route.uses_manual_pricing else "live",
+    }
+
+
+def _search_manual(route: FlightRoute) -> dict[str, Any]:
+    base = _q(route.base_price)
+    commission = _q(route.commission_amount or Decimal("0"))
+    total = _q(route.final_price or base)
+    return {
+        "route": _route_payload(route),
+        "offers": [
+            {
+                "duffel_offer_id": "",
+                "owner_iata": "",
+                "owner_name": route.display_title or "Manual",
+                "base_amount": str(base),
+                "commission_amount": str(commission),
+                "total_amount": str(total),
+                "currency": route.currency,
+                "duration_min": 0,
+                "expires_at": None,
+                "slices": [],
+                "manual": True,
+            }
+        ],
+    }
+
+
+def search_live(
+    *,
+    origin: str,
+    destination: str,
+    departure_date,
+    return_date=None,
+    adults: int = 1,
+    children: int = 0,
+    infants: int = 0,
+    cabin_class: str = "economy",
+    limit: int = 20,
+) -> dict:
+    """Look up the active route, ask Duffel for live offers, apply commission, return JSON-ready dict.
+
+    Raises RouteNotAvailable when no FlightRoute exists for (origin, destination, is_active=True).
+    """
+    origin = (origin or "").upper()
+    destination = (destination or "").upper()
+
     try:
-        offer_request = duffel_client.create_offer_request(
-            origin=route.origin_iata,
-            destination=route.destination_iata,
-            departure_date=route.departure_date.isoformat(),
-            return_date=route.return_date.isoformat() if route.return_date else None,
-            adults=route.adults,
-            children=route.children,
-            cabin_class=route.cabin_class,
+        route = FlightRoute.objects.get(
+            origin_iata=origin,
+            destination_iata=destination,
+            is_active=True,
         )
-        raw_offers = duffel_client.list_offers(offer_request["id"], limit=limit)
-    except Exception as exc:
-        FlightSearchLog.objects.create(
-            route=route, status="FAIL",
-            duration_ms=int((time.monotonic() - started) * 1000),
-            error_message=str(exc)[:500],
-        )
-        raise
+    except FlightRoute.DoesNotExist:
+        raise RouteNotAvailable(f"No active route for {origin} → {destination}")
 
-    route.offers.all().delete()
-    new_offers = [FlightOffer(route=route, **_build_offer_record(route, o)) for o in raw_offers]
-    FlightOffer.objects.bulk_create(new_offers)
+    if route.uses_manual_pricing:
+        key = _cache_key(origin, destination, "manual", None, adults, children, infants, cabin_class)
+        cached = cache.get(key)
+        if cached is not None:
+            return cached
+        result = _search_manual(route)
+        cache.set(key, result, CACHE_TTL_SECONDS)
+        return result
 
-    route.last_refreshed_at = timezone.now()
-    route.save(update_fields=["last_refreshed_at", "updated_at"])
+    dep_str = departure_date.isoformat() if hasattr(departure_date, "isoformat") else str(departure_date)
+    ret_str = return_date.isoformat() if return_date and hasattr(return_date, "isoformat") else (return_date or None)
 
-    cache.delete(_cache_key(route))
+    key = _cache_key(origin, destination, dep_str, ret_str, adults, children, infants, cabin_class)
+    cached = cache.get(key)
+    if cached is not None:
+        return cached
 
-    FlightSearchLog.objects.create(
-        route=route, status="SUCCESS",
-        offers_count=len(new_offers),
-        duration_ms=int((time.monotonic() - started) * 1000),
+    offer_request = duffel_client.create_offer_request(
+        origin=origin,
+        destination=destination,
+        departure_date=dep_str,
+        return_date=ret_str,
+        adults=adults,
+        children=children,
+        cabin_class=cabin_class,
     )
-    return list(route.offers.all())
+    raw_offers = duffel_client.list_offers(offer_request["id"], limit=limit)
+    offers = [_build_offer(o, route.commission_percentage) for o in raw_offers]
 
-
-def get_cached_offers(route: FlightRoute) -> list[FlightOffer]:
-    """Return offers from DB (refresh if stale). Cache the ID list in Redis."""
-    key = _cache_key(route)
-    cached_ids = cache.get(key)
-    if cached_ids:
-        offers = list(FlightOffer.objects.filter(id__in=cached_ids, route=route).order_by("total_amount"))
-        if offers:
-            FlightSearchLog.objects.create(route=route, status="CACHE_HIT", offers_count=len(offers))
-            return offers
-
-    offers = list(route.offers.all().order_by("total_amount"))
-    if offers:
-        cache.set(key, [str(o.id) for o in offers], CACHE_TTL_SECONDS)
-    return offers
+    result = {
+        "route": _route_payload(route),
+        "offers": offers,
+    }
+    cache.set(key, result, CACHE_TTL_SECONDS)
+    return result

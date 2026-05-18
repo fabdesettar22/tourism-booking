@@ -610,8 +610,8 @@ export function HotelSetupForm({ hotel, onSaved, onCancel }: Props) {
           const viewLabel = view.view_label.trim() || 'standard';
           // Check if this view matches a known view_type or use view_custom
           const knownViewTypes = ['standard', 'sea', 'hill', 'garden', 'pool', 'city', 'klcc', 'kl_tower', 'beach', 'lagoon', 'beachfront', 'runaway', 'street', 'other'];
-          const isKnown = knownViewTypes.includes(viewLabel.toLowerCase());
-          const view_type = isKnown ? viewLabel.toLowerCase() : 'other';
+          const isKnown = knownViewTypes.includes((viewLabel || "").toLowerCase());
+          const view_type = isKnown ? (viewLabel || "").toLowerCase() : 'other';
           const view_custom = isKnown ? '' : viewLabel;
           const catPayload = {
             hotel: hotelId,
