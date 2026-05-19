@@ -27,6 +27,7 @@ interface PkgHotel  {
   check_in_date: string; check_out_date: string; nights: number;
   price_per_room_night_myr: number;
   source: string; includes_breakfast: boolean;
+  rooms_count: number;
   profit_margin_pct?: number;
 }
 interface PkgFlight {
@@ -235,7 +236,7 @@ export function CustomPackageWizard({ onClose, onSuccess }: Props) {
           body: JSON.stringify({
             package_city_id: h.package_city_idx,
             hotel_id: h.hotel_id, room_type: h.room_type,
-            rooms_count: Math.ceil(totalPax / 2),
+            rooms_count: h.rooms_count,
             check_in_date: h.check_in_date, check_out_date: h.check_out_date,
             nights: h.nights, price_per_room_night_myr: h.price_per_room_night_myr,
             source: h.source,
@@ -538,6 +539,17 @@ export function CustomPackageWizard({ onClose, onSuccess }: Props) {
                 </div>
               </div>
 
+              {pkgHotels.length > 0 && (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5 flex items-center justify-between">
+                  <span className="text-sm font-medium text-emerald-800 flex items-center gap-2">
+                    <Calculator className="w-4 h-4"/> إجمالي الفنادق المحددة
+                  </span>
+                  <span className="font-bold text-emerald-700">
+                    RM {pkgHotels.reduce((s, ph) => s + ph.price_per_room_night_myr * ph.rooms_count * ph.nights, 0).toFixed(0)}
+                  </span>
+                </div>
+              )}
+
               {pkgCities.map((city, ci) => (
                 <div key={ci} className="border rounded-2xl overflow-hidden">
                   <div className="bg-blue-50 px-4 py-2.5 flex items-center justify-between border-b">
@@ -558,8 +570,7 @@ export function CustomPackageWizard({ onClose, onSuccess }: Props) {
                       const priceData = hotelPrices[h.id];
                       const isSelected = pkgHotels.some(ph => ph.hotel_id === h.id && ph.package_city_idx === ci + 1);
                       const img = h.image ? (h.image.startsWith('http') ? h.image : `${BASE}${h.image}`) : null;
-                      const totalPrice = priceData?.price_myr ? (parseFloat(priceData.price_myr) * city.nights).toFixed(0) : null;
-                      const margin = pkgHotels.find(ph => ph.hotel_id === h.id && ph.package_city_idx === ci + 1)?.profit_margin_pct ?? 20;
+                      const selectedPh = pkgHotels.find(ph => ph.hotel_id === h.id && ph.package_city_idx === ci + 1);
 
                       return (
                         <div key={h.id} className={`border rounded-xl overflow-hidden transition-all
@@ -588,62 +599,106 @@ export function CustomPackageWizard({ onClose, onSuccess }: Props) {
 
                               <div className="mt-2 flex items-end justify-between gap-2">
                                 <div>
-                                  <p className="text-xs text-gray-400">{roomTypeFilter}</p>
                                   {priceData?.price_myr ? (
-                                    <div>
-                                      <p className="text-xs text-gray-500">RM {parseFloat(priceData.price_myr).toFixed(0)}{t('customWiz.step3.perNight')}</p>
-                                      <p className="font-bold text-emerald-600 text-sm">RM {totalPrice} ({city.nights})</p>
-                                    </div>
+                                    <p className="text-xs text-gray-500">RM {parseFloat(priceData.price_myr).toFixed(0)}{t('customWiz.step3.perNight')}</p>
                                   ) : (
                                     <p className="text-xs text-gray-400">{t('customWiz.step3.noPriceAvailable')}</p>
                                   )}
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  {isSelected && (
-                                    <div className="flex items-center gap-1">
-                                      <span className="text-xs text-gray-500">{t('customWiz.step3.profitMargin')}</span>
-                                      <input type="number" min={0} max={100}
-                                        value={margin}
-                                        onChange={e => setPkgHotels(prev => prev.map(ph =>
-                                          ph.hotel_id === h.id && ph.package_city_idx === ci + 1
-                                            ? {...ph, profit_margin_pct: Number(e.target.value)}
-                                            : ph
-                                        ))}
-                                        className="w-14 border p-1 rounded-lg text-xs text-center bg-white"
-                                        dir="ltr"/>
-                                    </div>
-                                  )}
-                                  <button onClick={() => {
-                                    if (isSelected) {
-                                      setPkgHotels(prev => prev.filter(ph => !(ph.hotel_id === h.id && ph.package_city_idx === ci + 1)));
-                                    } else {
-                                      const today = new Date().toISOString().split('T')[0];
-                                      const checkout = new Date(Date.now() + city.nights * 86400000).toISOString().split('T')[0];
-                                      setPkgHotels(prev => [...prev, {
-                                        temp_id: `${ci}-${h.id}`,
-                                        package_city_idx: ci + 1,
-                                        hotel_id: h.id, hotel_name: h.name,
-                                        hotel_stars: h.stars, hotel_image: h.image,
-                                        room_type: roomTypeFilter,
-                                        check_in_date: today, check_out_date: checkout,
-                                        nights: city.nights,
-                                        price_per_room_night_myr: parseFloat(priceData?.price_myr || '0'),
-                                        source: priceData?.source || 'manual',
-                                        includes_breakfast: priceData?.includes_breakfast || false,
-                                        profit_margin_pct: 20,
-                                      }]);
-                                    }
-                                  }}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors
-                                      ${isSelected
-                                        ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
-                                        : 'bg-white border border-gray-200 text-gray-600 hover:border-emerald-300 hover:text-emerald-700'}`}>
-                                    {isSelected ? t('customWiz.step3.selected') : t('customWiz.step3.select')}
-                                  </button>
-                                </div>
+                                <button onClick={() => {
+                                  if (isSelected) {
+                                    setPkgHotels(prev => prev.filter(ph => !(ph.hotel_id === h.id && ph.package_city_idx === ci + 1)));
+                                  } else {
+                                    const today = new Date().toISOString().split('T')[0];
+                                    const checkout = new Date(Date.now() + city.nights * 86400000).toISOString().split('T')[0];
+                                    setPkgHotels(prev => [...prev, {
+                                      temp_id: `${ci}-${h.id}`,
+                                      package_city_idx: ci + 1,
+                                      hotel_id: h.id, hotel_name: h.name,
+                                      hotel_stars: h.stars, hotel_image: h.image,
+                                      room_type: roomTypeFilter,
+                                      check_in_date: today, check_out_date: checkout,
+                                      nights: city.nights,
+                                      price_per_room_night_myr: parseFloat(priceData?.price_myr || '0'),
+                                      source: priceData?.source || 'manual',
+                                      includes_breakfast: priceData?.includes_breakfast || false,
+                                      rooms_count: 1,
+                                      profit_margin_pct: 20,
+                                    }]);
+                                  }
+                                }}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors
+                                    ${isSelected
+                                      ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+                                      : 'bg-white border border-gray-200 text-gray-600 hover:border-emerald-300 hover:text-emerald-700'}`}>
+                                  {isSelected ? t('customWiz.step3.selected') : t('customWiz.step3.select')}
+                                </button>
                               </div>
                             </div>
                           </div>
+                          {isSelected && selectedPh && (
+                            <div className="border-t border-emerald-200 bg-emerald-50/60 px-4 py-3 space-y-2">
+                              <div className="flex items-center gap-3 flex-wrap">
+                                <div className="flex items-center gap-1.5">
+                                  <BedDouble className="w-3.5 h-3.5 text-emerald-600 shrink-0"/>
+                                  <span className="text-xs text-gray-500">نوع الغرفة:</span>
+                                  <select value={selectedPh.room_type}
+                                    onChange={e => setPkgHotels(prev => prev.map(ph =>
+                                      ph.hotel_id === h.id && ph.package_city_idx === ci + 1
+                                        ? {...ph, room_type: e.target.value}
+                                        : ph
+                                    ))}
+                                    className="border text-xs p-1.5 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-400">
+                                    {ROOM_TYPES.map(rt => <option key={rt} value={rt}>{rt}</option>)}
+                                  </select>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-xs text-gray-500">عدد الغرف:</span>
+                                  <div className="flex items-center border rounded-lg bg-white overflow-hidden">
+                                    <button type="button"
+                                      className="px-2 py-1 hover:bg-gray-100 text-gray-600 transition-colors"
+                                      onClick={() => setPkgHotels(prev => prev.map(ph =>
+                                        ph.hotel_id === h.id && ph.package_city_idx === ci + 1
+                                          ? {...ph, rooms_count: Math.max(1, ph.rooms_count - 1)}
+                                          : ph
+                                      ))}>
+                                      <Minus className="w-3 h-3"/>
+                                    </button>
+                                    <span className="w-8 text-center text-sm font-bold text-gray-800">{selectedPh.rooms_count}</span>
+                                    <button type="button"
+                                      className="px-2 py-1 hover:bg-gray-100 text-gray-600 transition-colors"
+                                      onClick={() => setPkgHotels(prev => prev.map(ph =>
+                                        ph.hotel_id === h.id && ph.package_city_idx === ci + 1
+                                          ? {...ph, rooms_count: ph.rooms_count + 1}
+                                          : ph
+                                      ))}>
+                                      <Plus className="w-3 h-3"/>
+                                    </button>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-xs text-gray-500">RM/ليلة:</span>
+                                  <input type="number" min={0}
+                                    value={selectedPh.price_per_room_night_myr}
+                                    onChange={e => setPkgHotels(prev => prev.map(ph =>
+                                      ph.hotel_id === h.id && ph.package_city_idx === ci + 1
+                                        ? {...ph, price_per_room_night_myr: Number(e.target.value)}
+                                        : ph
+                                    ))}
+                                    className="w-20 border text-xs p-1.5 rounded-lg text-center bg-white focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                                    dir="ltr"/>
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between pt-1 border-t border-emerald-100">
+                                <span className="text-xs text-gray-400" dir="ltr">
+                                  {selectedPh.rooms_count} × {selectedPh.nights} ليالٍ × RM {selectedPh.price_per_room_night_myr}
+                                </span>
+                                <span className="font-bold text-emerald-700">
+                                  = RM {(selectedPh.price_per_room_night_myr * selectedPh.rooms_count * selectedPh.nights).toFixed(0)}
+                                </span>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -822,6 +877,60 @@ export function CustomPackageWizard({ onClose, onSuccess }: Props) {
                   <div><span className="text-gray-500">{t('customWiz.step6.tours')}</span> <span className="font-semibold mx-1">{pkgTours.length}</span></div>
                 </div>
               </div>
+
+              {(() => {
+                const hotelsTotal = pkgHotels.reduce((s, ph) => s + ph.price_per_room_night_myr * ph.rooms_count * ph.nights, 0);
+                const flightsTotal = pkgFlights.reduce((s, f) => s + f.price_adult_myr * adults + f.price_child_myr * children + f.price_infant_myr * infants, 0);
+                const transfersTotal = pkgTransfers.reduce((s, tt) => s + tt.price_myr, 0);
+                const toursTotal = pkgTours.reduce((s, tt) => s + tt.price_adult_myr * adults + tt.price_child_myr * children + tt.price_infant_myr * infants, 0);
+                const grandTotal = hotelsTotal + flightsTotal + transfersTotal + toursTotal;
+                const perPerson = totalPax > 0 ? grandTotal / totalPax : 0;
+                return (
+                  <div className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-5 space-y-4">
+                    <h3 className="font-bold text-emerald-800 flex items-center gap-2 text-base">
+                      <Calculator className="w-5 h-5"/> السعر النهائي للباقة
+                    </h3>
+                    <div className="space-y-2">
+                      {hotelsTotal > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">الفنادق ({pkgHotels.length})</span>
+                          <span className="font-medium">RM {hotelsTotal.toFixed(0)}</span>
+                        </div>
+                      )}
+                      {flightsTotal > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">الرحلات الجوية</span>
+                          <span className="font-medium">RM {flightsTotal.toFixed(0)}</span>
+                        </div>
+                      )}
+                      {transfersTotal > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">التنقلات</span>
+                          <span className="font-medium">RM {transfersTotal.toFixed(0)}</span>
+                        </div>
+                      )}
+                      {toursTotal > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">الجولات السياحية</span>
+                          <span className="font-medium">RM {toursTotal.toFixed(0)}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="border-t border-emerald-200 pt-3 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-gray-800 text-sm">الإجمالي الكلي</span>
+                        <span className="text-2xl font-bold text-emerald-700">RM {grandTotal.toFixed(0)}</span>
+                      </div>
+                      {totalPax > 0 && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-500">السعر للشخص الواحد ({totalPax} أشخاص)</span>
+                          <span className="font-bold text-blue-600 text-lg">RM {perPerson.toFixed(0)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {calculating && (
                 <div className="flex items-center justify-center gap-2 py-4 text-gray-500">
