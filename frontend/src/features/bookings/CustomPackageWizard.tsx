@@ -12,7 +12,12 @@ import {
 interface Country   { id: number; name: string; }
 interface City      { id: number; name: string; country: number; }
 interface Hotel        { id: number; name: string; city: number; stars: number; image?: string; }
-interface RoomTypeAPI  { id: number; name: string; max_occupancy: number; breakfast_included: boolean; }
+interface RoomTypeAPI  {
+  id: number; name: string; max_occupancy: number; breakfast_included: boolean;
+  current_price: string | null;
+  child_with_bed_price: string | null;
+  child_without_bed_price: string | null;
+}
 interface HotelRoomLine { room_type_id: number | null; room_type_name: string; count: number; extra_bed: boolean; price_per_night_myr: number; }
 
 interface PersonConfig {
@@ -619,10 +624,16 @@ export function CustomPackageWizard({ onClose, onSuccess }: Props) {
                                       <select value={rl.room_type_id ?? ''}
                                         onChange={e => {
                                           const rt = roomTypes.find(r => r.id === Number(e.target.value));
+                                          const autoPrice = rt?.current_price ? parseFloat(rt.current_price) : rl.price_per_night_myr;
                                           setPkgHotels(prev => prev.map(ph =>
                                             ph.hotel_id === h.id && ph.package_city_idx === ci + 1
                                               ? {...ph, room_lines: ph.room_lines.map((line, idx) =>
-                                                  idx === rIdx ? {...line, room_type_id: rt?.id ?? null, room_type_name: rt?.name ?? ''} : line
+                                                  idx === rIdx ? {
+                                                    ...line,
+                                                    room_type_id: rt?.id ?? null,
+                                                    room_type_name: rt?.name ?? '',
+                                                    price_per_night_myr: autoPrice,
+                                                  } : line
                                                 )}
                                               : ph
                                           ));
@@ -633,6 +644,7 @@ export function CustomPackageWizard({ onClose, onSuccess }: Props) {
                                           <option key={rt.id} value={rt.id}>
                                             {rt.name} (max {rt.max_occupancy})
                                             {rt.breakfast_included ? ' 🍳' : ''}
+                                            {rt.current_price ? ` · RM ${parseFloat(rt.current_price).toFixed(0)}` : ''}
                                           </option>
                                         ))}
                                       </select>
@@ -720,7 +732,8 @@ export function CustomPackageWizard({ onClose, onSuccess }: Props) {
                                       ? {...ph, room_lines: [...ph.room_lines, {
                                           room_type_id: firstType?.id ?? null,
                                           room_type_name: firstType?.name ?? '',
-                                          count: 1, extra_bed: false, price_per_night_myr: 0
+                                          count: 1, extra_bed: false,
+                                          price_per_night_myr: firstType?.current_price ? parseFloat(firstType.current_price) : 0,
                                         }]}
                                       : ph
                                   ));
