@@ -14,25 +14,21 @@ interface City      { id: number; name: string; country: number; }
 interface Hotel        { id: number; name: string; city: number; stars: number; image?: string; }
 interface RoomTypeAPI  {
   id: number; name: string; max_occupancy: number; breakfast_included: boolean;
-  current_price:            string | null;
-  child_with_bed_price:     string | null;
-  child_without_bed_price:  string | null;
-  infant_with_bed_price:    string | null;
-  infant_without_bed_price: string | null;
+  current_price:        string | null;
+  child_with_bed_price: string | null;
+  infant_with_bed_price:string | null;
+  tax_per_night:        string | null;
 }
 interface HotelRoomLine {
-  room_type_id:   number | null;
-  room_type_name: string;
-  count:          number;
-  price_per_night_myr:       number;
-  children_with_bed:         number;
-  child_with_bed_price:      number;
-  children_without_bed:      number;
-  child_without_bed_price:   number;
-  infants_with_bed:          number;
-  infant_with_bed_price:     number;
-  infants_without_bed:       number;
-  infant_without_bed_price:  number;
+  room_type_id:          number | null;
+  room_type_name:        string;
+  count:                 number;
+  price_per_night_myr:   number;   // سعر الغرفة/ليلة من DB
+  child_bed:             boolean;  // تفعيل سرير الطفل
+  child_with_bed_price:  number;   // من DB
+  infant_bed:            boolean;  // تفعيل سرير الرضيع
+  infant_with_bed_price: number;   // من DB
+  tax_per_night:         number;   // الضريبة/ليلة من الفندق
 }
 
 interface PersonConfig {
@@ -321,12 +317,12 @@ export function CustomPackageWizard({ onClose, onSuccess }: Props) {
     .filter(h => !starFilter || h.stars === starFilter)
     .sort((a, b) => b.stars - a.stars);
 
-  const computeLineTotal = (rl: HotelRoomLine, nights: number) =>
-    rl.count * rl.price_per_night_myr * nights
-    + rl.children_with_bed    * rl.child_with_bed_price    * nights
-    + rl.children_without_bed * rl.child_without_bed_price * nights
-    + rl.infants_with_bed     * rl.infant_with_bed_price   * nights
-    + rl.infants_without_bed  * rl.infant_without_bed_price * nights;
+  const computeLineTotal = (rl: HotelRoomLine, nights: number) => {
+    const extrasPerNight = (rl.child_bed  ? rl.child_with_bed_price  : 0)
+                         + (rl.infant_bed ? rl.infant_with_bed_price : 0);
+    return rl.count * (rl.price_per_night_myr + extrasPerNight) * nights
+         + rl.count * rl.tax_per_night * nights;
+  };
 
   const patchRoomLine = (hotelId: number, cityIdx: number, lineIdx: number, patch: Partial<HotelRoomLine>) =>
     setPkgHotels(prev => prev.map(ph =>
@@ -632,10 +628,9 @@ export function CustomPackageWizard({ onClose, onSuccess }: Props) {
                                       room_lines: [{
                                         room_type_id: null, room_type_name: '', count: 1,
                                         price_per_night_myr: 0,
-                                        children_with_bed: 0,    child_with_bed_price: 0,
-                                        children_without_bed: 0, child_without_bed_price: 0,
-                                        infants_with_bed: 0,     infant_with_bed_price: 0,
-                                        infants_without_bed: 0,  infant_without_bed_price: 0,
+                                        child_bed: false,  child_with_bed_price: 0,
+                                        infant_bed: false, infant_with_bed_price: 0,
+                                        tax_per_night: 0,
                                       }],
                                     }]);
                                   }
@@ -654,14 +649,6 @@ export function CustomPackageWizard({ onClose, onSuccess }: Props) {
                             <div className="border-t border-emerald-200 bg-white px-3 py-3 space-y-2">
                               {selectedPh.room_lines.map((rl, rIdx) => {
                                 const lineTotal = computeLineTotal(rl, selectedPh.nights);
-                                const hasExtraBeds = rl.child_with_bed_price > 0 || rl.child_without_bed_price > 0
-                                  || rl.infant_with_bed_price > 0 || rl.infant_without_bed_price > 0;
-                                const extraBeds = [
-                                  { key: 'children_with_bed',    price: rl.child_with_bed_price,     val: rl.children_with_bed,    label: 'طفل + سرير',      color: 'amber' },
-                                  { key: 'children_without_bed', price: rl.child_without_bed_price,  val: rl.children_without_bed, label: 'طفل بدون سرير',   color: 'amber' },
-                                  { key: 'infants_with_bed',     price: rl.infant_with_bed_price,    val: rl.infants_with_bed,     label: 'رضيع + سرير',     color: 'purple' },
-                                  { key: 'infants_without_bed',  price: rl.infant_without_bed_price, val: rl.infants_without_bed,  label: 'رضيع بدون سرير',  color: 'purple' },
-                                ].filter(x => x.price > 0);
                                 return (
                                   <div key={rIdx} className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2.5">
 
@@ -671,13 +658,13 @@ export function CustomPackageWizard({ onClose, onSuccess }: Props) {
                                         onChange={e => {
                                           const rt = roomTypes.find(r => r.id === Number(e.target.value));
                                           patchRoomLine(h.id, ci + 1, rIdx, {
-                                            room_type_id:   rt?.id   ?? null,
-                                            room_type_name: rt?.name ?? '',
-                                            price_per_night_myr:      rt?.current_price            ? parseFloat(rt.current_price)            : 0,
-                                            child_with_bed_price:     rt?.child_with_bed_price      ? parseFloat(rt.child_with_bed_price)      : 0,
-                                            child_without_bed_price:  rt?.child_without_bed_price   ? parseFloat(rt.child_without_bed_price)   : 0,
-                                            infant_with_bed_price:    rt?.infant_with_bed_price     ? parseFloat(rt.infant_with_bed_price)     : 0,
-                                            infant_without_bed_price: rt?.infant_without_bed_price  ? parseFloat(rt.infant_without_bed_price)  : 0,
+                                            room_type_id:          rt?.id   ?? null,
+                                            room_type_name:        rt?.name ?? '',
+                                            price_per_night_myr:   rt?.current_price         ? parseFloat(rt.current_price)         : 0,
+                                            child_with_bed_price:  rt?.child_with_bed_price  ? parseFloat(rt.child_with_bed_price)  : 0,
+                                            infant_with_bed_price: rt?.infant_with_bed_price ? parseFloat(rt.infant_with_bed_price) : 0,
+                                            tax_per_night:         rt?.tax_per_night         ? parseFloat(rt.tax_per_night)         : 0,
+                                            child_bed: false, infant_bed: false,
                                           });
                                         }}
                                         className="flex-1 border text-xs p-1.5 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-400 min-w-[140px]">
@@ -725,48 +712,49 @@ export function CustomPackageWizard({ onClose, onSuccess }: Props) {
                                       )}
                                     </div>
 
-                                    {/* ── الأسرة الإضافية (من DB فقط إذا توفرت) ── */}
-                                    {hasExtraBeds && (
+                                    {/* ── الأسرة الإضافية (تظهر فقط إن كان لها سعر في DB) ── */}
+                                    {(rl.child_with_bed_price > 0 || rl.infant_with_bed_price > 0) && (
                                       <div className="space-y-1.5 pt-1 border-t border-gray-100">
                                         <p className="text-xs font-medium text-gray-500 flex items-center gap-1">
                                           <BedDouble className="w-3 h-3"/> الأسرة الإضافية المتوفرة:
                                         </p>
                                         <div className="flex flex-wrap gap-2">
-                                          {extraBeds.map(eb => (
-                                            <div key={eb.key}
-                                              className={`flex items-center gap-1.5 rounded-lg border px-2 py-1
-                                                ${eb.color === 'amber' ? 'bg-amber-50 border-amber-200' : 'bg-purple-50 border-purple-200'}`}>
-                                              <span className={`text-xs ${eb.color === 'amber' ? 'text-amber-700' : 'text-purple-700'}`}>
-                                                {eb.label}
-                                                <span className="font-semibold"> RM {eb.price.toFixed(0)}</span>
-                                              </span>
-                                              <div className="flex items-center border rounded bg-white overflow-hidden">
-                                                <button type="button"
-                                                  className="px-1.5 py-0.5 hover:bg-gray-100 text-gray-500"
-                                                  onClick={() => patchRoomLine(h.id, ci+1, rIdx, {[eb.key]: Math.max(0, eb.val - 1)} as Partial<HotelRoomLine>)}>
-                                                  <Minus className="w-2.5 h-2.5"/>
-                                                </button>
-                                                <span className="w-5 text-center text-xs font-bold">{eb.val}</span>
-                                                <button type="button"
-                                                  className="px-1.5 py-0.5 hover:bg-gray-100 text-gray-500"
-                                                  onClick={() => patchRoomLine(h.id, ci+1, rIdx, {[eb.key]: eb.val + 1} as Partial<HotelRoomLine>)}>
-                                                  <Plus className="w-2.5 h-2.5"/>
-                                                </button>
-                                              </div>
-                                            </div>
-                                          ))}
+                                          {rl.child_with_bed_price > 0 && (
+                                            <button type="button"
+                                              onClick={() => patchRoomLine(h.id, ci+1, rIdx, {child_bed: !rl.child_bed})}
+                                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border transition-all
+                                                ${rl.child_bed
+                                                  ? 'bg-amber-50 border-amber-400 text-amber-800 font-medium'
+                                                  : 'bg-white border-gray-200 text-gray-400 hover:border-amber-200'}`}>
+                                              <BedDouble className="w-3 h-3"/>
+                                              سرير طفل · RM {rl.child_with_bed_price.toFixed(0)}/ليلة
+                                            </button>
+                                          )}
+                                          {rl.infant_with_bed_price > 0 && (
+                                            <button type="button"
+                                              onClick={() => patchRoomLine(h.id, ci+1, rIdx, {infant_bed: !rl.infant_bed})}
+                                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border transition-all
+                                                ${rl.infant_bed
+                                                  ? 'bg-purple-50 border-purple-400 text-purple-800 font-medium'
+                                                  : 'bg-white border-gray-200 text-gray-400 hover:border-purple-200'}`}>
+                                              <BedDouble className="w-3 h-3"/>
+                                              سرير رضيع · RM {rl.infant_with_bed_price.toFixed(0)}/ليلة
+                                            </button>
+                                          )}
                                         </div>
                                       </div>
                                     )}
 
-                                    {/* ── إجمالي الخط ── */}
+                                    {/* ── تفصيل الحساب والإجمالي ── */}
                                     <div className="flex justify-between items-start text-xs border-t border-gray-100 pt-1.5 gap-2">
-                                      <div className="text-gray-400 space-y-0.5" dir="ltr">
-                                        <div>{rl.count} × {selectedPh.nights}ن × RM {rl.price_per_night_myr}</div>
-                                        {rl.children_with_bed    > 0 && <div>+ {rl.children_with_bed} طفل(سرير) × RM {rl.child_with_bed_price}</div>}
-                                        {rl.children_without_bed > 0 && <div>+ {rl.children_without_bed} طفل(بدون) × RM {rl.child_without_bed_price}</div>}
-                                        {rl.infants_with_bed     > 0 && <div>+ {rl.infants_with_bed} رضيع(سرير) × RM {rl.infant_with_bed_price}</div>}
-                                        {rl.infants_without_bed  > 0 && <div>+ {rl.infants_without_bed} رضيع(بدون) × RM {rl.infant_without_bed_price}</div>}
+                                      <div className="text-gray-400 leading-5" dir="ltr">
+                                        <span>{rl.count} × (RM {rl.price_per_night_myr}</span>
+                                        {rl.child_bed  && <span className="text-amber-600"> + {rl.child_with_bed_price}(طفل)</span>}
+                                        {rl.infant_bed && <span className="text-purple-600"> + {rl.infant_with_bed_price}(رضيع)</span>}
+                                        <span>) × {selectedPh.nights}ن</span>
+                                        {rl.tax_per_night > 0 && (
+                                          <span className="text-red-400"> + RM {(rl.count * rl.tax_per_night * selectedPh.nights).toFixed(0)}(ضريبة)</span>
+                                        )}
                                       </div>
                                       <span className="font-bold text-emerald-600 text-sm shrink-0">= RM {lineTotal.toFixed(0)}</span>
                                     </div>
@@ -780,13 +768,13 @@ export function CustomPackageWizard({ onClose, onSuccess }: Props) {
                                   setPkgHotels(prev => prev.map(ph =>
                                     ph.hotel_id === h.id && ph.package_city_idx === ci + 1
                                       ? {...ph, room_lines: [...ph.room_lines, {
-                                          room_type_id: ft?.id ?? null, room_type_name: ft?.name ?? '',
+                                          room_type_id:   ft?.id   ?? null,
+                                          room_type_name: ft?.name ?? '',
                                           count: 1,
-                                          price_per_night_myr:      ft?.current_price            ? parseFloat(ft.current_price)            : 0,
-                                          children_with_bed: 0,    child_with_bed_price:     ft?.child_with_bed_price     ? parseFloat(ft.child_with_bed_price)     : 0,
-                                          children_without_bed: 0, child_without_bed_price:  ft?.child_without_bed_price  ? parseFloat(ft.child_without_bed_price)  : 0,
-                                          infants_with_bed: 0,     infant_with_bed_price:    ft?.infant_with_bed_price    ? parseFloat(ft.infant_with_bed_price)    : 0,
-                                          infants_without_bed: 0,  infant_without_bed_price: ft?.infant_without_bed_price ? parseFloat(ft.infant_without_bed_price) : 0,
+                                          price_per_night_myr:   ft?.current_price         ? parseFloat(ft.current_price)         : 0,
+                                          child_bed: false,  child_with_bed_price:  ft?.child_with_bed_price  ? parseFloat(ft.child_with_bed_price)  : 0,
+                                          infant_bed: false, infant_with_bed_price: ft?.infant_with_bed_price ? parseFloat(ft.infant_with_bed_price) : 0,
+                                          tax_per_night: ft?.tax_per_night ? parseFloat(ft.tax_per_night) : 0,
                                         }]}
                                       : ph
                                   ));
