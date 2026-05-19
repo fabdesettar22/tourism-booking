@@ -785,7 +785,7 @@ export function ServicesManagement() {
     fd.append('category_data', JSON.stringify(form.category_data || {}));
     if(imageFile) fd.append('image', imageFile);
 
-    const url = editingService ? `${BASE}/api/v1/services/${editingService.id}/` : `${BASE}/api/v1/services/`;
+    const url = editingService ? `/api/v1/services/${editingService.id}/` : `/api/v1/services/`;
     try {
       const res = await apiFetch(url, { method: editingService?'PUT':'POST', body: fd });
       if(res.ok){
