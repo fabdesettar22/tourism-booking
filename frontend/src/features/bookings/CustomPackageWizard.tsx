@@ -14,11 +14,26 @@ interface City      { id: number; name: string; country: number; }
 interface Hotel        { id: number; name: string; city: number; stars: number; image?: string; }
 interface RoomTypeAPI  {
   id: number; name: string; max_occupancy: number; breakfast_included: boolean;
-  current_price: string | null;
-  child_with_bed_price: string | null;
-  child_without_bed_price: string | null;
+  current_price:            string | null;
+  child_with_bed_price:     string | null;
+  child_without_bed_price:  string | null;
+  infant_with_bed_price:    string | null;
+  infant_without_bed_price: string | null;
 }
-interface HotelRoomLine { room_type_id: number | null; room_type_name: string; count: number; extra_bed: boolean; price_per_night_myr: number; }
+interface HotelRoomLine {
+  room_type_id:   number | null;
+  room_type_name: string;
+  count:          number;
+  price_per_night_myr:       number;
+  children_with_bed:         number;
+  child_with_bed_price:      number;
+  children_without_bed:      number;
+  child_without_bed_price:   number;
+  infants_with_bed:          number;
+  infant_with_bed_price:     number;
+  infants_without_bed:       number;
+  infant_without_bed_price:  number;
+}
 
 interface PersonConfig {
   type: 'adult' | 'child' | 'infant';
@@ -306,6 +321,20 @@ export function CustomPackageWizard({ onClose, onSuccess }: Props) {
     .filter(h => !starFilter || h.stars === starFilter)
     .sort((a, b) => b.stars - a.stars);
 
+  const computeLineTotal = (rl: HotelRoomLine, nights: number) =>
+    rl.count * rl.price_per_night_myr * nights
+    + rl.children_with_bed    * rl.child_with_bed_price    * nights
+    + rl.children_without_bed * rl.child_without_bed_price * nights
+    + rl.infants_with_bed     * rl.infant_with_bed_price   * nights
+    + rl.infants_without_bed  * rl.infant_without_bed_price * nights;
+
+  const patchRoomLine = (hotelId: number, cityIdx: number, lineIdx: number, patch: Partial<HotelRoomLine>) =>
+    setPkgHotels(prev => prev.map(ph =>
+      ph.hotel_id === hotelId && ph.package_city_idx === cityIdx
+        ? {...ph, room_lines: ph.room_lines.map((ln, i) => i === lineIdx ? {...ln, ...patch} : ln)}
+        : ph
+    ));
+
   // الترجمات للأنواع غير القابلة للترجمة (ROOM_TYPES, transfer types)
   const transferTypeLabel = (key: string) => t(`customWiz.step5.transferTypes.${key}`);
 
@@ -535,7 +564,7 @@ export function CustomPackageWizard({ onClose, onSuccess }: Props) {
                     <Calculator className="w-4 h-4"/> إجمالي الفنادق المحددة
                   </span>
                   <span className="font-bold text-emerald-700">
-                    RM {pkgHotels.reduce((s, ph) => s + ph.room_lines.reduce((rs, rl) => rs + rl.price_per_night_myr * rl.count * ph.nights, 0), 0).toFixed(0)}
+                    RM {pkgHotels.reduce((s, ph) => s + ph.room_lines.reduce((rs, rl) => rs + computeLineTotal(rl, ph.nights), 0), 0).toFixed(0)}
                   </span>
                 </div>
               )}
@@ -600,7 +629,14 @@ export function CustomPackageWizard({ onClose, onSuccess }: Props) {
                                       check_in_date: today, check_out_date: checkout,
                                       nights: city.nights,
                                       source: 'manual',
-                                      room_lines: [{ room_type_id: null, room_type_name: '', count: 1, extra_bed: false, price_per_night_myr: 0 }],
+                                      room_lines: [{
+                                        room_type_id: null, room_type_name: '', count: 1,
+                                        price_per_night_myr: 0,
+                                        children_with_bed: 0,    child_with_bed_price: 0,
+                                        children_without_bed: 0, child_without_bed_price: 0,
+                                        infants_with_bed: 0,     infant_with_bed_price: 0,
+                                        infants_without_bed: 0,  infant_without_bed_price: 0,
+                                      }],
                                     }]);
                                   }
                                 }}
@@ -617,86 +653,61 @@ export function CustomPackageWizard({ onClose, onSuccess }: Props) {
                           {isSelected && selectedPh && (
                             <div className="border-t border-emerald-200 bg-white px-3 py-3 space-y-2">
                               {selectedPh.room_lines.map((rl, rIdx) => {
-                                const lineTotal = rl.price_per_night_myr * rl.count * selectedPh.nights;
+                                const lineTotal = computeLineTotal(rl, selectedPh.nights);
+                                const hasExtraBeds = rl.child_with_bed_price > 0 || rl.child_without_bed_price > 0
+                                  || rl.infant_with_bed_price > 0 || rl.infant_without_bed_price > 0;
+                                const extraBeds = [
+                                  { key: 'children_with_bed',    price: rl.child_with_bed_price,     val: rl.children_with_bed,    label: 'طفل + سرير',      color: 'amber' },
+                                  { key: 'children_without_bed', price: rl.child_without_bed_price,  val: rl.children_without_bed, label: 'طفل بدون سرير',   color: 'amber' },
+                                  { key: 'infants_with_bed',     price: rl.infant_with_bed_price,    val: rl.infants_with_bed,     label: 'رضيع + سرير',     color: 'purple' },
+                                  { key: 'infants_without_bed',  price: rl.infant_without_bed_price, val: rl.infants_without_bed,  label: 'رضيع بدون سرير',  color: 'purple' },
+                                ].filter(x => x.price > 0);
                                 return (
-                                  <div key={rIdx} className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2">
+                                  <div key={rIdx} className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2.5">
+
+                                    {/* ── الغرفة الأساسية ── */}
                                     <div className="flex items-center gap-2 flex-wrap">
                                       <select value={rl.room_type_id ?? ''}
                                         onChange={e => {
                                           const rt = roomTypes.find(r => r.id === Number(e.target.value));
-                                          const autoPrice = rt?.current_price ? parseFloat(rt.current_price) : rl.price_per_night_myr;
-                                          setPkgHotels(prev => prev.map(ph =>
-                                            ph.hotel_id === h.id && ph.package_city_idx === ci + 1
-                                              ? {...ph, room_lines: ph.room_lines.map((line, idx) =>
-                                                  idx === rIdx ? {
-                                                    ...line,
-                                                    room_type_id: rt?.id ?? null,
-                                                    room_type_name: rt?.name ?? '',
-                                                    price_per_night_myr: autoPrice,
-                                                  } : line
-                                                )}
-                                              : ph
-                                          ));
+                                          patchRoomLine(h.id, ci + 1, rIdx, {
+                                            room_type_id:   rt?.id   ?? null,
+                                            room_type_name: rt?.name ?? '',
+                                            price_per_night_myr:      rt?.current_price            ? parseFloat(rt.current_price)            : 0,
+                                            child_with_bed_price:     rt?.child_with_bed_price      ? parseFloat(rt.child_with_bed_price)      : 0,
+                                            child_without_bed_price:  rt?.child_without_bed_price   ? parseFloat(rt.child_without_bed_price)   : 0,
+                                            infant_with_bed_price:    rt?.infant_with_bed_price     ? parseFloat(rt.infant_with_bed_price)     : 0,
+                                            infant_without_bed_price: rt?.infant_without_bed_price  ? parseFloat(rt.infant_without_bed_price)  : 0,
+                                          });
                                         }}
-                                        className="flex-1 border text-xs p-1.5 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-400 min-w-[130px]">
+                                        className="flex-1 border text-xs p-1.5 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-400 min-w-[140px]">
                                         <option value="">-- اختر نوع الغرفة --</option>
                                         {roomTypes.map(rt => (
                                           <option key={rt.id} value={rt.id}>
-                                            {rt.name} (max {rt.max_occupancy})
+                                            {rt.name} ({rt.max_occupancy} أشخاص)
                                             {rt.breakfast_included ? ' 🍳' : ''}
-                                            {rt.current_price ? ` · RM ${parseFloat(rt.current_price).toFixed(0)}` : ''}
+                                            {rt.current_price ? ` · RM ${parseFloat(rt.current_price).toFixed(0)}/ليلة` : ''}
                                           </option>
                                         ))}
                                       </select>
 
                                       <div className="flex items-center border rounded-lg bg-white overflow-hidden shrink-0">
                                         <button type="button" className="px-2 py-1.5 hover:bg-gray-100 text-gray-600"
-                                          onClick={() => setPkgHotels(prev => prev.map(ph =>
-                                            ph.hotel_id === h.id && ph.package_city_idx === ci + 1
-                                              ? {...ph, room_lines: ph.room_lines.map((line, idx) =>
-                                                  idx === rIdx ? {...line, count: Math.max(1, line.count - 1)} : line
-                                                )}
-                                              : ph
-                                          ))}>
+                                          onClick={() => patchRoomLine(h.id, ci+1, rIdx, {count: Math.max(1, rl.count - 1)})}>
                                           <Minus className="w-3 h-3"/>
                                         </button>
                                         <span className="w-7 text-center text-sm font-bold">{rl.count}</span>
                                         <button type="button" className="px-2 py-1.5 hover:bg-gray-100 text-gray-600"
-                                          onClick={() => setPkgHotels(prev => prev.map(ph =>
-                                            ph.hotel_id === h.id && ph.package_city_idx === ci + 1
-                                              ? {...ph, room_lines: ph.room_lines.map((line, idx) =>
-                                                  idx === rIdx ? {...line, count: line.count + 1} : line
-                                                )}
-                                              : ph
-                                          ))}>
+                                          onClick={() => patchRoomLine(h.id, ci+1, rIdx, {count: rl.count + 1})}>
                                           <Plus className="w-3 h-3"/>
                                         </button>
                                       </div>
 
-                                      <button type="button"
-                                        onClick={() => setPkgHotels(prev => prev.map(ph =>
-                                          ph.hotel_id === h.id && ph.package_city_idx === ci + 1
-                                            ? {...ph, room_lines: ph.room_lines.map((line, idx) =>
-                                                idx === rIdx ? {...line, extra_bed: !line.extra_bed} : line
-                                              )}
-                                            : ph
-                                        ))}
-                                        className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs border transition-all shrink-0
-                                          ${rl.extra_bed ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-white border-gray-200 text-gray-400 hover:border-gray-300'}`}>
-                                        <BedDouble className="w-3 h-3"/> سرير إضافي
-                                      </button>
-
                                       <div className="flex items-center gap-1 shrink-0">
                                         <span className="text-xs text-gray-400">RM</span>
                                         <input type="number" min={0} value={rl.price_per_night_myr}
-                                          onChange={e => setPkgHotels(prev => prev.map(ph =>
-                                            ph.hotel_id === h.id && ph.package_city_idx === ci + 1
-                                              ? {...ph, room_lines: ph.room_lines.map((line, idx) =>
-                                                  idx === rIdx ? {...line, price_per_night_myr: Number(e.target.value)} : line
-                                                )}
-                                              : ph
-                                          ))}
-                                          className="w-20 border text-xs p-1.5 rounded-lg text-center bg-white focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                                          onChange={e => patchRoomLine(h.id, ci+1, rIdx, {price_per_night_myr: Number(e.target.value)})}
+                                          className="w-20 border text-xs p-1.5 rounded-lg text-center bg-white"
                                           dir="ltr" placeholder="0"/>
                                         <span className="text-xs text-gray-400">/ليلة</span>
                                       </div>
@@ -705,20 +716,59 @@ export function CustomPackageWizard({ onClose, onSuccess }: Props) {
                                         <button type="button"
                                           onClick={() => setPkgHotels(prev => prev.map(ph =>
                                             ph.hotel_id === h.id && ph.package_city_idx === ci + 1
-                                              ? {...ph, room_lines: ph.room_lines.filter((_, idx) => idx !== rIdx)}
+                                              ? {...ph, room_lines: ph.room_lines.filter((_, i) => i !== rIdx)}
                                               : ph
                                           ))}
-                                          className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg shrink-0">
+                                          className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg shrink-0 ms-auto">
                                           <Trash2 className="w-3.5 h-3.5"/>
                                         </button>
                                       )}
                                     </div>
 
-                                    <div className="flex justify-between items-center text-xs border-t border-gray-100 pt-1.5">
-                                      <span className="text-gray-400" dir="ltr">
-                                        {rl.count} × {selectedPh.nights} ليالٍ × RM {rl.price_per_night_myr}
-                                      </span>
-                                      <span className="font-bold text-emerald-600">= RM {lineTotal.toFixed(0)}</span>
+                                    {/* ── الأسرة الإضافية (من DB فقط إذا توفرت) ── */}
+                                    {hasExtraBeds && (
+                                      <div className="space-y-1.5 pt-1 border-t border-gray-100">
+                                        <p className="text-xs font-medium text-gray-500 flex items-center gap-1">
+                                          <BedDouble className="w-3 h-3"/> الأسرة الإضافية المتوفرة:
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                          {extraBeds.map(eb => (
+                                            <div key={eb.key}
+                                              className={`flex items-center gap-1.5 rounded-lg border px-2 py-1
+                                                ${eb.color === 'amber' ? 'bg-amber-50 border-amber-200' : 'bg-purple-50 border-purple-200'}`}>
+                                              <span className={`text-xs ${eb.color === 'amber' ? 'text-amber-700' : 'text-purple-700'}`}>
+                                                {eb.label}
+                                                <span className="font-semibold"> RM {eb.price.toFixed(0)}</span>
+                                              </span>
+                                              <div className="flex items-center border rounded bg-white overflow-hidden">
+                                                <button type="button"
+                                                  className="px-1.5 py-0.5 hover:bg-gray-100 text-gray-500"
+                                                  onClick={() => patchRoomLine(h.id, ci+1, rIdx, {[eb.key]: Math.max(0, eb.val - 1)} as Partial<HotelRoomLine>)}>
+                                                  <Minus className="w-2.5 h-2.5"/>
+                                                </button>
+                                                <span className="w-5 text-center text-xs font-bold">{eb.val}</span>
+                                                <button type="button"
+                                                  className="px-1.5 py-0.5 hover:bg-gray-100 text-gray-500"
+                                                  onClick={() => patchRoomLine(h.id, ci+1, rIdx, {[eb.key]: eb.val + 1} as Partial<HotelRoomLine>)}>
+                                                  <Plus className="w-2.5 h-2.5"/>
+                                                </button>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* ── إجمالي الخط ── */}
+                                    <div className="flex justify-between items-start text-xs border-t border-gray-100 pt-1.5 gap-2">
+                                      <div className="text-gray-400 space-y-0.5" dir="ltr">
+                                        <div>{rl.count} × {selectedPh.nights}ن × RM {rl.price_per_night_myr}</div>
+                                        {rl.children_with_bed    > 0 && <div>+ {rl.children_with_bed} طفل(سرير) × RM {rl.child_with_bed_price}</div>}
+                                        {rl.children_without_bed > 0 && <div>+ {rl.children_without_bed} طفل(بدون) × RM {rl.child_without_bed_price}</div>}
+                                        {rl.infants_with_bed     > 0 && <div>+ {rl.infants_with_bed} رضيع(سرير) × RM {rl.infant_with_bed_price}</div>}
+                                        {rl.infants_without_bed  > 0 && <div>+ {rl.infants_without_bed} رضيع(بدون) × RM {rl.infant_without_bed_price}</div>}
+                                      </div>
+                                      <span className="font-bold text-emerald-600 text-sm shrink-0">= RM {lineTotal.toFixed(0)}</span>
                                     </div>
                                   </div>
                                 );
@@ -726,14 +776,17 @@ export function CustomPackageWizard({ onClose, onSuccess }: Props) {
 
                               <button type="button"
                                 onClick={() => {
-                                  const firstType = roomTypes[0];
+                                  const ft = roomTypes[0];
                                   setPkgHotels(prev => prev.map(ph =>
                                     ph.hotel_id === h.id && ph.package_city_idx === ci + 1
                                       ? {...ph, room_lines: [...ph.room_lines, {
-                                          room_type_id: firstType?.id ?? null,
-                                          room_type_name: firstType?.name ?? '',
-                                          count: 1, extra_bed: false,
-                                          price_per_night_myr: firstType?.current_price ? parseFloat(firstType.current_price) : 0,
+                                          room_type_id: ft?.id ?? null, room_type_name: ft?.name ?? '',
+                                          count: 1,
+                                          price_per_night_myr:      ft?.current_price            ? parseFloat(ft.current_price)            : 0,
+                                          children_with_bed: 0,    child_with_bed_price:     ft?.child_with_bed_price     ? parseFloat(ft.child_with_bed_price)     : 0,
+                                          children_without_bed: 0, child_without_bed_price:  ft?.child_without_bed_price  ? parseFloat(ft.child_without_bed_price)  : 0,
+                                          infants_with_bed: 0,     infant_with_bed_price:    ft?.infant_with_bed_price    ? parseFloat(ft.infant_with_bed_price)    : 0,
+                                          infants_without_bed: 0,  infant_without_bed_price: ft?.infant_without_bed_price ? parseFloat(ft.infant_without_bed_price) : 0,
                                         }]}
                                       : ph
                                   ));
@@ -745,7 +798,7 @@ export function CustomPackageWizard({ onClose, onSuccess }: Props) {
                               <div className="flex justify-between items-center bg-emerald-50 rounded-xl px-3 py-2 border border-emerald-100">
                                 <span className="text-sm font-medium text-emerald-800">إجمالي هذا الفندق ({selectedPh.nights} ليالٍ)</span>
                                 <span className="font-bold text-emerald-700">
-                                  RM {selectedPh.room_lines.reduce((s, rl) => s + rl.price_per_night_myr * rl.count * selectedPh.nights, 0).toFixed(0)}
+                                  RM {selectedPh.room_lines.reduce((s, rl) => s + computeLineTotal(rl, selectedPh.nights), 0).toFixed(0)}
                                 </span>
                               </div>
                             </div>
@@ -930,7 +983,7 @@ export function CustomPackageWizard({ onClose, onSuccess }: Props) {
               </div>
 
               {(() => {
-                const hotelsTotal = pkgHotels.reduce((s, ph) => s + ph.room_lines.reduce((rs, rl) => rs + rl.price_per_night_myr * rl.count * ph.nights, 0), 0);
+                const hotelsTotal = pkgHotels.reduce((s, ph) => s + ph.room_lines.reduce((rs, rl) => rs + computeLineTotal(rl, ph.nights), 0), 0);
                 const flightsTotal = pkgFlights.reduce((s, f) => s + f.price_adult_myr * adults + f.price_child_myr * children + f.price_infant_myr * infants, 0);
                 const transfersTotal = pkgTransfers.reduce((s, tt) => s + tt.price_myr, 0);
                 const toursTotal = pkgTours.reduce((s, tt) => s + tt.price_adult_myr * adults + tt.price_child_myr * children + tt.price_infant_myr * infants, 0);
